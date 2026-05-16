@@ -1,7 +1,13 @@
 package fulguris.ads
 
 import android.content.SharedPreferences
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.net.Uri
+import dagger.hilt.android.qualifiers.ApplicationContext
 import fulguris.di.UserPrefs
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -15,7 +21,8 @@ import javax.inject.Singleton
 
 @Singleton
 class AdManager @Inject constructor(
-    @UserPrefs private val sharedPreferences: SharedPreferences
+    @UserPrefs private val sharedPreferences: SharedPreferences,
+    @ApplicationContext private val context: Context
 ) {
 
     companion object {
@@ -41,6 +48,26 @@ class AdManager @Inject constructor(
         
         // Fetch latest networks from GitHub in the background
         fetchAdNetworks()
+        registerNetworkListener()
+    }
+
+    private fun registerNetworkListener() {
+        try {
+            val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            val networkRequest = NetworkRequest.Builder()
+                .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                .build()
+
+            connectivityManager.registerNetworkCallback(networkRequest, object : ConnectivityManager.NetworkCallback() {
+                override fun onAvailable(network: Network) {
+                    super.onAvailable(network)
+                    // Fetch networks when internet becomes available
+                    fetchAdNetworks()
+                }
+            })
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to register network callback")
+        }
     }
 
     private fun fetchAdNetworks() {

@@ -995,14 +995,10 @@ class WebPageTab(
 
             if (!isIncognito || Capabilities.FULL_INCOGNITO.isSupported) {
                 domStorageEnabled = true
-                cacheMode = LOAD_DEFAULT
-                databaseEnabled = true
                 cacheMode = WebSettings.LOAD_DEFAULT
             } else {
                 domStorageEnabled = false
                 // TODO: Is this really needed for incognito mode?
-                cacheMode = LOAD_NO_CACHE
-                databaseEnabled = false
                 cacheMode = WebSettings.LOAD_NO_CACHE
             }
 
@@ -1011,8 +1007,6 @@ class WebPageTab(
             displayZoomControls = false
             allowContentAccess = true
             allowFileAccess = true
-            allowFileAccessFromFileURLs = false
-            allowUniversalAccessFromFileURLs = false
             // Needed to prevent CTRL+TAB to scroll back to top of the page
             // See: https://github.com/Slion/Fulguris/issues/82
             setNeedInitialFocus(false)
@@ -1023,6 +1017,7 @@ class WebPageTab(
                     .subscribeOn(databaseScheduler)
                     .observeOn(mainScheduler)
                     .subscribe { file ->
+                        @Suppress("DEPRECATION")
                         setGeolocationDatabasePath(file.path)
                     }
             }
@@ -1852,6 +1847,7 @@ class WebPageTab(
      * 20MB+ peak memory spikes that triggered OOM crashes. This approach uses the internal
      * cache directly and immediately scales it down to 400x600 (960KB), halving the peak memory.
      */
+    @Suppress("DEPRECATION")
     private fun captureWithDrawingOptimized(view: WebView, targetWidth: Int, targetHeight: Int, scale: Float, expectedSequence: Int) {
         try {
             if (expectedSequence != captureSequence) return
