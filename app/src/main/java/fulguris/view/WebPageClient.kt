@@ -888,6 +888,26 @@ class WebPageClient(
         val uri = Uri.parse(url)
         val headers = webPageTab.requestHeaders
 
+        // Check if ad blocker blocks this main frame navigation early
+        if (request.isForMainFrame) {
+            val response = runBlocking { adBlock.shouldBlock(request, currentUrl) }
+            if (response != null) {
+                Timber.i("$ihs : Blocked main frame navigation to ${request.url} via shouldOverrideUrlLoading")
+                
+                // Track this request as blocked
+                synchronized(pageRequests) {
+                    pageRequests.add(PageRequest(url, true))
+                }
+                
+                // Cancel navigation
+                view.stopLoading()
+                if (activity is WebBrowserActivity) {
+                    activity.closeCurrentTabIfEmpty()
+                }
+                return true
+            }
+        }
+
         // If this is an about page, immediately load, we don't need to leave the app
         // If we are in incognito, immediately load, we don't want the url to leave the app
         if (webPageTab.isIncognito || url.isSpecialUrl() || URLUtil.isAboutUrl(url)) {
@@ -926,6 +946,8 @@ class WebPageClient(
                 if (appLaunched) {
                     Timber.d("$ihs : Override loading after app launch")
                     view.stopLoading()
+                    // Override the system default rotation/slide with our premium fade
+                    activity.overridePendingTransition(R.anim.premium_fade_in, R.anim.premium_fade_out)
                     if (activity is WebBrowserActivity) {
                         activity.closeCurrentTabIfEmpty()
                     }
