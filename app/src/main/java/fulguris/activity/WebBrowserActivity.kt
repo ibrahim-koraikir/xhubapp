@@ -1778,7 +1778,6 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
                 val inflater = layoutInflater
                 val dp8  = (8  * resources.displayMetrics.density).toInt()
                 val dp12 = (12 * resources.displayMetrics.density).toInt()
-                val dp20 = (20 * resources.displayMetrics.density).toInt()
                 val dp24 = (24 * resources.displayMetrics.density).toInt()
                 val dp64 = (64 * resources.displayMetrics.density).toInt()
 
@@ -1827,11 +1826,19 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
                             layoutParams = lp
                         }
 
-                        // Icon frame — enable outline clipping for rounded corners
-                        val frame = android.widget.FrameLayout(this).apply {
+                        // Icon frame — com.google.android.material.card.MaterialCardView with shadow!
+                        val frame = com.google.android.material.card.MaterialCardView(this).apply {
                             val lp = android.widget.LinearLayout.LayoutParams(dp64, dp64)
                             layoutParams = lp
-                            background = ContextCompat.getDrawable(context, R.drawable.bg_shortcut_tile)
+                            radius = 18 * resources.displayMetrics.density
+                            cardElevation = 3 * resources.displayMetrics.density
+                            strokeWidth = (1 * resources.displayMetrics.density).toInt()
+                            setStrokeColor(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#1AFFFFFF")))
+                            
+                            val typedValue = android.util.TypedValue()
+                            context.theme.resolveAttribute(com.google.android.material.R.attr.colorSurface, typedValue, true)
+                            setCardBackgroundColor(typedValue.data)
+                            
                             clipToOutline = true
                             outlineProvider = android.view.ViewOutlineProvider.BACKGROUND
                         }
