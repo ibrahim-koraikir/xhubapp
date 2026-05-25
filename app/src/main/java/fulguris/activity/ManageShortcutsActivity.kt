@@ -30,13 +30,20 @@ class ManageShortcutsActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_manage_shortcuts)
 
-        // Load data
-        groups.addAll(ShortcutRepository.loadGroups(this))
-
         rvGroups = findViewById(R.id.rvGroups)
         rvGroups.layoutManager = LinearLayoutManager(this)
         adapter = GroupAdapter()
         rvGroups.adapter = adapter
+
+        // Load data in background
+        io.reactivex.Single.fromCallable { ShortcutRepository.loadGroups(this) }
+            .subscribeOn(io.reactivex.schedulers.Schedulers.io())
+            .observeOn(io.reactivex.android.schedulers.AndroidSchedulers.mainThread())
+            .subscribe { loadedGroups ->
+                groups.clear()
+                groups.addAll(loadedGroups)
+                adapter.notifyDataSetChanged()
+            }
 
         // Back button
         findViewById<ImageButton>(R.id.btnBack).setOnClickListener { finishWithSave() }
