@@ -43,10 +43,15 @@ class TabViewHolder(
     }
 
     override fun onClick(v: View) {
+        val tabId = tab?.id ?: return
+        val currentPosition = webBrowser.getTabModel().allTabs.indexOfFirst { it.id == tabId }
+        if (currentPosition < 0) {
+            return
+        }
         if (v === exitButton) {
-            webBrowser.tabCloseClicked(adapterPosition)
+            webBrowser.tabCloseClicked(currentPosition)
         } else if (v === iCardView) {
-            webBrowser.tabClicked(adapterPosition)
+            webBrowser.tabClicked(currentPosition)
         }
     }
 
