@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<layout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools">
+    <data>
+        <variable
+            name="uiController"
+            type="fulguris.browser.WebBrowser"/>
+    </data>
+
+    <!-- tabs-screen container -->
+    <LinearLayout
+        android:id="@+id/tabsScreen"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:background="@drawable/bg_tab_grid_sheet_glass">
+
+        <!-- Tabs Header -->
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="16dp"
+            android:paddingBottom="8dp"
+            android:minHeight="64dp">
+
+            <!-- Title Group Toggle -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerVertical="true"
+                android:background="@drawable/bg_tab_grid_pill_group"
+                android:padding="4dp"
+                android:orientation="horizontal">
+
+                <!-- 3 Tabs (Active) -->
+                <TextView
+                    android:id="@+id/tabGroupStandard"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="8dp"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:text="@string/tabs"
+                    android:textColor="@color/tab_grid_foreground"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:background="@drawable/bg_tab_grid_pill_active"/>
+
+                <!-- Private (Inactive) -->
+                <LinearLayout
+                    android:id="@+id/tabGroupPrivate"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="8dp"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+                    
+                    <ImageView
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:layout_marginEnd="6dp"
+                        android:src="@drawable/ic_incognito"
+                        app:tint="@color/tab_grid_secondary_foreground"/>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/action_incognito"
+                        android:textColor="@color/tab_grid_secondary_foreground"
+                        android:textSize="13sp"
+                        android:textStyle="bold"
+                        android:alpha="0.7"/>
+                </LinearLayout>
+
+            </LinearLayout>
+
+            <!-- Done Button -->
+            <TextView
+                android:id="@+id/action_done"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                android:padding="8dp"
+                android:text="@string/action_ok"
+                android:textColor="@color/tab_grid_foreground"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:clickable="true"
+                android:onClick="@{() -> uiController.closePanels()}" />
+
+        </RelativeLayout>
+
+        <!-- The Tabs Grid -->
+        <!-- 8dp RV padding + 8dp item margin = 16dp total screen edge gap and item interstitial gap -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/tabs_list"
+            android:layout_width="match_parent"
+            android:scrollbars="vertical"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:padding="8dp"
+            android:clipToPadding="false"
+            android:divider="@null"
+            android:dividerHeight="0dp"
+            android:overScrollMode="always"
+            android:requiresFadingEdge="vertical"
+            tools:listitem="@layout/tab_list_item" />
+
+        <!-- Tabs Bottom Bar -->
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingStart="24dp"
+            android:paddingEnd="24dp"
+            android:paddingTop="12dp"
+            android:paddingBottom="24dp"
+            android:background="@android:color/transparent">
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_alignParentTop="true"
+                android:layout_marginStart="-24dp"
+                android:layout_marginEnd="-24dp"
+                android:background="@color/tab_grid_secondary"/>
+
+            <!-- Close All Button -->
+            <TextView
+                android:id="@+id/action_close_all_tabs"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentStart="true"
+                android:layout_centerVertical="true"
+                android:padding="8dp"
+                android:text="@string/action_close_all_other_tabs"
+                android:textColor="@color/tab_grid_muted_foreground"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:clickable="true"
+                android:onClick="@{(view) -> uiController.executeAction(view.id)}" />
+
+            <!-- New Tab FAB -->
+            <ImageButton
+                android:id="@+id/action_new_tab"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:layout_centerInParent="true"
+                android:background="@drawable/bg_tab_grid_fab"
+                android:src="@drawable/ic_action_plus"
+                app:tint="@color/tab_grid_background"
+                android:contentDescription="@string/action_new_tab"
+                android:elevation="4dp"
+                android:scaleType="center"
+                android:onClick="@{(view) -> uiController.executeAction(view.id)}" />
+
+            <!-- Options/Settings Button (reuse action_sessions for tab options) -->
+            <ImageButton
+                android:id="@+id/action_sessions"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_settings"
+                app:tint="@color/tab_grid_foreground"
+                android:contentDescription="@string/settings"
+                android:scaleType="centerInside"
+                android:onClick="@{(view) -> uiController.executeAction(view.id)}" />
+
+        </RelativeLayout>
+
+    </LinearLayout>
+</layout>
