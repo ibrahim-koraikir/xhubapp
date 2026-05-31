@@ -209,7 +209,7 @@ class AbpBlockerManager @Inject constructor(
         when (response) {
             is BlockResponse -> {
                 return if (request.isForMainFrame)
-                    createMainFrameDummy(request.url, response.blockList, response.pattern)
+                    BlockResourceResponse(RES_NOOP_HTML).toWebResourceResponse()
                 else when(contentRequest.type) {
                     ContentRequest.TYPE_OTHER -> BlockResourceResponse(RES_EMPTY)
                     ContentRequest.TYPE_IMAGE -> BlockResourceResponse(RES_1X1)
@@ -280,37 +280,7 @@ class AbpBlockerManager @Inject constructor(
             FIRST_PARTY
     }
 
-    // builder part from yuzu: jp.hazuki.yuzubrowser.adblock/AdBlockController.kt
-    private fun createMainFrameDummy(uri: Uri, blockList: String, pattern: String): WebResourceResponse {
-        val reasonString = when (blockList) {
-            USER_BLOCKED -> application.resources.getString(R.string.page_blocked_list_user, pattern)
-            ABP_PREFIX_IMPORTANT -> application.resources.getString(R.string.page_blocked_list_malware, pattern)
-            ABP_PREFIX_DENY -> application.resources.getString(R.string.page_blocked_list_ad, pattern) // should only be ABP_PREFIX_DENY
-            else -> {
-                Timber.d("unexpected blocklist when creating main frame dummy: $blockList")
-                application.resources.getString(R.string.page_blocked_list_ad, pattern)
-            }
-        }
 
-        val builder = StringBuilder(
-            "<meta charset=utf-8>" +
-                    "<meta content=\"width=device-width,initial-scale=1,minimum-scale=1\"name=viewport>" +
-                    "<style>body{padding:5px 15px;background:#fafafa}body,p{text-align:center}p{margin:20px 0 0}" +
-                    "pre{margin:5px 0;padding:5px;background:#ddd}</style><title>"
-        )
-            .append(application.resources.getText(R.string.request_blocked))
-            .append("</title><p>")
-            .append(application.resources.getText(R.string.page_blocked))
-            .append("<pre>")
-            .append(uri)
-            .append("</pre><p>")
-            .append(application.resources.getText(R.string.page_blocked_reason))
-            .append("<pre>")
-            .append(reasonString)
-            .append("</pre>")
-
-        return getNoCacheResponse("text/html", builder)
-    }
 
     private fun Response.toWebResourceResponse(modifiedHeaders: Map<String, String>?): WebResourceResponse {
         // content-type usually has format "text/html, charset=utf-8" or "text/html"

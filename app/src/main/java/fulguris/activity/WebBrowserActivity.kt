@@ -3797,6 +3797,9 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
         super.onPause()
         Timber.d("onPause")
 
+        // Capture preview of current tab before it goes into the background
+        tabsManager.currentTab?.capturePreviewSync()
+
         tabsManager.pauseAll()
 
         // Dismiss any popup menu

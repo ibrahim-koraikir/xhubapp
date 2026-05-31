@@ -5,9 +5,26 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/home_background"
     android:visibility="gone"
     tools:visibility="visible">
+
+    <!-- Full-screen Starfield Background Image -->
+    <ImageView
+        android:id="@+id/homeScreenBackground"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:src="@drawable/bg_home_starfield"
+        android:contentDescription="@null"
+        android:importantForAccessibility="no" />
+
+    <!-- 40% Transparent Dark Overlay for Text/Icon Contrast -->
+    <View
+        android:id="@+id/homeScreenBackgroundOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#66000000"
+        android:importantForAccessibility="no" />
 
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/homeAppBarLayout"
@@ -44,24 +61,27 @@
                         android:layout_width="40dp"
                         android:layout_height="40dp"
                         android:background="@drawable/bg_home_logo_gradient"
-                        android:layout_marginEnd="12dp">
+                        android:layout_marginEnd="16dp">
 
+                        <!-- Decorative logo: not announced by screen readers -->
                         <ImageView
                             android:layout_width="22dp"
                             android:layout_height="22dp"
                             android:layout_gravity="center"
                             android:src="@drawable/ic_comet_logo"
+                            android:contentDescription="@null"
+                            android:importantForAccessibility="no"
                             app:tint="@color/white" />
                     </FrameLayout>
 
                     <TextView
                         android:id="@+id/homeTitle"
+                        style="@style/TextAppearance.Material3.HeadlineLarge"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="xbuh"
-                        android:textColor="@color/home_foreground"
+                        android:textColor="?attr/colorOnBackground"
                         android:textSize="36sp"
-                        android:textStyle="bold"
                         android:fontFamily="sans-serif-black"
                         android:includeFontPadding="false"
                         android:letterSpacing="0.02" />
@@ -69,13 +89,12 @@
 
                 <TextView
                     android:id="@+id/homeGreeting"
+                    style="@style/TextAppearance.Material3.BodyLarge"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Good morning"
-                    android:textColor="@color/home_muted_foreground"
-                    android:textSize="16sp"
-                    android:fontFamily="sans-serif-medium"
-                    android:layout_marginTop="4dp"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:layout_marginTop="8dp"
                     android:layout_gravity="center_horizontal" />
 
             </LinearLayout>
@@ -94,11 +113,11 @@
                     android:layout_height="match_parent"
                     android:paddingHorizontal="16dp">
 
-                    <!-- Settings button -->
+                    <!-- Settings button: touch target expanded to 48dp x 48dp (WCAG) -->
                     <FrameLayout
                         android:id="@+id/homeSettingsBtnContainer"
-                        android:layout_width="40dp"
-                        android:layout_height="40dp"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
                         android:background="@drawable/bg_home_profile_ring"
                         android:padding="2dp"
                         app:layout_constraintLeft_toLeftOf="parent"
@@ -111,16 +130,16 @@
                             android:layout_height="match_parent"
                             android:background="?attr/selectableItemBackgroundBorderless"
                             android:src="@drawable/ic_settings"
-                            android:padding="8dp"
-                            app:tint="@color/home_foreground"
+                            android:padding="12dp"
+                            app:tint="?attr/colorOnSurface"
                             android:contentDescription="Settings" />
                     </FrameLayout>
 
-                    <!-- Profile avatar -->
+                    <!-- Profile avatar: touch target expanded to 48dp x 48dp (WCAG) -->
                     <FrameLayout
                         android:id="@+id/homeProfileButton"
-                        android:layout_width="40dp"
-                        android:layout_height="40dp"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
                         android:background="@drawable/bg_home_profile_ring"
                         android:padding="2dp"
                         app:layout_constraintRight_toRightOf="parent"
@@ -132,6 +151,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="match_parent"
                             android:scaleType="centerCrop"
+                            android:contentDescription="User profile and settings"
                             app:shapeAppearanceOverlay="@style/ShapeAppearanceOverlay.App.CornerSize50Percent"
                             android:src="@drawable/ic_launcher_foreground" />
                     </FrameLayout>
@@ -166,67 +186,71 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical">
 
-                <!-- Header Row with Edit Button -->
-                <LinearLayout
+                <!-- Header Row: flat ConstraintLayout for single-pass measurement (rendering perf) -->
+                <androidx.constraintlayout.widget.ConstraintLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical">
+                    android:minHeight="48dp">
 
-                    <LinearLayout
+                    <TextView
+                        android:id="@+id/shortcutsTitle"
+                        style="@style/TextAppearance.Material3.TitleMedium"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:orientation="vertical">
+                        android:text="Website Shortcuts"
+                        android:textColor="?attr/colorOnBackground"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintEnd_toStartOf="@+id/btnEditShortcuts"
+                        app:layout_constraintBottom_toTopOf="@+id/shortcutsSubtitle" />
 
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Website Shortcuts"
-                            android:textColor="@color/home_foreground"
-                            android:textSize="18sp"
-                            android:textStyle="bold" />
+                    <TextView
+                        android:id="@+id/shortcutsSubtitle"
+                        style="@style/TextAppearance.Material3.BodySmall"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:text="Quick access to your favourite sites"
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        app:layout_constraintTop_toBottomOf="@+id/shortcutsTitle"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintEnd_toStartOf="@+id/btnEditShortcuts"
+                        app:layout_constraintBottom_toBottomOf="parent" />
 
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Quick access to your favourite sites"
-                            android:textColor="@color/home_muted_foreground"
-                            android:textSize="13sp"
-                            android:layout_marginTop="2dp" />
-
-                    </LinearLayout>
-
-                    <!-- Edit button -->
+                    <!-- Edit button: touch target 48dp height (WCAG) -->
                     <LinearLayout
                         android:id="@+id/btnEditShortcuts"
                         android:layout_width="wrap_content"
-                        android:layout_height="34dp"
+                        android:layout_height="48dp"
                         android:orientation="horizontal"
-                        android:gravity="center_vertical"
+                        android:gravity="center"
                         android:paddingHorizontal="12dp"
                         android:background="@drawable/bg_shortcut_manager_icon_btn"
                         android:clickable="true"
-                        android:focusable="true">
+                        android:focusable="true"
+                        android:contentDescription="Edit website shortcuts"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent">
 
                         <ImageView
                             android:layout_width="14dp"
                             android:layout_height="14dp"
                             android:src="@drawable/ic_edit_outline"
-                            android:tint="@color/home_foreground" />
+                            android:contentDescription="@null"
+                            android:importantForAccessibility="no"
+                            android:tint="?attr/colorOnSurface" />
 
                         <TextView
+                            style="@style/TextAppearance.Material3.LabelMedium"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginStart="6dp"
+                            android:layout_marginStart="8dp"
                             android:text="Edit"
-                            android:textColor="@color/home_foreground"
-                            android:textSize="13sp"
-                            android:textStyle="bold" />
+                            android:textColor="?attr/colorOnSurface" />
 
                     </LinearLayout>
 
-                </LinearLayout>
+                </androidx.constraintlayout.widget.ConstraintLayout>
 
                 <!-- Dynamic shortcut groups - populated from ShortcutRepository in code -->
                 <LinearLayout
@@ -234,7 +258,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:layout_marginTop="20dp" />
+                    android:layout_marginTop="24dp" />
 
             </LinearLayout>
 

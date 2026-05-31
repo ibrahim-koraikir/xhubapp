@@ -12,6 +12,10 @@ import fulguris.browser.TabModel
 import fulguris.activity.WebBrowserActivity
 import fulguris.browser.WebBrowser
 import fulguris.browser.tabs.TabThumbnailCache
+import fulguris.utils.isHomeUri
+import fulguris.utils.isStartPageUrl
+import fulguris.utils.isBookmarkUri
+import fulguris.utils.isBookmarkUrl
 import fulguris.dialog.LightningDialogBuilder
 import fulguris.download.LightningDownloadListener
 import fulguris.extensions.*
@@ -1795,7 +1799,24 @@ class WebPageTab(
      * Used when immediate capture is needed (e.g., when tab switcher is opened).
      */
     fun capturePreviewSync() {
-        val view = webView ?: return
+        val isHome = url.isHomeUri() || url.isStartPageUrl() || url.isBookmarkUri() || url.isBookmarkUrl()
+        val viewToCapture: View? = if (isHome) {
+            try {
+                val browserActivity = activity as? WebBrowserActivity
+                val overlay = browserActivity?.iBinding?.homeScreenOverlay
+                if (overlay != null && overlay.visibility == View.VISIBLE) {
+                    overlay
+                } else {
+                    webView
+                }
+            } catch (e: Exception) {
+                webView
+            }
+        } else {
+            webView
+        }
+
+        val view = viewToCapture ?: return
         
         // Cancel any pending capture task
         cancelPendingCapture()
@@ -1805,7 +1826,7 @@ class WebPageTab(
         try {
             // Ignore views that are tiny or not fully laid out yet
             if (view.width < 100 || view.height < 100) {
-                Timber.w("WebView has invalid dimensions (${view.width}x${view.height}), cannot capture preview")
+                Timber.w("View has invalid dimensions (${view.width}x${view.height}), cannot capture preview")
                 return
             }
 
@@ -1814,7 +1835,7 @@ class WebPageTab(
             val targetHeight = TabThumbnailCache.TARGET_HEIGHT_PX
             val scale = targetHeight.toFloat() / view.height.toFloat()
 
-            Timber.d("Capturing preview sync (seq=$currentSequence, tab=$id): WebView=${view.width}x${view.height}, Target=${targetWidth}x${targetHeight}, Scale=$scale")
+            Timber.d("Capturing preview sync (seq=$currentSequence, tab=$id): View=${view.width}x${view.height}, Target=${targetWidth}x${targetHeight}, Scale=$scale")
 
             captureWithDrawingOptimized(view, targetWidth, targetHeight, scale, currentSequence)
         } catch (e: Exception) {
@@ -1836,42 +1857,36 @@ class WebPageTab(
     }
 
     /**
-     * Capture the WebView preview efficiently.
-     * 
-     * WHY NOT view.draw(canvas):
-     * Hardware-accelerated WebViews (Android 5.0+) do not render correctly to a software Canvas.
-     * They often result in blank or glitched images unless enableSlowWholeDocumentDraw() is used.
+     * Capture the View preview efficiently using a direct Canvas draw pass.
      *
-     * WHY THIS IS BETTER THAN THE OLD captureBitmap():
-     * The old approach created a full-resolution COPY of the 10MB drawing cache, resulting in 
-     * 20MB+ peak memory spikes that triggered OOM crashes. This approach uses the internal
-     * cache directly and immediately scales it down to 400x600 (960KB), halving the peak memory.
+     * WHY DIRECT CANVAS DRAW IS BETTER:
+     * 1. Bypasses the deprecated and extremely buggy getDrawingCache() API. Under hardware acceleration,
+     *    getDrawingCache() can return a shared graphics render buffer containing the active foreground screen,
+     *    causing multiple tabs to display duplicate snapshots of the active tab.
+     * 2. Draws the View (either a WebView or the native homeScreenOverlay layout) directly to a small, target-sized
+     *    960 KB bitmap Canvas, completely avoiding huge full-resolution drawing cache memory OOMs.
      */
-    @Suppress("DEPRECATION")
-    private fun captureWithDrawingOptimized(view: WebView, targetWidth: Int, targetHeight: Int, scale: Float, expectedSequence: Int) {
+    private fun captureWithDrawingOptimized(view: View, targetWidth: Int, targetHeight: Int, scale: Float, expectedSequence: Int) {
         try {
             if (expectedSequence != captureSequence) return
 
-            Timber.d("Capturing tab preview (tab=$id, target=${targetWidth}x${targetHeight})")
+            Timber.d("Capturing tab preview via canvas draw (tab=$id, target=${targetWidth}x${targetHeight})")
 
-            val wasDrawingCacheEnabled = view.isDrawingCacheEnabled
-            view.isDrawingCacheEnabled = true
-            
-            // Get the internal drawing cache bitmap directly (do NOT make a copy of it)
-            val cache = view.getDrawingCache(false)
-            
-            if (cache != null && !cache.isRecycled) {
-                // Create a small scaled copy from the internal cache
-                val scaled = Bitmap.createScaledBitmap(cache, targetWidth, targetHeight, true)
-                TabThumbnailCache.put(id, scaled)
-                Timber.d("Captured preview: ${scaled.width}x${scaled.height}, ${scaled.byteCount / 1024}KB")
-            } else {
-                Timber.w("Drawing cache returned null or recycled for tab=$id")
-            }
-            
-            // Restore previous state and free the large internal cache immediately
-            view.isDrawingCacheEnabled = wasDrawingCacheEnabled
-            view.destroyDrawingCache()
+            // Allocate only the exact memory we need (960 KB per thumbnail)
+            val scaled = Bitmap.createBitmap(targetWidth, targetHeight, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(scaled)
+
+            // Draw clean background to prevent transparency issues
+            canvas.drawColor(Color.WHITE)
+
+            // Render the specific View directly to the Canvas
+            canvas.save()
+            canvas.scale(scale, scale)
+            view.draw(canvas)
+            canvas.restore()
+
+            TabThumbnailCache.put(id, scaled)
+            Timber.d("Captured preview successfully: ${scaled.width}x${scaled.height}, ${scaled.byteCount / 1024}KB")
 
         } catch (e: Exception) {
             Timber.e(e, "Failed to capture preview for tab=$id")
