@@ -1,8 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="rectangle">
-    <gradient
-        android:startColor="#D9080808"
-        android:endColor="#FA0C0C0C"
-        android:angle="270" />
-</shape>
+<!-- Tab grid bottom sheet: deep dark with a very subtle top glow -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Base dark fill -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#F0080808" />
+            <corners
+                android:topLeftRadius="24dp"
+                android:topRightRadius="24dp" />
+        </shape>
+    </item>
+    <!-- Subtle top accent line (2dp gradient from pink to transparent) -->
+    <item android:bottom="2dp">
+        <shape android:shape="rectangle">
+            <gradient
+                android:startColor="#33FF007A"
+                android:endColor="#00FF007A"
+                android:angle="270" />
+            <corners
+                android:topLeftRadius="24dp"
+                android:topRightRadius="24dp" />
+        </shape>
+    </item>
+</layer-list>

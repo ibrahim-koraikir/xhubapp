@@ -143,18 +143,19 @@ class WebPageTab(
      */
     internal var onLoadCompleteCallback: (() -> Unit)? = null
 
-    /**
-     * Sequence counter for preview capture operations.
-     * Incremented on each new navigation to invalidate pending captures.
-     * Guards against stale callbacks overwriting newer thumbnails.
-     */
     @Volatile
     private var captureSequence = 0
+
+    /**
+     * Timestamp of the last successful preview capture to prevent spamming.
+     */
+    private var lastCaptureTime = 0L
 
     /**
      * Runnable reference for the pending delayed capture task.
      * Used to cancel the delayed task before it executes.
      */
+    private var captureRunnable: Runnable? = null
 
 
     /**
@@ -1795,10 +1796,34 @@ class WebPageTab(
     }
 
     /**
-     * Capture preview synchronously using drawing fallback.
-     * Used when immediate capture is needed (e.g., when tab switcher is opened).
+     * Schedules a deferred preview capture.
+     * Prevents capturing while a page is still rendering.
+     * Debounces successive requests and posts on the webViewHandler thread.
+     */
+    fun scheduleDeferredPreviewCapture() {
+        cancelPendingCapture()
+        val currentSequence = captureSequence
+        val runnable = Runnable {
+            if (currentSequence == captureSequence) {
+                capturePreviewSync()
+            }
+        }
+        captureRunnable = runnable
+        webViewHandler.postDelayed(runnable, CAPTURE_DELAY_MS)
+    }
+
+    /**
+     * Capture preview asynchronously using modern PixelCopy when possible,
+     * falling back to optimized Canvas drawing.
      */
     fun capturePreviewSync() {
+        // Debounce successive captures (max once per second)
+        val now = System.currentTimeMillis()
+        if (now - lastCaptureTime < 1000L) {
+            Timber.d("Debouncing capture request for tab=$id; last capture was ${now - lastCaptureTime}ms ago")
+            return
+        }
+
         val isHome = url.isHomeUri() || url.isStartPageUrl() || url.isBookmarkUri() || url.isBookmarkUrl()
         val viewToCapture: View? = if (isHome) {
             try {
@@ -1835,11 +1860,76 @@ class WebPageTab(
             val targetHeight = TabThumbnailCache.TARGET_HEIGHT_PX
             val scale = targetHeight.toFloat() / view.height.toFloat()
 
-            Timber.d("Capturing preview sync (seq=$currentSequence, tab=$id): View=${view.width}x${view.height}, Target=${targetWidth}x${targetHeight}, Scale=$scale")
+            Timber.d("Capturing preview (seq=$currentSequence, tab=$id): View=${view.width}x${view.height}, Target=${targetWidth}x${targetHeight}, Scale=$scale")
 
+            val browserActivity = activity as? WebBrowserActivity
+            val window = browserActivity?.window
+
+            if (Build.VERSION.SDK_INT >= 26 && window != null && view.isAttachedToWindow) {
+                val location = IntArray(2)
+                view.getLocationInWindow(location)
+                val rect = Rect(location[0], location[1], location[0] + view.width, location[1] + view.height)
+                
+                if (rect.width() > 0 && rect.height() > 0 && rect.left >= 0 && rect.top >= 0) {
+                    val destBitmap = Bitmap.createBitmap(targetWidth, targetHeight, Bitmap.Config.ARGB_8888)
+                    try {
+                        PixelCopy.request(window, rect, destBitmap, { result ->
+                            if (currentSequence == captureSequence) {
+                                if (result == PixelCopy.SUCCESS && !isBlankBitmap(destBitmap)) {
+                                    TabThumbnailCache.put(id, destBitmap)
+                                    lastCaptureTime = System.currentTimeMillis()
+                                    notifyTabChanged()
+                                } else {
+                                    Timber.w("PixelCopy failed ($result) or blank; falling back to canvas draw")
+                                    captureWithDrawingOptimized(view, targetWidth, targetHeight, scale, currentSequence)
+                                }
+                            }
+                        }, webViewHandler)
+                        return
+                    } catch (e: Exception) {
+                        Timber.e(e, "PixelCopy request failed; using fallback canvas draw")
+                    }
+                }
+            }
+
+            // Fallback for API < 26 or if window isn't ready / attached
             captureWithDrawingOptimized(view, targetWidth, targetHeight, scale, currentSequence)
         } catch (e: Exception) {
-            Timber.e(e, "Failed to capture preview sync")
+            Timber.e(e, "Failed to capture preview")
+        }
+    }
+
+    /**
+     * Helper to verify if a bitmap is entirely a solid color (e.g. solid white/black/transparent).
+     * Helps us reject blank, un-rendered frames.
+     */
+    private fun isBlankBitmap(bitmap: Bitmap): Boolean {
+        val w = bitmap.width
+        val h = bitmap.height
+        val firstPixel = bitmap.getPixel(0, 0)
+        val checkPoints = arrayOf(
+            Pair(0, 0), Pair(w - 1, 0), Pair(0, h - 1), Pair(w - 1, h - 1),
+            Pair(w / 2, h / 2), Pair(w / 4, h / 4), Pair(3 * w / 4, 3 * w / 4)
+        )
+        for (pt in checkPoints) {
+            if (bitmap.getPixel(pt.first, pt.second) != firstPixel) {
+                return false
+            }
+        }
+        return true
+    }
+
+    /**
+     * Signals the activity that this tab's preview/state was updated,
+     * which updates its specific position in the adapter.
+     */
+    private fun notifyTabChanged() {
+        val browserActivity = activity as? WebBrowserActivity ?: return
+        val index = browserActivity.tabsManager.indexOfTab(this)
+        if (index >= 0) {
+            browserActivity.runOnUiThread {
+                browserActivity.notifyTabViewChanged(index)
+            }
         }
     }
 
@@ -1848,23 +1938,16 @@ class WebPageTab(
      * Called when navigation starts to prevent stale captures.
      */
     fun cancelPendingCapture() {
-        // Increment sequence to invalidate any in-flight captures
-        
-        // Increment sequence to invalidate any in-flight captures
         captureSequence++
-        
+        captureRunnable?.let {
+            webViewHandler.removeCallbacks(it)
+            captureRunnable = null
+        }
         Timber.d("Cancelled pending capture (seq=$captureSequence)")
     }
 
     /**
      * Capture the View preview efficiently using a direct Canvas draw pass.
-     *
-     * WHY DIRECT CANVAS DRAW IS BETTER:
-     * 1. Bypasses the deprecated and extremely buggy getDrawingCache() API. Under hardware acceleration,
-     *    getDrawingCache() can return a shared graphics render buffer containing the active foreground screen,
-     *    causing multiple tabs to display duplicate snapshots of the active tab.
-     * 2. Draws the View (either a WebView or the native homeScreenOverlay layout) directly to a small, target-sized
-     *    960 KB bitmap Canvas, completely avoiding huge full-resolution drawing cache memory OOMs.
      */
     private fun captureWithDrawingOptimized(view: View, targetWidth: Int, targetHeight: Int, scale: Float, expectedSequence: Int) {
         try {
@@ -1872,22 +1955,21 @@ class WebPageTab(
 
             Timber.d("Capturing tab preview via canvas draw (tab=$id, target=${targetWidth}x${targetHeight})")
 
-            // Allocate only the exact memory we need (960 KB per thumbnail)
             val scaled = Bitmap.createBitmap(targetWidth, targetHeight, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(scaled)
 
-            // Draw clean background to prevent transparency issues
             canvas.drawColor(Color.WHITE)
 
-            // Render the specific View directly to the Canvas
             canvas.save()
             canvas.scale(scale, scale)
             view.draw(canvas)
             canvas.restore()
 
-            TabThumbnailCache.put(id, scaled)
-            Timber.d("Captured preview successfully: ${scaled.width}x${scaled.height}, ${scaled.byteCount / 1024}KB")
-
+            if (expectedSequence == captureSequence) {
+                TabThumbnailCache.put(id, scaled)
+                lastCaptureTime = System.currentTimeMillis()
+                notifyTabChanged()
+            }
         } catch (e: Exception) {
             Timber.e(e, "Failed to capture preview for tab=$id")
         } catch (e: OutOfMemoryError) {
@@ -1899,7 +1981,6 @@ class WebPageTab(
      * Invalidate the cached preview so it will be regenerated on next request
      */
     fun invalidatePreview() {
-        // Remove from centralized cache
         TabThumbnailCache.remove(id)
     }
 

@@ -478,9 +478,10 @@ class WebPageClient(
         view.evaluateJavascript(videoScript, null)
         webBrowser.onTabChanged(webPageTab)
 
-        // Capture a preview of the page once it's finished loading
-        // We removed deferred capture to avoid background tabs grabbing foreground screenshots
-        // webPageTab.scheduleDeferredPreviewCapture()
+        // Capture a preview of the page once it's finished loading if it's the foreground tab
+        if (webPageTab.isForeground) {
+            webPageTab.scheduleDeferredPreviewCapture()
+        }
 
         // To prevent potential overhead when logs are not needed
         if (userPreferences.isLog(LogLevel.VERBOSE)) {
