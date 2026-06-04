@@ -1735,6 +1735,8 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
 
     /**
      * Build the home screen shortcut grid dynamically from ShortcutRepository.
+     * Premium version: gradient letter avatars, large tiles, ripple+scale press feedback,
+     * vivid gradient title shader (gold → pink → violet).
      */
     private fun buildDynamicShortcuts() {
         val container = iBinding.homeScreenOverlay.findViewById<android.widget.LinearLayout>(
@@ -1742,113 +1744,126 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
         ) ?: return
         container.removeAllViews()
 
-        // Configure greeting and title gradient
-        val homeTitle = iBinding.homeScreenOverlay.findViewById<TextView>(R.id.homeTitle)
+        // ── Title: plain white, no gradient shader (minimalist OLED theme) ─────
+
+        // ── Time-aware greeting ───────────────────────────────────────────────
         val homeGreeting = iBinding.homeScreenOverlay.findViewById<TextView>(R.id.homeGreeting)
-        
-        homeTitle?.post {
-            val paint = homeTitle.paint
-            val width = paint.measureText(homeTitle.text.toString())
-            val shader = android.graphics.LinearGradient(
-                0f, 0f, width, homeTitle.textSize,
-                intArrayOf(android.graphics.Color.parseColor("#ffd600"), android.graphics.Color.parseColor("#ff007a")),
-                null, android.graphics.Shader.TileMode.CLAMP
-            )
-            homeTitle.paint.shader = shader
-            homeTitle.invalidate()
-        }
-
         val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
-        val greetingText = when (hour) {
-            in 0..11 -> "Good morning"
-            in 12..16 -> "Good afternoon"
-            else -> "Good evening"
-        }
-        homeGreeting?.text = "$greetingText"
-
-        val homeProfile = iBinding.homeScreenOverlay.findViewById<View>(R.id.homeProfileButton)
-        homeProfile?.setOnClickListener {
-            openBookmarks()
+        homeGreeting?.text = when (hour) {
+            in 0..11  -> "Good morning ☀️"
+            in 12..16 -> "Good afternoon 🌤"
+            else      -> "Good evening 🌙"
         }
 
+        // ── Profile → bookmarks shortcut ──────────────────────────────────────
+        iBinding.homeScreenOverlay.findViewById<View>(R.id.homeProfileButton)
+            ?.setOnClickListener { openBookmarks() }
+
+        // ── Home search card → open search overlay ───────────────────────────
+        iBinding.homeScreenOverlay.findViewById<View>(R.id.homeSearchCard)
+            ?.setOnClickListener {
+                val fragment = fulguris.fragment.SearchOverlayFragment()
+                fragment.show(supportFragmentManager, "search_overlay")
+            }
+
+        // ── Minimalist flat icon background colour ────────────────────────────
+        // No gradients — all tiles use the same solid dark grey (#161616)
+
+        // ── Load & render shortcuts ───────────────────────────────────────────
         io.reactivex.Single.fromCallable { fulguris.shortcuts.ShortcutRepository.loadGroups(this) }
             .subscribeOn(io.reactivex.schedulers.Schedulers.io())
             .observeOn(io.reactivex.android.schedulers.AndroidSchedulers.mainThread())
             .subscribe { groups ->
-                val inflater = layoutInflater
-                val dp8  = (8  * resources.displayMetrics.density).toInt()
-                val dp12 = (12 * resources.displayMetrics.density).toInt()
-                val dp24 = (24 * resources.displayMetrics.density).toInt()
-                val dp64 = (64 * resources.displayMetrics.density).toInt()
+
+                val density   = resources.displayMetrics.density
+                val dp4       = (4  * density).toInt()
+                val dp6       = (6  * density).toInt()
+                val dp8       = (8  * density).toInt()
+                val dp10      = (10 * density).toInt()
+                val dp72      = (72 * density).toInt()  // larger icon frame
+                val dp24      = (24 * density).toInt()
 
                 groups.forEach { group ->
-                    // Group label
-                    val label = TextView(this).apply {
-                        text = group.name
-                        setTextColor(ContextCompat.getColor(context, R.color.home_foreground))
-                        textSize = 16f
-                        setTypeface(null, android.graphics.Typeface.BOLD)
-                        val lp = android.widget.LinearLayout.LayoutParams(
-                            android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
-                            android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
-                        )
-                        lp.bottomMargin = dp12
-                        layoutParams = lp
-                    }
-                    container.addView(label)
 
-                    // Row of tiles (4 per row)
+                    // ── Group label ───────────────────────────────────────
+                    if (group.name.isNotBlank()) {
+                        container.addView(TextView(this).apply {
+                            text = group.name.uppercase()
+                            setTextColor(0xAAFFFFFF.toInt())
+                            textSize = 11f
+                            letterSpacing = 0.12f
+                            setTypeface(null, android.graphics.Typeface.BOLD)
+                            layoutParams = android.widget.LinearLayout.LayoutParams(
+                                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+                            ).also { it.bottomMargin = dp10 }
+                        })
+                    }
+
+                    // ── Rows of 4 tiles ───────────────────────────────────
                     var row: android.widget.LinearLayout? = null
+
                     group.sites.forEachIndexed { idx, site ->
                         if (idx % 4 == 0) {
                             row = android.widget.LinearLayout(this).apply {
                                 orientation = android.widget.LinearLayout.HORIZONTAL
-                                val lp = android.widget.LinearLayout.LayoutParams(
+                                layoutParams = android.widget.LinearLayout.LayoutParams(
                                     android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
                                     android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
-                                )
-                                lp.bottomMargin = dp24
-                                layoutParams = lp
+                                ).also { it.bottomMargin = dp8 }
                             }
                             container.addView(row)
                         }
 
-                        // Tile wrapper
+                        // Minimalist: no per-site gradient; all tiles share the same dark background
+
+                        // ── Tile (vertical: icon + label) ──────────────────
                         val tile = android.widget.LinearLayout(this).apply {
                             orientation = android.widget.LinearLayout.VERTICAL
                             gravity = android.view.Gravity.CENTER
                             isClickable = true
                             isFocusable = true
                             tag = site.url
+                            setPadding(dp4, dp4, dp4, dp4)
                             setOnClickListener { onHomeScreenShortcutClick(it) }
-                            val lp = android.widget.LinearLayout.LayoutParams(0,
-                                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                            layoutParams = lp
+                            // Press-scale feedback
+                            setOnTouchListener { v, event ->
+                                when (event.action) {
+                                    android.view.MotionEvent.ACTION_DOWN ->
+                                        v.animate().scaleX(0.88f).scaleY(0.88f).setDuration(100).start()
+                                    android.view.MotionEvent.ACTION_UP,
+                                    android.view.MotionEvent.ACTION_CANCEL ->
+                                        v.animate().scaleX(1f).scaleY(1f).setDuration(150).start()
+                                }
+                                false
+                            }
+                            layoutParams = android.widget.LinearLayout.LayoutParams(
+                                0, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1f
+                            )
                         }
 
-                        // Icon frame — com.google.android.material.card.MaterialCardView with shadow!
+                        // ── Icon card (MaterialCardView) — flat dark circle ──
                         val frame = com.google.android.material.card.MaterialCardView(this).apply {
-                            val lp = android.widget.LinearLayout.LayoutParams(dp64, dp64)
-                            layoutParams = lp
-                            radius = 18 * resources.displayMetrics.density
-                            cardElevation = 3 * resources.displayMetrics.density
-                            strokeWidth = (1 * resources.displayMetrics.density).toInt()
-                            setStrokeColor(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#1AFFFFFF")))
-                            
-                            val typedValue = android.util.TypedValue()
-                            context.theme.resolveAttribute(com.google.android.material.R.attr.colorSurface, typedValue, true)
-                            setCardBackgroundColor(typedValue.data)
-                            
+                            layoutParams = android.widget.LinearLayout.LayoutParams(dp72, dp72).also {
+                                it.gravity = android.view.Gravity.CENTER_HORIZONTAL
+                            }
+                            radius = 36 * density  // fully circular
+                            cardElevation = 0f     // flat, no shadow
+                            strokeWidth = (1 * density).toInt()
+                            setStrokeColor(android.content.res.ColorStateList.valueOf(0xFF333333.toInt()))
+                            setCardBackgroundColor(0xFF161616.toInt())
                             clipToOutline = true
                             outlineProvider = android.view.ViewOutlineProvider.BACKGROUND
                         }
 
-                        // Initial letter
+                        // No gradient background view — card background colour is already set
+
+                        // Letter initial overlay — flat grey text, no shadow
                         val initial = TextView(this).apply {
                             text = site.name.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
-                            setTextColor(ContextCompat.getColor(context, R.color.home_foreground))
-                            textSize = 22f
-                            setTypeface(null, android.graphics.Typeface.BOLD)
+                            setTextColor(0xFFCCCCCC.toInt())
+                            textSize = 26f
+                            setTypeface(null, android.graphics.Typeface.NORMAL)
                             gravity = android.view.Gravity.CENTER
                             layoutParams = android.widget.FrameLayout.LayoutParams(
                                 android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
@@ -1857,13 +1872,11 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
                         }
                         frame.addView(initial)
 
-                        // Favicon overlay — white background chip so dark favicons are visible,
-                        // FIT_CENTER scale type, and mild padding for breathing room
+                        // Favicon overlay — transparent bg, hidden until loaded
                         val faviconIv = ImageView(this).apply {
                             scaleType = ImageView.ScaleType.FIT_CENTER
-                            val pad = (10 * resources.displayMetrics.density).toInt()
-                            setPadding(pad, pad, pad, pad)
-                            setBackgroundColor(android.graphics.Color.WHITE)
+                            setPadding(dp10, dp10, dp10, dp10)
+                            setBackgroundColor(android.graphics.Color.TRANSPARENT)
                             isVisible = false
                             layoutParams = android.widget.FrameLayout.LayoutParams(
                                 android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
@@ -1872,52 +1885,57 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
                         }
                         frame.addView(faviconIv)
 
-                        // Try to load a real favicon; keep letter visible if nothing found
+                        // Async favicon fetch
                         faviconModel.realFaviconForUrl(site.url, true)
                             .subscribeOn(io.reactivex.schedulers.Schedulers.io())
                             .observeOn(mainScheduler)
                             .subscribeBy(
-                                onSuccess = { bitmap ->
-                                    faviconIv.setImageBitmap(bitmap)
+                                onSuccess = { bmp ->
+                                    faviconIv.setImageBitmap(bmp)
                                     faviconIv.isVisible = true
-                                    initial.isVisible = false
+                                    initial.isVisible  = false
                                 },
                                 onError = {}
                             )
 
                         tile.addView(frame)
 
-                        // Site name label below icon
-                        val nameLabel = TextView(this).apply {
+                        // Site name label
+                        tile.addView(TextView(this).apply {
                             text = site.name
-                            setTextColor(ContextCompat.getColor(context, R.color.home_muted_foreground))
-                            textSize = 13f
+                            setTextColor(0xCCFFFFFF.toInt())
+                            textSize = 11.5f
                             setTypeface(null, android.graphics.Typeface.BOLD)
                             maxLines = 1
                             ellipsize = android.text.TextUtils.TruncateAt.END
                             gravity = android.view.Gravity.CENTER
-                            val lp = android.widget.LinearLayout.LayoutParams(
+                            layoutParams = android.widget.LinearLayout.LayoutParams(
                                 android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
                                 android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
-                            )
-                            lp.topMargin = dp8
-                            layoutParams = lp
-                        }
-                        tile.addView(nameLabel)
+                            ).also { it.topMargin = dp6 }
+                        })
+
                         row?.addView(tile)
                     }
 
-                    // Pad empty slots in last row so tiles stay even-sized
+                    // Pad incomplete last row so all tiles share equal width
                     val remainder = group.sites.size % 4
                     if (remainder != 0) {
                         repeat(4 - remainder) {
-                            val spacer = android.widget.LinearLayout(this).apply {
-                                layoutParams = android.widget.LinearLayout.LayoutParams(0,
-                                    android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                            }
-                            row?.addView(spacer)
+                            row?.addView(android.widget.LinearLayout(this).apply {
+                                layoutParams = android.widget.LinearLayout.LayoutParams(
+                                    0, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1f
+                                )
+                            })
                         }
                     }
+
+                    // Group bottom spacing
+                    container.addView(android.view.View(this).apply {
+                        layoutParams = android.widget.LinearLayout.LayoutParams(
+                            android.widget.LinearLayout.LayoutParams.MATCH_PARENT, dp24
+                        )
+                    })
                 }
             }
     }
