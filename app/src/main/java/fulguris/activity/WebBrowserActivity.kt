@@ -102,6 +102,8 @@ import fulguris.html.homepage.HomePageFactory
 import fulguris.html.incognito.IncognitoPageFactory
 import fulguris.notifications.IncognitoNotification
 import fulguris.permissions.PermissionsManager
+import fulguris.permissions.PermissionsResultAction
+import android.Manifest
 import fulguris.search.SearchEngineProvider
 import fulguris.search.SuggestionsAdapter
 import fulguris.search.SuggestionsPopup
@@ -1027,6 +1029,21 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
     private fun initialize(savedInstanceState: Bundle?) {
 
         createNotificationChannel()
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            PermissionsManager.getInstance().requestPermissionsIfNecessaryForResult(
+                this,
+                arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                object : PermissionsResultAction() {
+                    override fun onGranted() {
+                        Timber.d("POST_NOTIFICATIONS granted")
+                    }
+                    override fun onDenied(permission: String) {
+                        Timber.d("POST_NOTIFICATIONS denied — download notifications suppressed")
+                    }
+                }
+            )
+        }
 
         createToolbar()
 

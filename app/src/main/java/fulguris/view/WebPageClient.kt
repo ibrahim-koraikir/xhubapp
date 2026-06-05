@@ -437,42 +437,93 @@ class WebPageClient(
         // Inject script to detect video playing and capture available qualities + resolution
         val videoScript = """
             (function() {
-                document.addEventListener('playing', function(e) {
-                    if (e.target && e.target.tagName && e.target.tagName.toLowerCase() === 'video') {
-                        var video = e.target;
-                        var url = video.currentSrc || video.src;
-                        if (url && url.startsWith('http')) {
-                            var qualities = {};
-                            var sources = video.querySelectorAll('source');
-                            if (sources.length > 0) {
-                                for (var i = 0; i < sources.length; i++) {
-                                    var s = sources[i];
-                                    var sUrl = s.src;
-                                    if (!sUrl) continue;
-                                    var label = s.getAttribute('label')
-                                        || s.getAttribute('title')
-                                        || s.getAttribute('data-res')
-                                        || s.getAttribute('res')
-                                        || s.getAttribute('size')
-                                        || (s.type ? s.type.split('/')[1] : null)
-                                        || 'Source ' + (i + 1);
-                                    qualities[label] = sUrl;
-                                }
-                            }
-                            if (Object.keys(qualities).length === 0) {
-                                qualities['Default'] = url;
-                            }
-                            // Detect actual playing resolution
-                            var resolution = '';
-                            if (video.videoHeight && video.videoHeight > 0) {
-                                resolution = video.videoHeight + 'p';
-                            }
-                            if (window.VideoSniffer) {
-                                window.VideoSniffer.onVideoPlaying(url, JSON.stringify(qualities), resolution);
-                            }
+                if (window.__FulgurisVideoSnifferInstalled) return;
+                window.__FulgurisVideoSnifferInstalled = true;
+
+                function classifyUrl(url) {
+                    if (!url) return 'unknown';
+                    if (url.startsWith('blob:')) return 'blob';
+                    if (url.indexOf('.m3u8') !== -1) return 'hls';
+                    if (url.indexOf('.mpd') !== -1) return 'dash';
+                    if (/^https?:\/\//i.test(url)) return 'direct';
+                    return 'unknown';
+                }
+
+                function buildQualities(video) {
+                    var qualities = {};
+                    var sources = video.querySelectorAll('source');
+                    for (var i = 0; i < sources.length; i++) {
+                        var s = sources[i];
+                        var sUrl = s.src || s.getAttribute('src') || '';
+                        if (!sUrl) continue;
+                        var label = s.getAttribute('label')
+                            || s.getAttribute('title')
+                            || s.getAttribute('data-res')
+                            || s.getAttribute('res')
+                            || s.getAttribute('size')
+                            || (video.videoHeight > 0 ? video.videoHeight + 'p' : null)
+                            || ('Source ' + (i + 1));
+                        qualities[label] = sUrl;
+                    }
+                    // Also scan nearby <a> download links
+                    var anchors = document.querySelectorAll('a[href]');
+                    for (var j = 0; j < anchors.length; j++) {
+                        var href = anchors[j].href || '';
+                        if (/\.(mp4|webm|m4v|ogv|mkv)(\?|$)/i.test(href)) {
+                            var aLabel = anchors[j].getAttribute('data-res')
+                                || anchors[j].getAttribute('label')
+                                || anchors[j].textContent.trim().substring(0, 30)
+                                || 'Download ' + (j + 1);
+                            qualities[aLabel] = href;
                         }
                     }
-                }, true);
+                    return qualities;
+                }
+
+                function reportVideo(video) {
+                    var url = video.currentSrc || video.src || '';
+                    if (!url) return;
+                    var streamType = classifyUrl(url);
+                    var qualities = buildQualities(video);
+                    if (Object.keys(qualities).length === 0) {
+                        qualities['Default'] = url;
+                    }
+                    var resolution = (video.videoHeight > 0) ? video.videoHeight + 'p' : '';
+                    if (window.VideoSniffer) {
+                        window.VideoSniffer.onVideoDetected(
+                            url,
+                            JSON.stringify(qualities),
+                            resolution,
+                            streamType
+                        );
+                    }
+                }
+
+                function scanAllVideos() {
+                    var videos = document.querySelectorAll('video');
+                    for (var i = 0; i < videos.length; i++) {
+                        var v = videos[i];
+                        if (v.__FulgurisAttached) continue;
+                        v.__FulgurisAttached = true;
+                        v.addEventListener('loadedmetadata', function() { reportVideo(this); });
+                        v.addEventListener('playing', function() { reportVideo(this); });
+                        // Report immediately if already has a source
+                        if (v.readyState >= 1 && (v.currentSrc || v.src)) {
+                            reportVideo(v);
+                        }
+                    }
+                }
+
+                // Initial scan
+                scanAllVideos();
+
+                // Watch for new video elements added dynamically (debounced)
+                var debounceTimer = null;
+                var observer = new MutationObserver(function() {
+                    clearTimeout(debounceTimer);
+                    debounceTimer = setTimeout(scanAllVideos, 500);
+                });
+                observer.observe(document.documentElement, { childList: true, subtree: true });
             })();
         """.trimIndent()
         view.evaluateJavascript(videoScript, null)

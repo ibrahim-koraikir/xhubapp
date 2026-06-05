@@ -64,6 +64,7 @@ import android.webkit.WebSettings.LayoutAlgorithm
 import android.webkit.WebView
 import androidx.annotation.RequiresApi
 import androidx.collection.ArrayMap
+import androidx.core.content.ContextCompat
 import androidx.webkit.WebSettingsCompat
 import androidx.webkit.WebViewFeature
 import com.google.android.material.snackbar.Snackbar
@@ -112,13 +113,19 @@ class WebPageTab(
     SharedPreferences.OnSharedPreferenceChangeListener {
 
     /**
-     * The unique ID of the view.
+     * A persistent logical tab key (unique ID) used for thumbnail caching and session restoration.
      * Persisted across sessions via TabModel to ensure stable thumbnail cache keys.
+     *
+     * For new tabs we generate a random positive Int instead of [View.generateViewId()] because
+     * generateViewId() resets its counter on every process restart, which causes id collisions
+     * between new tabs and disk thumbnails left by closed tabs from a previous session.
+     * A random Int in [1, Int.MAX_VALUE) has a collision probability of ~1 in 2 billion per tab
+     * and is persisted with the tab state bundle, giving us stable keys across restarts.
      */
     val id = if (tabInitializer is FreezableBundleInitializer && tabInitializer.tabModel.tabId != -1) {
         tabInitializer.tabModel.tabId
     } else {
-        View.generateViewId()
+        kotlin.random.Random.nextInt(1, Int.MAX_VALUE)
     }
 
     /**
@@ -234,6 +241,8 @@ class WebPageTab(
         private set
     var detectedResolution: String? = null
         private set
+    var detectedStreamType: String = "direct"
+        private set
 
     private fun clearVideoDetectedState() {
         if (isVideoDetected) {
@@ -241,6 +250,7 @@ class WebPageTab(
             detectedVideoUrl = null
             detectedQualities = null
             detectedResolution = null
+            detectedStreamType = "direct"
             activity.runOnUiThread { hideDownloadFab() }
         }
     }
@@ -290,29 +300,47 @@ class WebPageTab(
         val radioGroup = sheetView.findViewById<RadioGroup>(R.id.radioGroupQualities)
         var selectedDownloadUrl = videoUrl
 
-        if (qualities != null && qualities.size > 1) {
-            containerQualityPicker.visibility = View.VISIBLE
-            val qualityList = qualities.entries.toList()
-            qualityList.forEachIndexed { index, entry ->
-                val rb = RadioButton(activity).apply {
-                    id = index
-                    text = entry.key
-                    isChecked = index == 0
-                    setTextColor(
-                        activity.getColor(
-                            com.google.android.material.R.color.m3_sys_color_dynamic_dark_on_surface
-                        )
-                    )
-                }
-                radioGroup.addView(rb)
-            }
-            selectedDownloadUrl = qualityList[0].value
-            tvCurrentQuality.text = qualityList[0].key
+        val tvAdaptiveMessage = sheetView.findViewById<TextView>(R.id.tvAdaptiveStreamMessage)
+        val btnDownload = sheetView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btnVideoDownload)
+        val isAdaptiveOnly = detectedStreamType in listOf("blob", "hls", "dash")
 
-            radioGroup.setOnCheckedChangeListener { _, checkedId ->
-                if (checkedId >= 0 && checkedId < qualityList.size) {
-                    selectedDownloadUrl = qualityList[checkedId].value
-                    tvCurrentQuality.text = qualityList[checkedId].key
+        if (isAdaptiveOnly && (qualities == null || qualities.all { classifyUrl(it.value) != "direct" })) {
+            tvAdaptiveMessage.visibility = View.VISIBLE
+            tvAdaptiveMessage.text = activity.getString(R.string.video_adaptive_stream_message)
+            btnDownload.isEnabled = false
+            btnDownload.text = activity.getString(R.string.video_cannot_download)
+            btnDownload.icon = null
+            containerQualityPicker.visibility = View.GONE
+        } else {
+            tvAdaptiveMessage.visibility = View.GONE
+            btnDownload.isEnabled = true
+            btnDownload.text = activity.getString(R.string.action_download)
+            btnDownload.icon = ContextCompat.getDrawable(activity, R.drawable.ic_download_outline)
+
+            if (qualities != null && qualities.isNotEmpty()) {
+                containerQualityPicker.visibility = View.VISIBLE
+                val qualityList = qualities.entries.toList()
+                qualityList.forEachIndexed { index, entry ->
+                    val rb = RadioButton(activity).apply {
+                        id = index
+                        text = entry.key
+                        isChecked = index == 0
+                        setTextColor(
+                            activity.getColor(
+                                com.google.android.material.R.color.m3_sys_color_dynamic_dark_on_surface
+                            )
+                        )
+                    }
+                    radioGroup.addView(rb)
+                }
+                selectedDownloadUrl = qualityList[0].value
+                tvCurrentQuality.text = qualityList[0].key
+
+                radioGroup.setOnCheckedChangeListener { _, checkedId ->
+                    if (checkedId >= 0 && checkedId < qualityList.size) {
+                        selectedDownloadUrl = qualityList[checkedId].value
+                        tvCurrentQuality.text = qualityList[checkedId].key
+                    }
                 }
             }
         }
@@ -329,6 +357,15 @@ class WebPageTab(
             }
 
         dialog.show()
+    }
+
+    private fun classifyUrl(url: String): String {
+        return when {
+            url.startsWith("blob:") -> "blob"
+            url.contains(".m3u8") -> "hls"
+            url.contains(".mpd") -> "dash"
+            else -> "direct"
+        }
     }
 
     private fun startDownload(url: String) {
@@ -744,10 +781,11 @@ class WebPageTab(
     }
 
 
-    fun onVideoDetected(videoUrl: String, qualitiesJson: String?, resolution: String?) {
+    fun onVideoDetected(videoUrl: String, qualitiesJson: String?, resolution: String?, streamType: String = "direct") {
         isVideoDetected = true
         detectedVideoUrl = videoUrl
         detectedResolution = resolution?.takeIf { it.isNotBlank() }
+        detectedStreamType = streamType
 
         if (qualitiesJson != null) {
             try {
@@ -1402,6 +1440,8 @@ class WebPageTab(
         destroyDownloadListener()
         // Cancel any pending capture tasks before destroying WebView
         cancelPendingCapture()
+        // Purge this tab's thumbnail from memory and disk so closed tabs never leave orphan files
+        evictThumbnail()
         // No need to do anything for the touch listeners they are owned by the WebView anyway
         webView?.autoDestruction()
         webView = null
@@ -1790,22 +1830,24 @@ class WebPageTab(
      */
     fun getPreviewBitmap(): Bitmap? {
         // Check centralized cache first
-        val preview = TabThumbnailCache.get(id)
+        val preview = TabThumbnailCache.get(id, persistable = !isIncognito)
         Timber.v("getPreviewBitmap for tab=$id: ${if (preview != null) "found ${preview.width}x${preview.height}" else "not found"}")
         return preview
     }
 
     /**
-     * Schedules a deferred preview capture.
+     * Schedules a deferred preview capture after page load completes.
      * Prevents capturing while a page is still rendering.
      * Debounces successive requests and posts on the webViewHandler thread.
+     * Only safe to call when this tab IS the foreground tab and no view-swap is in progress.
+     * Delegates to [capturePreviewAsync] for hardware-accurate output via PixelCopy.
      */
     fun scheduleDeferredPreviewCapture() {
         cancelPendingCapture()
         val currentSequence = captureSequence
         val runnable = Runnable {
             if (currentSequence == captureSequence) {
-                capturePreviewSync()
+                capturePreviewAsync()
             }
         }
         captureRunnable = runnable
@@ -1813,14 +1855,15 @@ class WebPageTab(
     }
 
     /**
-     * Capture preview asynchronously using modern PixelCopy when possible,
-     * falling back to optimized Canvas drawing.
+     * Asynchronous capture using PixelCopy (API 26+) with canvas-draw fallback.
+     * Must only be called when the view is the *current* foreground tab and no tab-swap
+     * is happening, i.e. from [scheduleDeferredPreviewCapture].
      */
-    fun capturePreviewSync() {
+    private fun capturePreviewAsync() {
         // Debounce successive captures (max once per second)
         val now = System.currentTimeMillis()
         if (now - lastCaptureTime < 1000L) {
-            Timber.d("Debouncing capture request for tab=$id; last capture was ${now - lastCaptureTime}ms ago")
+            Timber.d("Debouncing async capture for tab=$id; last capture was ${now - lastCaptureTime}ms ago")
             return
         }
 
@@ -1860,7 +1903,7 @@ class WebPageTab(
             val targetHeight = TabThumbnailCache.TARGET_HEIGHT_PX
             val scale = targetHeight.toFloat() / view.height.toFloat()
 
-            Timber.d("Capturing preview (seq=$currentSequence, tab=$id): View=${view.width}x${view.height}, Target=${targetWidth}x${targetHeight}, Scale=$scale")
+            Timber.d("Capturing preview async (seq=$currentSequence, tab=$id): View=${view.width}x${view.height}, Target=${targetWidth}x${targetHeight}, Scale=$scale")
 
             val browserActivity = activity as? WebBrowserActivity
             val window = browserActivity?.window
@@ -1876,7 +1919,7 @@ class WebPageTab(
                         PixelCopy.request(window, rect, destBitmap, { result ->
                             if (currentSequence == captureSequence) {
                                 if (result == PixelCopy.SUCCESS && !isBlankBitmap(destBitmap)) {
-                                    TabThumbnailCache.put(id, destBitmap)
+                                    TabThumbnailCache.put(id, destBitmap, persistable = !isIncognito)
                                     lastCaptureTime = System.currentTimeMillis()
                                     notifyTabChanged()
                                 } else {
@@ -1895,8 +1938,39 @@ class WebPageTab(
             // Fallback for API < 26 or if window isn't ready / attached
             captureWithDrawingOptimized(view, targetWidth, targetHeight, scale, currentSequence)
         } catch (e: Exception) {
-            Timber.e(e, "Failed to capture preview")
+            Timber.e(e, "Failed to capture preview async")
         }
+    }
+
+    /**
+     * Synchronous canvas-based capture. Always used for the tab-switch path
+     * (called from [TabsManager] before the view is swapped) so the outgoing tab is
+     * guaranteed to still own the window surface when we draw.
+     *
+     * Also called from [openTabs] before the drawer slides in.
+     */
+    fun capturePreviewSync() {
+        val isHome = url.isHomeUri() || url.isStartPageUrl() || url.isBookmarkUri() || url.isBookmarkUrl()
+        val viewToCapture: View? = if (isHome) {
+            try {
+                val browserActivity = activity as? WebBrowserActivity
+                val overlay = browserActivity?.iBinding?.homeScreenOverlay
+                if (overlay != null && overlay.visibility == View.VISIBLE) overlay else webView
+            } catch (e: Exception) { webView }
+        } else {
+            webView
+        }
+        val view = viewToCapture ?: return
+        cancelPendingCapture()
+        val currentSequence = captureSequence
+        if (view.width < 100 || view.height < 100) {
+            Timber.w("View has invalid dimensions (${view.width}x${view.height}), cannot capture preview")
+            return
+        }
+        val targetWidth  = TabThumbnailCache.TARGET_WIDTH_PX
+        val targetHeight = TabThumbnailCache.TARGET_HEIGHT_PX
+        val scale = targetHeight.toFloat() / view.height.toFloat()
+        captureWithDrawingOptimized(view, targetWidth, targetHeight, scale, currentSequence)
     }
 
     /**
@@ -1909,7 +1983,7 @@ class WebPageTab(
         val firstPixel = bitmap.getPixel(0, 0)
         val checkPoints = arrayOf(
             Pair(0, 0), Pair(w - 1, 0), Pair(0, h - 1), Pair(w - 1, h - 1),
-            Pair(w / 2, h / 2), Pair(w / 4, h / 4), Pair(3 * w / 4, 3 * w / 4)
+            Pair(w / 2, h / 2), Pair(w / 4, h / 4), Pair(3 * w / 4, 3 * h / 4)  // fixed: was 3*w/4
         )
         for (pt in checkPoints) {
             if (bitmap.getPixel(pt.first, pt.second) != firstPixel) {
@@ -1966,7 +2040,12 @@ class WebPageTab(
             canvas.restore()
 
             if (expectedSequence == captureSequence) {
-                TabThumbnailCache.put(id, scaled)
+                // Reject solid-colour frames (blank WebView not yet rendered)
+                if (isBlankBitmap(scaled)) {
+                    Timber.w("Canvas draw produced a blank frame for tab=$id; discarding")
+                    return
+                }
+                TabThumbnailCache.put(id, scaled, persistable = !isIncognito)
                 lastCaptureTime = System.currentTimeMillis()
                 notifyTabChanged()
             }
@@ -1981,6 +2060,14 @@ class WebPageTab(
      * Invalidate the cached preview so it will be regenerated on next request
      */
     fun invalidatePreview() {
+        TabThumbnailCache.remove(id)
+    }
+
+    /**
+     * Permanently remove this tab's cached thumbnail (memory + disk).
+     * Called from [destroy] so closing a tab never leaves orphaned files.
+     */
+    private fun evictThumbnail() {
         TabThumbnailCache.remove(id)
     }
 

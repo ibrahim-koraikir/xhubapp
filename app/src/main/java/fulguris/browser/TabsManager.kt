@@ -208,6 +208,16 @@ class TabsManager @Inject constructor(
 
         isInitialized = true
 
+        // Reconcile disk cache with all live tab IDs across all saved sessions asynchronously.
+        // Snapshot all data on the main thread; the background thread must not touch SessionsManager.
+        val liveIds = allTabs.map { it.id }.toSet()
+        val currentSession = sessionsManager.currentSessionName()
+        // Exclude the active session — its IDs are already fully represented in liveIds.
+        val otherSessionsSnapshot = sessionsManager.sessions()
+            .filter { it.name != currentSession }
+            .map { session -> Pair(session.name, sessionsManager.fileNameFromSessionName(session.name)) }
+        fulguris.browser.tabs.TabThumbnailCache.reconcileAsync(liveIds, otherSessionsSnapshot, currentSession, application)
+
         // Iterate through our collection while allowing item to be removed and avoid ConcurrentModificationException
         // To do that we need to make a copy of our list
         val listCopy = postInitializationWorkList.toList()
@@ -556,6 +566,9 @@ class TabsManager @Inject constructor(
         if (currentTabFromPresenter == tab) {
             currentTabFromPresenter = null
         }
+        // Eagerly remove the thumbnail for this tab so its disk file is deleted immediately
+        // rather than waiting for the next startup reconciliation.
+        fulguris.browser.tabs.TabThumbnailCache.remove(tab.id)
         tab.destroy()
     }
 
@@ -1144,7 +1157,7 @@ class TabsManager @Inject constructor(
 
     companion object {
 
-        private const val TAB_KEY_PREFIX = "TAB_"
+        const val TAB_KEY_PREFIX = "TAB_"
         // Preserve this file name for compatibility
         private const val FILENAME_SESSION_DEFAULT = "SAVED_TABS.parcel"
         // Temp and backup prefixes for session saving

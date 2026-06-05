@@ -21,7 +21,8 @@ data class TabViewState(
     val isForeground: Boolean = false,
     val themeColor: Int = Color.TRANSPARENT,
     val isFrozen: Boolean = true,
-    val previewVersion: Int = 0
+    val previewVersion: Int = 0,
+    val isIncognito: Boolean = false
 ) {
     init {
         // TODO: This is called way too many times from displayTabs() through asTabViewState
@@ -49,5 +50,6 @@ fun WebPageTab.asTabViewState() = TabViewState(
     isForeground = isForeground,
     themeColor = htmlMetaThemeColor,
     isFrozen = isFrozen,
-    previewVersion = TabThumbnailCache.getVersion(id)
+    previewVersion = TabThumbnailCache.getVersion(id),
+    isIncognito = isIncognito
 )

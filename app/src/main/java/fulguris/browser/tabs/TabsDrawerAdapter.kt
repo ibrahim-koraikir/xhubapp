@@ -42,7 +42,12 @@ class TabsDrawerAdapter(
         // Fetch preview from the single source of truth: TabThumbnailCache.
         // tab.previewVersion is used by DiffUtil to detect changes; the actual
         // bitmap is always fetched fresh here so we never display a stale image.
-        updateViewHolderPreview(holder, TabThumbnailCache.get(tab.id))
+        val cached = TabThumbnailCache.get(tab.id, persistable = !tab.isIncognito, onLoaded = { bitmap ->
+            if (holder.tab?.id == tab.id) {
+                updateViewHolderPreview(holder, bitmap)
+            }
+        })
+        updateViewHolderPreview(holder, cached)
         // Update our copy so that we can check for changes then
         holder.tab = tab.copy()
     }

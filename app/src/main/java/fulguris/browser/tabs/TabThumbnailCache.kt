@@ -85,6 +85,10 @@ object TabThumbnailCache {
         Thread(r, "TabThumbnailCache-disk").apply { isDaemon = true }
     }
 
+    private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
+
+    private val pendingCallbacks = ConcurrentHashMap<Int, MutableList<(Bitmap?) -> Unit>>()
+
     /**
      * @return The current preview version for [tabId], or 0 if none has been stored yet.
      */
@@ -100,53 +104,123 @@ object TabThumbnailCache {
         null
     }
 
-    /** @return The cached bitmap for [tabId], or null if absent / already recycled. */
-    fun get(tabId: Int): Bitmap? {
+    /**
+     * @return The cached bitmap for [tabId], or null if absent / already recycled.
+     *
+     * @param persistable When false (incognito tab) the disk fallback is skipped so we never
+     *   read a persisted thumbnail that shouldn't exist for this session.
+     * @param onLoaded Optional callback invoked asynchronously when the disk load completes.
+     *                 Runs on the main UI thread.
+     */
+    fun get(tabId: Int, persistable: Boolean = true, onLoaded: ((Bitmap?) -> Unit)? = null): Bitmap? {
         val mem = cache.get(tabId)
         if (mem != null && !mem.isRecycled) return mem
 
-        // Memory miss — try disk
-        val file = diskDir()?.let { File(it, "$tabId.jpg") } ?: return null
-        if (!file.exists()) return null
+        // Memory miss — try disk only for non-incognito tabs
+        if (!persistable) return null
 
-        return try {
-            val bitmap = BitmapFactory.decodeFile(file.absolutePath)
-            if (bitmap != null) {
-                cache.put(tabId, bitmap)
-                if (versionMap[tabId] == null) versionMap[tabId] = 1
-                Timber.d("Loaded thumbnail for tab $tabId from disk")
+        if (onLoaded != null) {
+            val list = pendingCallbacks.getOrPut(tabId) { mutableListOf() }
+            synchronized(list) {
+                list.add(onLoaded)
             }
-            bitmap
-        } catch (e: Exception) {
-            Timber.e(e, "Failed to read thumbnail for tab $tabId from disk")
-            null
         }
+
+        // Check if a disk load task is already in progress for this tabId
+        val callbacks = pendingCallbacks[tabId]
+        if (callbacks != null && synchronized(callbacks) { callbacks.size > 1 }) {
+            return null
+        }
+
+        val file = diskDir()?.let { File(it, "$tabId.jpg") } ?: return null
+        if (!file.exists()) {
+            pendingCallbacks.remove(tabId)
+            return null
+        }
+
+        diskExecutor.execute {
+            try {
+                val bitmap = BitmapFactory.decodeFile(file.absolutePath)
+                mainHandler.post {
+                    if (bitmap != null) {
+                        cache.put(tabId, bitmap)
+                        if (versionMap[tabId] == null) versionMap[tabId] = 1
+                        Timber.d("Loaded thumbnail for tab $tabId from disk asynchronously")
+                    }
+                    val list = pendingCallbacks.remove(tabId)
+                    if (list != null) {
+                        synchronized(list) {
+                            for (cb in list) {
+                                cb(bitmap)
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to read thumbnail for tab $tabId from disk asynchronously")
+                mainHandler.post {
+                    val list = pendingCallbacks.remove(tabId)
+                    if (list != null) {
+                        synchronized(list) {
+                            for (cb in list) {
+                                cb(null)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return null
     }
 
-    /** Store [bitmap] in the cache for [tabId] (no-op if the bitmap is already recycled). */
-    fun put(tabId: Int, bitmap: Bitmap) {
+    /**
+     * Store [bitmap] in the cache for [tabId] (no-op if the bitmap is already recycled).
+     *
+     * @param persistable When false (incognito tab) the bitmap is kept in memory only and
+     *   never written to disk, honouring the app's never-persist-in-incognito policy.
+     */
+    fun put(tabId: Int, bitmap: Bitmap, persistable: Boolean = true) {
         if (bitmap.isRecycled) return
         cache.put(tabId, bitmap)
         versionMap[tabId] = (versionMap[tabId] ?: 0) + 1
         Timber.d("Cached thumbnail for tab $tabId (v${versionMap[tabId]}, cache ${cache.size() / 1024}KB / ${MAX_CACHE_BYTES / 1024}KB)")
 
-        // Async JPEG write — compress on calling thread to snapshot current pixel data safely
+        if (!persistable) return  // incognito — memory only, no disk write
+
         val dir = diskDir() ?: return
-        try {
-            val bos = ByteArrayOutputStream()
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 80, bos)
-            val bytes = bos.toByteArray()
-            diskExecutor.execute {
-                try {
-                    if (!dir.exists()) dir.mkdirs()
-                    FileOutputStream(File(dir, "$tabId.jpg")).use { it.write(bytes) }
-                    Timber.d("Saved thumbnail for tab $tabId to disk (${bytes.size / 1024}KB)")
-                } catch (e: Exception) {
-                    Timber.e(e, "Failed to write thumbnail for tab $tabId to disk")
-                }
+        // Capture tabId for the lambda (avoids closure over mutable outer scope)
+        val capturedId = tabId
+
+        // Create a defensive copy on the main thread to snapshot the bitmap's current pixel
+        // data safely and avoid concurrent recycling issues during background execution.
+        val defensiveCopy = try {
+            if (!bitmap.isRecycled) {
+                bitmap.copy(bitmap.config ?: Bitmap.Config.ARGB_8888, false)
+            } else {
+                null
             }
         } catch (e: Exception) {
-            Timber.e(e, "Failed to compress thumbnail for tab $tabId")
+            Timber.e(e, "Failed to create defensive copy of bitmap for tab $tabId")
+            null
+        } ?: return
+
+        // All compression and file I/O runs on the background thread to keep the main thread free.
+        diskExecutor.execute {
+            try {
+                val bos = ByteArrayOutputStream()
+                if (!defensiveCopy.isRecycled) {
+                    defensiveCopy.compress(Bitmap.CompressFormat.JPEG, 80, bos)
+                    val bytes = bos.toByteArray()
+                    if (!dir.exists()) dir.mkdirs()
+                    FileOutputStream(File(dir, "$capturedId.jpg")).use { it.write(bytes) }
+                    Timber.d("Saved thumbnail for tab $capturedId to disk (${bytes.size / 1024}KB)")
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to write thumbnail for tab $capturedId to disk")
+            } finally {
+                defensiveCopy.recycle()
+            }
         }
     }
 
@@ -154,6 +228,7 @@ object TabThumbnailCache {
     fun remove(tabId: Int) {
         cache.remove(tabId)
         versionMap.remove(tabId)
+        pendingCallbacks.remove(tabId)
         Timber.d("Removed thumbnail for tab $tabId from cache")
         val dir = diskDir() ?: return
         diskExecutor.execute {
@@ -167,6 +242,7 @@ object TabThumbnailCache {
     fun clear() {
         cache.evictAll()
         versionMap.clear()
+        pendingCallbacks.clear()
         Timber.d("Cleared all thumbnails from cache")
         val dir = diskDir() ?: return
         diskExecutor.execute {
@@ -176,7 +252,75 @@ object TabThumbnailCache {
         }
     }
 
+    /**
+     * Asynchronously reconciles the disk cache against the set of live tab IDs across all sessions.
+     * Runs entirely on [diskExecutor] to keep the startup/UI thread free from disk I/O.
+     *
+     * All session data must be **pre-snapshotted on the main thread** before calling this method.
+     * The background thread must not read any shared mutable state (e.g. SessionsManager fields).
+     *
+     * @param liveCurrentIds Set of tab IDs currently loaded in the active session (already parsed).
+     * @param otherSessions Immutable snapshot of (sessionName → bundleFilename) pairs for every
+     *   session *other than* the currently-active one, captured on the main thread before this call.
+     * @param application The Application context used for disk I/O via [FileUtils].
+     */
+    fun reconcileAsync(
+        liveCurrentIds: Set<Int>,
+        otherSessions: List<Pair<String, String>>,
+        currentSessionName: String,
+        application: android.app.Application
+    ) {
+        // Take an immutable copy of the current-session IDs so the lambda captures a plain Set.
+        val currentIds = liveCurrentIds.toSet()
+        // Take an immutable copy of the session snapshot so the lambda owns its data.
+        val sessionsSnapshot = otherSessions.toList()
+
+        diskExecutor.execute {
+            try {
+                val liveIds = mutableSetOf<Int>()
+                liveIds.addAll(currentIds)
+
+                // Read other sessions' bundles on the background thread.
+                // We only skip the current session (its IDs are already in currentIds).
+                for ((sessionName, filename) in sessionsSnapshot) {
+                    if (sessionName == currentSessionName) continue // should not occur, defensive
+                    val bundle = fulguris.utils.FileUtils.readBundleFromStorage(application, filename)
+                    if (bundle != null) {
+                        try {
+                            val tabKeys = bundle.keySet().filter { it.startsWith("TAB_") }
+                            for (key in tabKeys) {
+                                bundle.getBundle(key)?.let { tabBundle ->
+                                    val id = tabBundle.getInt("TAB_ID", -1)
+                                    if (id != -1) liveIds.add(id)
+                                }
+                            }
+                        } catch (e: Exception) {
+                            // Session bundle unreadable — do NOT delete its thumbnails; preserve them.
+                            Timber.w(e, "reconcileAsync: cannot read tab IDs from session '$sessionName'; skipping its thumbnails")
+                            return@execute
+                        }
+                    }
+                    // If bundle == null the file does not exist yet (new/empty session) — nothing to preserve.
+                }
+
+                // Delete on-disk thumbnails whose IDs are not referenced by any known session.
+                val dir = diskDir() ?: return@execute
+                val files = dir.listFiles() ?: return@execute
+                var deleted = 0
+                for (file in files) {
+                    val id = file.nameWithoutExtension.toIntOrNull()
+                    if (id == null || id !in liveIds) {
+                        file.delete()
+                        deleted++
+                    }
+                }
+                if (deleted > 0) Timber.d("reconcileAsync: deleted $deleted orphaned thumbnail(s)")
+            } catch (e: Exception) {
+                Timber.e(e, "reconcileAsync: unexpected failure")
+            }
+        }
+    }
+
     /** @return Pair of (used bytes, max bytes). */
     fun getStats(): Pair<Int, Int> = Pair(cache.size(), MAX_CACHE_BYTES)
 }
-
