@@ -5,14 +5,14 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#000000"
+    android:background="@color/home_background"
     android:visibility="gone"
     tools:visibility="visible">
 
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/homeAppBarLayout"
         android:layout_width="match_parent"
-        android:layout_height="200dp"
+        android:layout_height="@dimen/home_appbar_height"
         android:background="@android:color/transparent"
         app:elevation="0dp">
 
@@ -21,7 +21,7 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             app:layout_scrollFlags="scroll|exitUntilCollapsed"
-            app:contentScrim="#000000"
+            app:contentScrim="@color/home_background"
             app:titleEnabled="false">
 
             <!-- Expanded Header: Brand + Greeting -->
@@ -43,41 +43,42 @@
                     android:layout_gravity="center_horizontal">
 
                     <FrameLayout
-                        android:layout_width="44dp"
-                        android:layout_height="44dp"
+                        android:layout_width="@dimen/home_logo_badge_size"
+                        android:layout_height="@dimen/home_logo_badge_size"
                         android:background="@drawable/bg_home_logo_minimalist"
                         android:layout_marginEnd="14dp">
 
                         <ImageView
-                            android:layout_width="24dp"
-                            android:layout_height="24dp"
+                            android:layout_width="@dimen/home_logo_icon_size"
+                            android:layout_height="@dimen/home_logo_icon_size"
                             android:layout_gravity="center"
                             android:src="@drawable/ic_comet_logo"
                             android:contentDescription="@null"
                             android:importantForAccessibility="no"
-                            app:tint="@color/white" />
+                            app:tint="@color/home_foreground" />
                     </FrameLayout>
 
+                    <!-- Brand name — only in expanded header -->
                     <TextView
                         android:id="@+id/homeTitle"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="xHub"
-                        android:textColor="#FFFFFF"
-                        android:textSize="42sp"
+                        android:text="@string/home_brand_name"
+                        android:textColor="@color/home_foreground"
+                        android:textSize="@dimen/home_header_title_size"
                         android:fontFamily="sans-serif-black"
                         android:includeFontPadding="false"
                         android:letterSpacing="0.01" />
                 </LinearLayout>
 
-                <!-- Greeting sub-line -->
+                <!-- Greeting sub-line: updated in code; placeholder keeps layout preview readable -->
                 <TextView
                     android:id="@+id/homeGreeting"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Good morning"
-                    android:textColor="#888888"
-                    android:textSize="15sp"
+                    android:text="@string/home_greeting_morning"
+                    android:textColor="@color/home_muted_foreground"
+                    android:textSize="@dimen/home_header_subtitle_size"
                     android:fontFamily="sans-serif-light"
                     android:letterSpacing="0.04"
                     android:layout_marginTop="6dp"
@@ -85,7 +86,7 @@
 
             </LinearLayout>
 
-            <!-- Collapsed Toolbar (pinned) -->
+            <!-- Collapsed Toolbar (pinned) — brand name omitted here; expanded header carries it -->
             <androidx.appcompat.widget.Toolbar
                 android:id="@+id/homeToolbar"
                 android:layout_width="match_parent"
@@ -99,10 +100,11 @@
                     android:layout_height="match_parent"
                     android:paddingHorizontal="16dp">
 
+                    <!-- Settings button (left) -->
                     <FrameLayout
                         android:id="@+id/homeSettingsBtnContainer"
-                        android:layout_width="44dp"
-                        android:layout_height="44dp"
+                        android:layout_width="@dimen/home_avatar_size"
+                        android:layout_height="@dimen/home_avatar_size"
                         android:background="@drawable/bg_home_profile_ring_minimalist"
                         android:padding="2dp"
                         app:layout_constraintLeft_toLeftOf="parent"
@@ -117,26 +119,27 @@
                             android:src="@drawable/ic_settings"
                             android:padding="12dp"
                             app:tint="?attr/colorOnSurface"
-                            android:contentDescription="Settings" />
+                            android:contentDescription="@string/home_settings_desc" />
                     </FrameLayout>
 
-                    <!-- Collapsed brand name -->
+                    <!-- Collapsed brand name — centered between the two icon buttons -->
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="xHub"
-                        android:textColor="#FFFFFF"
-                        android:textSize="20sp"
+                        android:text="@string/home_brand_name"
+                        android:textColor="@color/home_foreground"
+                        android:textSize="@dimen/home_collapsed_title_size"
                         android:fontFamily="sans-serif-black"
                         app:layout_constraintLeft_toRightOf="@id/homeSettingsBtnContainer"
                         app:layout_constraintRight_toLeftOf="@id/homeProfileButton"
                         app:layout_constraintTop_toTopOf="parent"
                         app:layout_constraintBottom_toBottomOf="parent" />
 
+                    <!-- Bookmarks button (right) -->
                     <FrameLayout
                         android:id="@+id/homeProfileButton"
-                        android:layout_width="44dp"
-                        android:layout_height="44dp"
+                        android:layout_width="@dimen/home_avatar_size"
+                        android:layout_height="@dimen/home_avatar_size"
                         android:background="@drawable/bg_home_profile_ring_minimalist"
                         android:padding="2dp"
                         app:layout_constraintRight_toRightOf="parent"
@@ -148,9 +151,9 @@
                             android:layout_width="match_parent"
                             android:layout_height="match_parent"
                             android:scaleType="centerCrop"
-                            android:contentDescription="Bookmarks"
+                            android:contentDescription="@string/home_bookmarks_desc"
                             app:shapeAppearanceOverlay="@style/ShapeAppearanceOverlay.App.CornerSize50Percent"
-                            android:src="@drawable/ic_launcher_foreground" />
+                            android:src="@drawable/ic_bookmarks" />
                     </FrameLayout>
 
                 </androidx.constraintlayout.widget.ConstraintLayout>
@@ -174,54 +177,55 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:paddingHorizontal="18dp"
-            android:paddingTop="12dp"
-            android:paddingBottom="40dp">
+            android:paddingHorizontal="@dimen/home_padding_horizontal"
+            android:paddingTop="@dimen/home_padding_top"
+            android:paddingBottom="@dimen/home_padding_bottom">
 
-            <!-- ── GLASSMORPHIC SEARCH CARD ─────────────────────────── -->
+            <!-- ── SEARCH PILL ──────────────────────────────────────────── -->
             <LinearLayout
                 android:id="@+id/homeSearchCard"
                 android:layout_width="match_parent"
-                android:layout_height="54dp"
+                android:layout_height="@dimen/home_search_height"
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
                 android:background="@drawable/bg_home_search_card"
-                android:paddingStart="18dp"
-                android:paddingEnd="12dp"
-                android:layout_marginBottom="22dp"
+                android:foreground="?attr/selectableItemBackground"
+                android:paddingStart="@dimen/home_search_padding_start"
+                android:paddingEnd="@dimen/home_search_padding_end"
+                android:layout_marginBottom="@dimen/home_search_margin_bottom"
                 android:clickable="true"
                 android:focusable="true"
                 android:elevation="6dp">
 
                 <ImageView
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
+                    android:layout_width="@dimen/home_search_icon_size"
+                    android:layout_height="@dimen/home_search_icon_size"
                     android:src="@drawable/ic_search"
                     android:contentDescription="@null"
                     android:importantForAccessibility="no"
-                    android:tint="#80FFFFFF" />
+                    android:tint="@color/home_icon_tint" />
 
                 <TextView
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:layout_marginStart="12dp"
-                    android:text="Search or enter address…"
-                    android:textColor="#66FFFFFF"
-                    android:textSize="15sp"
+                    android:text="@string/home_search_hint"
+                    android:textColor="@color/home_subtle_foreground"
+                    android:textSize="@dimen/home_search_text_size"
                     android:fontFamily="sans-serif"
                     android:singleLine="true" />
 
                 <ImageView
-                    android:layout_width="18dp"
-                    android:layout_height="18dp"
+                    android:layout_width="@dimen/home_search_mic_size"
+                    android:layout_height="@dimen/home_search_mic_size"
                     android:src="@drawable/ic_mic"
-                    android:contentDescription="Voice search"
-                    android:tint="#80FFFFFF" />
+                    android:contentDescription="@string/home_voice_search_desc"
+                    android:tint="@color/home_icon_tint" />
 
             </LinearLayout>
 
-            <!-- ── WEBSITE SHORTCUTS SECTION ──────────────────────── -->
+            <!-- ── SHORTCUTS SECTION ────────────────────────────────────── -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -233,16 +237,16 @@
                 <androidx.constraintlayout.widget.ConstraintLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:minHeight="44dp"
-                    android:layout_marginBottom="16dp">
+                    android:minHeight="@dimen/home_section_header_min_height"
+                    android:layout_marginBottom="@dimen/home_section_header_margin_bottom">
 
                     <TextView
                         android:id="@+id/shortcutsTitle"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:text="Quick Access"
-                        android:textColor="#FFFFFFFF"
-                        android:textSize="17sp"
+                        android:text="@string/home_quick_access_title"
+                        android:textColor="@color/home_foreground"
+                        android:textSize="@dimen/home_section_title_size"
                         android:fontFamily="sans-serif-medium"
                         android:letterSpacing="0.01"
                         app:layout_constraintTop_toTopOf="parent"
@@ -254,8 +258,8 @@
                         android:id="@+id/shortcutsSubtitle"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:text="Your favourite sites"
-                        android:textColor="#77FFFFFF"
+                        android:text="@string/home_quick_access_subtitle"
+                        android:textColor="@color/home_subtle_foreground"
                         android:textSize="12sp"
                         android:fontFamily="sans-serif"
                         app:layout_constraintTop_toBottomOf="@+id/shortcutsTitle"
@@ -263,37 +267,38 @@
                         app:layout_constraintEnd_toStartOf="@+id/btnEditShortcuts"
                         app:layout_constraintBottom_toBottomOf="parent" />
 
-                    <!-- Edit button -->
+                    <!-- Edit button with ripple feedback -->
                     <LinearLayout
                         android:id="@+id/btnEditShortcuts"
                         android:layout_width="wrap_content"
-                        android:layout_height="36dp"
+                        android:layout_height="@dimen/home_edit_btn_height"
                         android:orientation="horizontal"
                         android:gravity="center"
-                        android:paddingHorizontal="14dp"
+                        android:paddingHorizontal="@dimen/home_edit_btn_padding_h"
                         android:background="@drawable/bg_shortcut_manager_icon_btn"
+                        android:foreground="?attr/selectableItemBackground"
                         android:clickable="true"
                         android:focusable="true"
-                        android:contentDescription="Edit website shortcuts"
+                        android:contentDescription="@string/home_edit_shortcuts_desc"
                         app:layout_constraintTop_toTopOf="parent"
                         app:layout_constraintBottom_toBottomOf="parent"
                         app:layout_constraintEnd_toEndOf="parent">
 
                         <ImageView
-                            android:layout_width="14dp"
-                            android:layout_height="14dp"
+                            android:layout_width="@dimen/home_edit_icon_size"
+                            android:layout_height="@dimen/home_edit_icon_size"
                             android:src="@drawable/ic_edit_outline"
                             android:contentDescription="@null"
                             android:importantForAccessibility="no"
-                            android:tint="#CCFFFFFF" />
+                            android:tint="@color/home_dim_foreground" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginStart="6dp"
-                            android:text="Edit"
-                            android:textColor="#CCFFFFFF"
-                            android:textSize="13sp"
+                            android:layout_marginStart="@dimen/home_edit_icon_label_gap"
+                            android:text="@string/home_edit_shortcuts"
+                            android:textColor="@color/home_dim_foreground"
+                            android:textSize="@dimen/home_edit_text_size"
                             android:fontFamily="sans-serif-medium" />
 
                     </LinearLayout>

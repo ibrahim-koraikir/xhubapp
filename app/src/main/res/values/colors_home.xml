@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ── Backgrounds ──────────────────────────────────────────────── -->
+    <!-- Pure OLED black — root background -->
+    <color name="home_background">#FF000000</color>
+    <!-- Slightly lifted card surface -->
+    <color name="home_card">#FF111111</color>
+    <!-- Second-level card / tile surface (#161616 matches buildDynamicShortcuts) -->
+    <color name="home_tile_surface">#FF161616</color>
+    <!-- Search card background -->
+    <color name="home_search_surface">#FF0D0D0D</color>
+    <!-- Secondary surface (logo badge, etc.) -->
+    <color name="home_secondary">#FF1A1A1A</color>
+
+    <!-- ── Strokes / hairlines ───────────────────────────────────────── -->
+    <!-- Standard hairline divider (#333333) -->
+    <color name="home_stroke">#FF333333</color>
+    <!-- Faint white border (alpha-based) -->
+    <color name="home_border">#22FFFFFF</color>
+
+    <!-- ── Text ─────────────────────────────────────────────────────── -->
+    <!-- Primary text — pure white -->
+    <color name="home_foreground">#FFFFFFFF</color>
+    <!-- Secondary / muted text — medium grey -->
+    <color name="home_muted_foreground">#FF888888</color>
+    <!-- Dim text — 80 % white -->
+    <color name="home_dim_foreground">#CCFFFFFF</color>
+    <!-- Subtle text — 47 % white -->
+    <color name="home_subtle_foreground">#77FFFFFF</color>
+    <!-- Icon / overlay tint — 50 % white -->
+    <color name="home_icon_tint">#80FFFFFF</color>
+    <!-- Initial letter inside tile — light grey -->
+    <color name="home_initial_text">#FFCCCCCC</color>
+    <!-- Group label text — 67 % white -->
+    <color name="home_group_label">#AAFFFFFF</color>
+
+    <!-- ── Accent ───────────────────────────────────────────────────── -->
+    <!-- Vivid magenta — canonical accent ring name -->
+    <color name="home_accent_ring">#FFFF007A</color>
+    <color name="home_accent_ring_15">#26FF007A</color>
+    <!-- Legacy aliases kept so existing drawables/layouts compile without changes -->
+    <color name="home_primary">#FFFF007A</color>
+    <color name="home_primary_15">#26FF007A</color>
+
+    <!-- ── Favourite-site brand colours (used by shortcut icons) ────── -->
+    <color name="home_fav_netflix">#e50914</color>
+    <color name="home_fav_imdb">#f5c518</color>
+    <color name="home_fav_letterboxd">#2c3440</color>
+    <color name="home_fav_rotten">#fa320a</color>
+    <color name="home_fav_prime">#00a8e1</color>
+    <color name="home_fav_hulu">#1ce783</color>
+    <color name="home_fav_apple">#000000</color>
+
+    <!-- ── Category pills ───────────────────────────────────────────── -->
+    <color name="home_pill_active_text">#FF080808</color>
+    <color name="home_pill_inactive_bg">#FF1A1A1A</color>
+</resources>

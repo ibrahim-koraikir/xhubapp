@@ -895,4 +895,21 @@
     <string name="url_contact_us">mailto:contact@example.com</string>
     <string name="video_adaptive_stream_message">This video uses adaptive streaming (e.g. YouTube) and cannot be downloaded directly by the browser.</string>
     <string name="video_cannot_download">Cannot Download</string>
+
+    <!-- Home screen -->
+    <string name="home_greeting_morning">Good morning ☀️</string>
+    <string name="home_greeting_afternoon">Good afternoon 🌤</string>
+    <string name="home_greeting_evening">Good evening 🌙</string>
+    <string name="home_search_hint">Search or enter address…</string>
+    <string name="home_quick_access_title">Quick Access</string>
+    <string name="home_quick_access_subtitle">Your favourite sites</string>
+    <string name="home_edit_shortcuts">Edit</string>
+    <string name="home_edit_shortcuts_desc">Edit website shortcuts</string>
+    <string name="home_empty_state_message">No shortcuts yet</string>
+    <string name="home_empty_state_action">Add your favourite sites</string>
+    <string name="home_settings_desc">Settings</string>
+    <string name="home_bookmarks_desc">Bookmarks</string>
+    <string name="home_voice_search_desc">Voice search</string>
+    <string name="home_brand_name">xHub</string>
 </resources>
+

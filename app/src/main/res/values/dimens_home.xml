@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ── Global layout ────────────────────────────────────────────── -->
+    <dimen name="home_padding_horizontal">18dp</dimen>
+    <dimen name="home_padding_top">12dp</dimen>
+    <dimen name="home_padding_bottom">40dp</dimen>
+    <dimen name="home_section_gap">20dp</dimen>
+
+    <!-- ── AppBar ────────────────────────────────────────────────────── -->
+    <dimen name="home_appbar_height">200dp</dimen>
+
+    <!-- ── Header ───────────────────────────────────────────────────── -->
+    <dimen name="home_header_title_size">42sp</dimen>
+    <dimen name="home_header_subtitle_size">15sp</dimen>
+    <dimen name="home_collapsed_title_size">20sp</dimen>
+    <dimen name="home_avatar_size">44dp</dimen>
+    <dimen name="home_logo_badge_size">44dp</dimen>
+    <dimen name="home_logo_icon_size">24dp</dimen>
+
+    <!-- ── Card ─────────────────────────────────────────────────────── -->
+    <dimen name="home_card_radius">16dp</dimen>
+    <dimen name="home_card_padding">16dp</dimen>
+
+    <!-- ── Search pill ──────────────────────────────────────────────── -->
+    <dimen name="home_search_height">54dp</dimen>
+    <dimen name="home_search_radius">28dp</dimen>
+    <dimen name="home_search_padding_start">18dp</dimen>
+    <dimen name="home_search_padding_end">12dp</dimen>
+    <dimen name="home_search_icon_size">20dp</dimen>
+    <dimen name="home_search_mic_size">18dp</dimen>
+    <dimen name="home_search_text_size">15sp</dimen>
+    <dimen name="home_search_margin_bottom">22dp</dimen>
+
+    <!-- ── Section header ───────────────────────────────────────────── -->
+    <dimen name="home_section_title_size">17sp</dimen>
+    <dimen name="home_section_action_size">15sp</dimen>
+    <dimen name="home_section_header_min_height">44dp</dimen>
+    <dimen name="home_section_header_margin_bottom">16dp</dimen>
+
+    <!-- ── Shortcut tiles ───────────────────────────────────────────── -->
+    <!-- Tile frame (icon circle) size — was hardcoded dp72 in code -->
+    <dimen name="home_tile_frame_size">72dp</dimen>
+    <!-- Tile fully-circular radius = half of frame size -->
+    <dimen name="home_tile_radius">36dp</dimen>
+    <dimen name="home_tile_stroke_width">1dp</dimen>
+    <!-- Favourite icon corner radius (used by bg_home_fav_*.xml drawables) -->
+    <dimen name="home_fav_icon_radius">14dp</dimen>
+    <!-- Tile padding (touch area around icon frame) -->
+    <dimen name="home_tile_padding">4dp</dimen>
+    <!-- Favicon inset padding inside icon frame -->
+    <dimen name="home_tile_favicon_padding">10dp</dimen>
+    <!-- Initial letter text size -->
+    <dimen name="home_tile_initial_size">26sp</dimen>
+    <!-- Site name label text size -->
+    <dimen name="home_tile_label_size">11.5sp</dimen>
+    <!-- Label margin above -->
+    <dimen name="home_tile_label_margin_top">6dp</dimen>
+    <!-- Row bottom spacing between tile rows -->
+    <dimen name="home_tile_row_gap">8dp</dimen>
+    <!-- Group label bottom margin -->
+    <dimen name="home_group_label_margin_bottom">10dp</dimen>
+    <!-- Group label text size -->
+    <dimen name="home_group_label_size">11sp</dimen>
+    <!-- Gap between groups -->
+    <dimen name="home_group_gap">24dp</dimen>
+
+    <!-- ── Category pills ───────────────────────────────────────────── -->
+    <dimen name="home_pill_radius">12dp</dimen>
+    <dimen name="home_pill_padding_h">12dp</dimen>
+    <dimen name="home_pill_padding_v">6dp</dimen>
+    <dimen name="home_pill_text_size">14sp</dimen>
+    <dimen name="home_pill_gap">8dp</dimen>
+
+    <!-- ── Edit button ──────────────────────────────────────────────── -->
+    <dimen name="home_edit_btn_height">36dp</dimen>
+    <dimen name="home_edit_btn_padding_h">14dp</dimen>
+    <dimen name="home_edit_icon_size">14dp</dimen>
+    <dimen name="home_edit_icon_label_gap">6dp</dimen>
+    <dimen name="home_edit_text_size">13sp</dimen>
+
+    <!-- ── Privacy row ──────────────────────────────────────────────── -->
+    <dimen name="home_privacy_icon_size">32dp</dimen>
+    <dimen name="home_privacy_icon_radius">8dp</dimen>
+    <dimen name="home_privacy_title_size">15sp</dimen>
+    <dimen name="home_privacy_desc_size">13sp</dimen>
+
+    <!-- ── Reading list ─────────────────────────────────────────────── -->
+    <dimen name="home_rl_thumb_size">48dp</dimen>
+    <dimen name="home_rl_thumb_radius">8dp</dimen>
+    <dimen name="home_rl_title_size">15sp</dimen>
+    <dimen name="home_rl_meta_size">13sp</dimen>
+
+    <!-- ── Empty state ──────────────────────────────────────────────── -->
+    <dimen name="home_empty_icon_size">48dp</dimen>
+    <dimen name="home_empty_padding_v">32dp</dimen>
+    <dimen name="home_empty_text_size">14sp</dimen>
+</resources>
