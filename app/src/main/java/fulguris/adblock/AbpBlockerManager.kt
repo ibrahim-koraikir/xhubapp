@@ -44,7 +44,7 @@ import java.nio.charset.StandardCharsets
 import javax.inject.Inject
 import javax.inject.Singleton
 
-import fulguris.ads.AdManager
+
 
 @Singleton
 class AbpBlockerManager @Inject constructor(
@@ -52,7 +52,6 @@ class AbpBlockerManager @Inject constructor(
     abpListUpdater: AbpListUpdater,
     abpUserRules: AbpUserRules,
     val userPreferences: UserPreferences,
-    private val adManager: AdManager,
 ) : AdBlocker {
 
     // use a map of filterContainers instead of several separate containers
@@ -176,7 +175,7 @@ class AbpBlockerManager @Inject constructor(
     override suspend fun shouldBlock(request: WebResourceRequest, pageUrl: String): WebResourceResponse? {
         // always allow special URLs, app scheme and cache dir (used for favicons)
         request.url.toString().let {
-            if (it.isSpecialUrl() || it.isAppScheme() || it.startsWith(cacheDir) || adManager.isAdUrl(it))
+            if (it.isSpecialUrl() || it.isAppScheme() || it.startsWith(cacheDir))
                 return null
         }
 

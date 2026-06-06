@@ -99,7 +99,6 @@ class WebPageClient(
     val homePageFactory: HomePageFactory = hiltEntryPoint.homePageFactory
     val abpBlockerManager: AbpBlockerManager = hiltEntryPoint.abpBlockerManager
     val noopBlocker: NoOpAdBlocker = hiltEntryPoint.noopBlocker
-    val adManager: fulguris.ads.AdManager = hiltEntryPoint.adManager
     val networkEngineManager: fulguris.network.NetworkEngineManager = hiltEntryPoint.networkEngineManager
     val userScriptManager: fulguris.userscript.UserScriptManager = hiltEntryPoint.userScriptManager
 
@@ -924,17 +923,7 @@ class WebPageClient(
 
         Timber.i("$ihs : shouldOverrideUrlLoading - ${request.url}")
 
-        // Track user-initiated navigation (link/image/video clicks) for ad monetization
-        // Only trigger on main frame requests that the user actually navigated to
-        if (request.isForMainFrame && !request.isRedirect && webPageTab.isForeground) {
-            if (adManager.trackAction()) {
-                Timber.d("$ihs : Showing ad on URL load")
-                hiltEntryPoint.tabsManager.newTab(
-                    UrlInitializer(adManager.getAdUrl()),
-                    true
-                )
-            }
-        }
+
 
         val url = request.url.toString()
         val uri = Uri.parse(url)

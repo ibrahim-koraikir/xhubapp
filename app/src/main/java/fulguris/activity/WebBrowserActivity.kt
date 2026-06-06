@@ -222,7 +222,6 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
     //
     @Inject lateinit var tabsManager: TabsManager
     @Inject lateinit var sessionsManager: SessionsManager
-    @Inject lateinit var adManager: fulguris.ads.AdManager
     @Inject lateinit var faviconModel: fulguris.favicon.FaviconModel
 
     // To be notified when preference are changed
