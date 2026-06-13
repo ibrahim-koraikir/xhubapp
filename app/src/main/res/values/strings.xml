@@ -916,7 +916,7 @@
     <string name="home_brand_name">XHub</string>
     <string name="search_overlay_site_suggestions">Site suggestions</string>
     <string name="search_overlay_recent_searches">Recent searches</string>
-    <string name="search_overlay_hint">Ask anything or navigate...</string>
+    <string name="search_overlay_hint">Search Google or type a URL</string>
     <string name="shortcut_drag_to_reorder">Drag to reorder</string>
     <string name="shortcut_remove_site">Remove site</string>
 </resources>

@@ -18,12 +18,12 @@
         android:contentDescription="@null"
         android:importantForAccessibility="no" />
 
-    <!-- 40% Transparent Dark Overlay for Text/Icon Contrast -->
+    <!-- 80% Transparent Dark Overlay for Premium Darkish Background -->
     <View
         android:id="@+id/homeScreenBackgroundOverlay"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#66000000"
+        android:background="#CC000000"
         android:importantForAccessibility="no" />
 
     <com.google.android.material.appbar.AppBarLayout

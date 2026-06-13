@@ -4518,6 +4518,10 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
                 return tab.url
             }
 
+            if (tab.url.isSpecialUrl()) {
+                return getString(R.string.search_overlay_hint)
+            }
+
             return when (aInfo) {
                 HeaderInfo.Url -> tab.url
                 HeaderInfo.ShortUrl -> Utils.trimmedProtocolFromURL(tab.url)

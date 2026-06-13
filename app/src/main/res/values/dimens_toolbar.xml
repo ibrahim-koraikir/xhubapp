@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ── Root container ───────────────────────────────────────────── -->
+    <dimen name="toolbar_padding_top">2dp</dimen>
+
+    <!-- ── Assistant pill (search bar) ──────────────────────────────── -->
+    <dimen name="toolbar_pill_height">46dp</dimen>
+    <dimen name="toolbar_pill_margin_h">8dp</dimen>
+    <dimen name="toolbar_pill_padding_start">12dp</dimen>
+    <dimen name="toolbar_pill_padding_end">6dp</dimen>
+    <dimen name="toolbar_pill_elevation">8dp</dimen>
+
+    <!-- ── Comet logo ───────────────────────────────────────────────── -->
+    <dimen name="toolbar_logo_size">24dp</dimen>
+
+    <!-- ── Search bar (inside pill) ─────────────────────────────────── -->
+    <dimen name="toolbar_search_margin_start">8dp</dimen>
+    <dimen name="toolbar_search_margin_end">8dp</dimen>
+
+    <!-- ── Mic button ───────────────────────────────────────────────── -->
+    <dimen name="toolbar_mic_size">46dp</dimen>
+    <dimen name="toolbar_mic_margin_end">8dp</dimen>
+    <dimen name="toolbar_mic_padding">13dp</dimen>
+
+    <!-- ── Audio button (gradient circle) ───────────────────────────── -->
+    <dimen name="toolbar_audio_size">38dp</dimen>
+    <dimen name="toolbar_audio_elevation">4dp</dimen>
+
+    <!-- ── Audio icon (inside audio button) ─────────────────────────── -->
+    <dimen name="toolbar_audio_icon_size">20dp</dimen>
+
+    <!-- ── Navigation row ───────────────────────────────────────────── -->
+    <dimen name="toolbar_nav_margin_top">6dp</dimen>
+    <dimen name="toolbar_nav_padding_h">4dp</dimen>
+
+    <!-- ── Navigation buttons ───────────────────────────────────────── -->
+    <dimen name="toolbar_nav_btn_height">40dp</dimen>
+    <dimen name="toolbar_nav_btn_padding">6dp</dimen>
+
+    <!-- ── Tab counter (TabCountView) ───────────────────────────────── -->
+    <dimen name="toolbar_tab_border_radius">6dp</dimen>
+    <dimen name="toolbar_tab_border_width">1.5dp</dimen>
+    <dimen name="toolbar_tab_text_size">11sp</dimen>
+</resources>
