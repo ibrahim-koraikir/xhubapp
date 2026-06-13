@@ -36,26 +36,39 @@ plugins {
 
 // See: https://stackoverflow.com/a/53408667/3969362
 // Conditionally apply Firebase Google Plugins to flavors that needs it
-android.productFlavors.all { flavor ->
-    if (getGradle().getStartParameter().getTaskRequests().toString().toLowerCase().contains(flavor.name)) {
-        // Only download and playstore flavor need Firebase
-        if (flavor.name == "download" || flavor.name == "playstore") {
-            println("Building flavor with Firebase [${flavor.name}] - applying plugin")
-            // Google Services Gradle plugin
-            apply plugin: 'com.google.gms.google-services'
-            // Apply the Crashlytics Gradle plugin
-            apply plugin: 'com.google.firebase.crashlytics'
-        }
-    }
-}
+// Firebase plugins removed - see FIREBASE_REMOVAL.md
 
 // TODO: Find a way to put it the variant/type folder such as: generated/source/locale/slionsFullDownload/debug/acr/browser/lightning/locale
-def generatedLocaleListDir = layout.buildDirectory.dir('generated/source/locale/fulguris/locale')
+def generatedLocaleListDir = layout.buildDirectory.dir('generated/source/locale/com/xhub/browser/locale')
+
+// Load keystore properties for release signing
+def keystorePropertiesFile = rootProject.file("keystore.properties")
+def keystoreProperties = new Properties()
+def hasKeystoreFile = false
+
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+    hasKeystoreFile = true
+    logger.info("Loaded keystore properties from keystore.properties")
+} else {
+    // Fall back to environment variables for CI/CD
+    if (System.getenv("RELEASE_STORE_FILE") != null) {
+        keystoreProperties['storeFile'] = System.getenv("RELEASE_STORE_FILE")
+        keystoreProperties['storePassword'] = System.getenv("RELEASE_STORE_PASSWORD")
+        keystoreProperties['keyAlias'] = System.getenv("RELEASE_KEY_ALIAS")
+        keystoreProperties['keyPassword'] = System.getenv("RELEASE_KEY_PASSWORD")
+        hasKeystoreFile = true
+        logger.info("Loaded keystore properties from environment variables")
+    } else {
+        logger.warn("No keystore.properties file or environment variables found. Release builds will be unsigned.")
+        logger.warn("To sign release builds, create keystore.properties from keystore.properties.template")
+    }
+}
 
 android {
     compileSdk = libs.versions.compileSdk.get().toInteger()
     // Specify namespace for generated R and BuildConfig classes
-    namespace = 'fulguris'
+    namespace = 'com.xhub.browser'
 
     defaultConfig {
         minSdk = libs.versions.minSdk.get().toInteger()
@@ -67,6 +80,17 @@ android {
         main {
             java {
                 srcDirs += generatedLocaleListDir
+            }
+        }
+    }
+
+    signingConfigs {
+        release {
+            if (hasKeystoreFile) {
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
             }
         }
     }
@@ -96,8 +120,11 @@ android {
             proguardFiles getDefaultProguardFile(
                     'proguard-android-optimize.txt'),
                     'proguard-project.txt'
-            // Use debug signing for now
-            //signingConfig debug.signingConfig
+            
+            // Apply release signing config if available
+            if (signingConfigs.release.storeFile != null) {
+                signingConfig signingConfigs.release
+            }
 
             ndk {
                 //abiFilters "arm64-v8a", "armeabi-v7a", "armeabi", "mips"
@@ -124,19 +151,22 @@ android {
 
     productFlavors {
 
-        slions {
+        xhub {
             dimension "BRAND"
-            applicationId "net.slions.fulguris"
+            applicationId "com.xhub.browser"
             versionCode libs.versions.slions.version.code.get().toInteger()
             versionName libs.versions.slions.version.name.get()
         }
 
+        /*
+        // Styx flavor removed - XHub is the sole brand
         styx {
             dimension "BRAND"
             applicationId "com.jamal2367.styx"
             versionCode libs.versions.styx.version.code.get().toInteger()
             versionName libs.versions.styx.version.name.get()
         }
+        */
 
         /*
         lightning {
@@ -170,25 +200,25 @@ android {
         // Undefined publisher do not add application ID suffix
         undef {
             dimension "PUBLISHER"
-            buildConfigField "fulguris.Sponsorship", "SPONSORSHIP", "fulguris.Sponsorship.BRONZE"
+            buildConfigField "com.xhub.browser.Sponsorship", "SPONSORSHIP", "com.xhub.browser.Sponsorship.BRONZE"
         }
 
         playstore {
             dimension "PUBLISHER"
             applicationIdSuffix ".playstore"
-            buildConfigField "fulguris.Sponsorship", "SPONSORSHIP", "fulguris.Sponsorship.TIN"
+            buildConfigField "com.xhub.browser.Sponsorship", "SPONSORSHIP", "com.xhub.browser.Sponsorship.TIN"
         }
 
         download {
             dimension "PUBLISHER"
             applicationIdSuffix ".download"
-            buildConfigField "fulguris.Sponsorship", "SPONSORSHIP", "fulguris.Sponsorship.BRONZE"
+            buildConfigField "com.xhub.browser.Sponsorship", "SPONSORSHIP", "com.xhub.browser.Sponsorship.BRONZE"
         }
 
         fdroid {
             dimension "PUBLISHER"
             applicationIdSuffix ".fdroid"
-            buildConfigField "fulguris.Sponsorship", "SPONSORSHIP", "fulguris.Sponsorship.BRONZE"
+            buildConfigField "com.xhub.browser.Sponsorship", "SPONSORSHIP", "com.xhub.browser.Sponsorship.BRONZE"
         }
 
     }
@@ -196,10 +226,8 @@ android {
     // Filter out invalid variants
     variantFilter { variant ->
         def names = variant.flavors*.name
-        // slions variant do not support base version and undef publisher
-        if ((names.contains("slions") && (names.contains("undef") || names.contains("base")))
-                // styx variant only support base version and undef publisher
-                || (names.contains("styx") && !(names.contains("undef") && names.contains("base")))) {
+        // xhub variant does not support base version and undef publisher
+        if (names.contains("xhub") && (names.contains("undef") || names.contains("base"))) {
             // Gradle ignores any variants that satisfy the conditions above.
             setIgnore(true)
         }
@@ -229,13 +257,17 @@ android {
             //def variantName = variant.name // e. g. FreeDebug
 
             // Just replace our archive base name, which by default is "app" with our own format according to flavor
-            if (variant.flavorName.contains("slions")) {
-                //println("Use Fulguris archive name")
-                outputFileName = outputFileName.replaceFirst("^${base.archivesName.get()}", "Fulguris-v$versionName")
-            } else if (variant.flavorName.contains("styx")) {
+            if (variant.flavorName.contains("xhub")) {
+                //println("Use XHub archive name")
+                outputFileName = outputFileName.replaceFirst("^${base.archivesName.get()}", "XHub-v$versionName")
+            }
+            /*
+            // Removed - Styx no longer used
+            else if (variant.flavorName.contains("styx")) {
                 //println("Use Styx archive name")
                 outputFileName = outputFileName.replaceFirst("^${base.archivesName.get()}", "Styx-v$versionName")
             }
+            */
             //customize your app name by using variables
             //outputFileName = "${variantName}.apk"
         }
@@ -287,7 +319,7 @@ dependencies {
     implementation 'com.github.tonyofrancis.Fetch:fetch2okhttp:3.4.1'
 
     // test dependencies
-    implementation 'junit:junit:4.13.2'
+    testImplementation 'junit:junit:4.13.2'
     testImplementation 'org.assertj:assertj-core:3.15.0'
     testImplementation 'org.mockito:mockito-core:3.8.0'
     testImplementation 'com.nhaarman:mockito-kotlin:1.6.0', {
@@ -376,13 +408,7 @@ dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlinVersion"
     //implementation "org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion"
 
-    // Firebase
-    // Recommended: Add the Firebase SDK for Google Analytics.
-    playstoreImplementation 'com.google.firebase:firebase-analytics:21.6.1'
-    downloadImplementation 'com.google.firebase:firebase-analytics:21.6.1'
-    // Add the Firebase SDK for Crashlytics.
-    playstoreImplementation 'com.google.firebase:firebase-crashlytics:18.6.3'
-    downloadImplementation 'com.google.firebase:firebase-crashlytics:18.6.3'
+    // Firebase removed - see FIREBASE_REMOVAL.md
 
 
     // Volley HTTP request
@@ -456,7 +482,7 @@ task generateLocaleList {
 
         localeList.delete()
         localeList.createNewFile()
-        localeList << "package fulguris.locale;" << "\n" << "\n"
+        localeList << "package com.xhub.browser.locale;" << "\n" << "\n"
         localeList << "import java.util.Arrays;" << "\n"
         localeList << "import java.util.Collections;" << "\n"
         localeList << "import java.util.List;" << "\n"
@@ -470,7 +496,7 @@ task generateLocaleList {
 }
 
 tasks.configureEach { task ->
-    if (name.contains("compile")) {
+    if (task.name != "generateLocaleList" && (task.name.contains("compile") || task.name.contains("ksp") || task.name.contains("kapt"))) {
         task.dependsOn generateLocaleList
     }
 }

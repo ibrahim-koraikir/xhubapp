@@ -17,6 +17,8 @@
     <color name="home_stroke">#FF333333</color>
     <!-- Faint white border (alpha-based) -->
     <color name="home_border">#22FFFFFF</color>
+    <!-- Semi-transparent white border for shortcut tiles (starfield theme) -->
+    <color name="home_tile_stroke">#1AFFFFFF</color>
 
     <!-- ── Text ─────────────────────────────────────────────────────── -->
     <!-- Primary text — pure white -->
@@ -29,8 +31,8 @@
     <color name="home_subtle_foreground">#77FFFFFF</color>
     <!-- Icon / overlay tint — 50 % white -->
     <color name="home_icon_tint">#80FFFFFF</color>
-    <!-- Initial letter inside tile — light grey -->
-    <color name="home_initial_text">#FFCCCCCC</color>
+    <!-- Initial letter inside tile — pure white for contrast on starfield -->
+    <color name="home_initial_text">#FFFFFFFF</color>
     <!-- Group label text — 67 % white -->
     <color name="home_group_label">#AAFFFFFF</color>
 

@@ -1,16 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Circular ripple for shortcut tiles — dark ripple on the tile surface -->
+<!-- Squircle ripple for shortcut tiles — matches 18dp rounded corners -->
 <ripple xmlns:android="http://schemas.android.com/apk/res/android"
     android:color="@color/home_icon_tint">
     <item android:id="@android:id/mask">
-        <shape android:shape="oval">
+        <shape android:shape="rectangle">
             <solid android:color="@android:color/white" />
+            <corners android:radius="@dimen/home_tile_radius" />
         </shape>
     </item>
     <item>
-        <shape android:shape="oval">
+        <shape android:shape="rectangle">
             <solid android:color="@color/home_tile_surface" />
-            <stroke android:width="@dimen/home_tile_stroke_width" android:color="@color/home_stroke" />
+            <stroke android:width="@dimen/home_tile_stroke_width" android:color="@color/home_tile_stroke" />
+            <corners android:radius="@dimen/home_tile_radius" />
         </shape>
     </item>
 </ripple>

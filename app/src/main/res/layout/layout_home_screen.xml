@@ -5,9 +5,26 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/home_background"
     android:visibility="gone"
     tools:visibility="visible">
+
+    <!-- Full-screen Starfield Background Image -->
+    <ImageView
+        android:id="@+id/homeScreenBackground"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:src="@drawable/bg_home_starfield"
+        android:contentDescription="@null"
+        android:importantForAccessibility="no" />
+
+    <!-- 40% Transparent Dark Overlay for Text/Icon Contrast -->
+    <View
+        android:id="@+id/homeScreenBackgroundOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#66000000"
+        android:importantForAccessibility="no" />
 
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/homeAppBarLayout"
@@ -45,16 +62,19 @@
                     <FrameLayout
                         android:layout_width="@dimen/home_logo_badge_size"
                         android:layout_height="@dimen/home_logo_badge_size"
-                        android:background="@drawable/bg_home_logo_minimalist"
-                        android:layout_marginEnd="14dp">
+                        android:background="@drawable/bg_home_logo_gradient"
+                        android:layout_marginEnd="14dp"
+                        android:padding="1dp">
 
                         <ImageView
-                            android:layout_width="@dimen/home_logo_icon_size"
-                            android:layout_height="@dimen/home_logo_icon_size"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
                             android:layout_gravity="center"
                             android:src="@drawable/ic_comet_logo"
                             android:contentDescription="@null"
                             android:importantForAccessibility="no"
+                            android:scaleType="fitCenter"
+                            android:padding="8dp"
                             app:tint="@color/home_foreground" />
                     </FrameLayout>
 
@@ -105,8 +125,8 @@
                         android:id="@+id/homeSettingsBtnContainer"
                         android:layout_width="@dimen/home_avatar_size"
                         android:layout_height="@dimen/home_avatar_size"
-                        android:background="@drawable/bg_home_profile_ring_minimalist"
-                        android:padding="2dp"
+                        android:background="@drawable/bg_home_profile_ring"
+                        android:padding="1dp"
                         app:layout_constraintLeft_toLeftOf="parent"
                         app:layout_constraintTop_toTopOf="parent"
                         app:layout_constraintBottom_toBottomOf="parent">
@@ -117,8 +137,9 @@
                             android:layout_height="match_parent"
                             android:background="?attr/selectableItemBackgroundBorderless"
                             android:src="@drawable/ic_settings"
-                            android:padding="12dp"
-                            app:tint="?attr/colorOnSurface"
+                            android:padding="10dp"
+                            android:scaleType="fitCenter"
+                            app:tint="@color/home_foreground"
                             android:contentDescription="@string/home_settings_desc" />
                     </FrameLayout>
 
@@ -131,29 +152,30 @@
                         android:textSize="@dimen/home_collapsed_title_size"
                         android:fontFamily="sans-serif-black"
                         app:layout_constraintLeft_toRightOf="@id/homeSettingsBtnContainer"
-                        app:layout_constraintRight_toLeftOf="@id/homeProfileButton"
+                        app:layout_constraintRight_toLeftOf="@id/homeBookmarksButton"
                         app:layout_constraintTop_toTopOf="parent"
                         app:layout_constraintBottom_toBottomOf="parent" />
 
-                    <!-- Bookmarks button (right) -->
+                    <!-- Right button: Tinder-style flame (bookmarks) -->
                     <FrameLayout
-                        android:id="@+id/homeProfileButton"
+                        android:id="@+id/homeBookmarksButton"
                         android:layout_width="@dimen/home_avatar_size"
                         android:layout_height="@dimen/home_avatar_size"
-                        android:background="@drawable/bg_home_profile_ring_minimalist"
-                        android:padding="2dp"
+                        android:background="@drawable/bg_home_profile_ring"
+                        android:padding="1dp"
                         app:layout_constraintRight_toRightOf="parent"
                         app:layout_constraintTop_toTopOf="parent"
                         app:layout_constraintBottom_toBottomOf="parent">
 
                         <com.google.android.material.imageview.ShapeableImageView
-                            android:id="@+id/homeProfileImage"
+                            android:id="@+id/homeBookmarksIcon"
                             android:layout_width="match_parent"
                             android:layout_height="match_parent"
-                            android:scaleType="centerCrop"
+                            android:scaleType="fitCenter"
+                            android:padding="10dp"
                             android:contentDescription="@string/home_bookmarks_desc"
                             app:shapeAppearanceOverlay="@style/ShapeAppearanceOverlay.App.CornerSize50Percent"
-                            android:src="@drawable/ic_bookmarks" />
+                            android:src="@drawable/ic_launcher_foreground" />
                     </FrameLayout>
 
                 </androidx.constraintlayout.widget.ConstraintLayout>
@@ -181,57 +203,13 @@
             android:paddingTop="@dimen/home_padding_top"
             android:paddingBottom="@dimen/home_padding_bottom">
 
-            <!-- ── SEARCH PILL ──────────────────────────────────────────── -->
-            <LinearLayout
-                android:id="@+id/homeSearchCard"
-                android:layout_width="match_parent"
-                android:layout_height="@dimen/home_search_height"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:background="@drawable/bg_home_search_card"
-                android:foreground="?attr/selectableItemBackground"
-                android:paddingStart="@dimen/home_search_padding_start"
-                android:paddingEnd="@dimen/home_search_padding_end"
-                android:layout_marginBottom="@dimen/home_search_margin_bottom"
-                android:clickable="true"
-                android:focusable="true"
-                android:elevation="6dp">
-
-                <ImageView
-                    android:layout_width="@dimen/home_search_icon_size"
-                    android:layout_height="@dimen/home_search_icon_size"
-                    android:src="@drawable/ic_search"
-                    android:contentDescription="@null"
-                    android:importantForAccessibility="no"
-                    android:tint="@color/home_icon_tint" />
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_marginStart="12dp"
-                    android:text="@string/home_search_hint"
-                    android:textColor="@color/home_subtle_foreground"
-                    android:textSize="@dimen/home_search_text_size"
-                    android:fontFamily="sans-serif"
-                    android:singleLine="true" />
-
-                <ImageView
-                    android:layout_width="@dimen/home_search_mic_size"
-                    android:layout_height="@dimen/home_search_mic_size"
-                    android:src="@drawable/ic_mic"
-                    android:contentDescription="@string/home_voice_search_desc"
-                    android:tint="@color/home_icon_tint" />
-
-            </LinearLayout>
-
             <!-- ── SHORTCUTS SECTION ────────────────────────────────────── -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:background="@drawable/bg_home_shortcut_card"
-                android:padding="0dp">
+                android:padding="@dimen/home_card_padding">
 
                 <!-- Section header row -->
                 <androidx.constraintlayout.widget.ConstraintLayout
@@ -260,7 +238,7 @@
                         android:layout_height="wrap_content"
                         android:text="@string/home_quick_access_subtitle"
                         android:textColor="@color/home_subtle_foreground"
-                        android:textSize="12sp"
+                        android:textSize="@dimen/home_section_subtitle_size"
                         android:fontFamily="sans-serif"
                         app:layout_constraintTop_toBottomOf="@+id/shortcutsTitle"
                         app:layout_constraintStart_toStartOf="parent"

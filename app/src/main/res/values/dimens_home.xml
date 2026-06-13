@@ -7,11 +7,11 @@
     <dimen name="home_section_gap">20dp</dimen>
 
     <!-- ── AppBar ────────────────────────────────────────────────────── -->
-    <dimen name="home_appbar_height">200dp</dimen>
+    <dimen name="home_appbar_height">160dp</dimen>
 
     <!-- ── Header ───────────────────────────────────────────────────── -->
-    <dimen name="home_header_title_size">42sp</dimen>
-    <dimen name="home_header_subtitle_size">15sp</dimen>
+    <dimen name="home_header_title_size">32sp</dimen>
+    <dimen name="home_header_subtitle_size">14sp</dimen>
     <dimen name="home_collapsed_title_size">20sp</dimen>
     <dimen name="home_avatar_size">44dp</dimen>
     <dimen name="home_logo_badge_size">44dp</dimen>
@@ -33,15 +33,17 @@
 
     <!-- ── Section header ───────────────────────────────────────────── -->
     <dimen name="home_section_title_size">17sp</dimen>
+    <dimen name="home_section_subtitle_size">12sp</dimen>
     <dimen name="home_section_action_size">15sp</dimen>
     <dimen name="home_section_header_min_height">44dp</dimen>
     <dimen name="home_section_header_margin_bottom">16dp</dimen>
 
     <!-- ── Shortcut tiles ───────────────────────────────────────────── -->
-    <!-- Tile frame (icon circle) size — was hardcoded dp72 in code -->
-    <dimen name="home_tile_frame_size">72dp</dimen>
-    <!-- Tile fully-circular radius = half of frame size -->
-    <dimen name="home_tile_radius">36dp</dimen>
+    <!-- Tile frame (icon circle) size — restored to 64dp squircle -->
+    <dimen name="home_tile_frame_size">64dp</dimen>
+    <!-- Tile squircle radius = 18dp (restored from 36dp circular) -->
+    <dimen name="home_tile_radius">18dp</dimen>
+    <dimen name="home_tile_elevation">3dp</dimen>
     <dimen name="home_tile_stroke_width">1dp</dimen>
     <!-- Favourite icon corner radius (used by bg_home_fav_*.xml drawables) -->
     <dimen name="home_fav_icon_radius">14dp</dimen>

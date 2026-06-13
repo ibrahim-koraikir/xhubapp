@@ -6,7 +6,7 @@
     <data>
         <variable
             name="uiController"
-            type="fulguris.browser.WebBrowser"/>
+            type="com.xhub.browser.browser.WebBrowser"/>
     </data>
 
     <!-- tabs-screen container -->

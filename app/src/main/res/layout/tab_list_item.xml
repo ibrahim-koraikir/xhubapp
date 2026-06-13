@@ -24,7 +24,7 @@
         android:paddingBottom="10dp"
         android:background="@drawable/bg_tab_grid_card_header_glass">
 
-        <fulguris.view.ImageView
+        <com.xhub.browser.view.ImageView
             android:id="@+id/faviconTab"
             android:layout_width="16dp"
             android:layout_height="16dp"
@@ -51,7 +51,7 @@
             android:background="@drawable/bg_tab_grid_close_btn"
             android:gravity="center">
 
-            <fulguris.view.ImageView
+            <com.xhub.browser.view.ImageView
                 android:id="@+id/deleteAction"
                 android:layout_width="14dp"
                 android:layout_height="14dp"

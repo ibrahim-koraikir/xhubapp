@@ -31,7 +31,7 @@
     <string name="settings_more">More</string>
     <string name="update_available">Update available</string>
     <string name="update_check_error">Update check error, try again later</string>
-    <string name="up_to_date">Fulguris is up to date</string>
+    <string name="up_to_date">XHub is up to date</string>
     <string name="show">Show</string>
     <string name="cache">Clear cache on exit</string>
     <string name="reflow">Enable text reflow</string>
@@ -189,6 +189,9 @@
     <string name="incognito_cookies_pie">Stealth mode runs in a separate process that is reset after each session. Stealth cookie preferences are now controlled by the regular cookie preferences.</string>
     <string name="pref_category_title_contact_us">Contact us</string>
     <string name="pref_category_title_legal">Legal</string>
+    <string name="pref_category_title_attribution">Attribution</string>
+    <string name="fulguris_attribution_title">Powered by Fulguris</string>
+    <string name="fulguris_attribution_summary">Copyright © 2020 Stéphane Lenclud</string>
     <string name="pref_category_title_telemetry">Telemetry</string>
     <string name="pref_category_title_permissions">Permissions</string>
     <string name="pref_category_title_storage">Storage</string>
@@ -209,8 +212,8 @@
     <string name="suggestion">Search for</string>
     <string name="checking_for_updates">Checking for updates…</string>
     <string name="dialog_title_updated">See what\'s new?</string>
-    <string name="dialog_message_updated">Fulguris was updated to v%s</string>
-    <string name="title_welcome">Welcome to Fulguris</string>
+    <string name="dialog_message_updated">XHub was updated to v%s</string>
+    <string name="title_welcome">Welcome to XHub</string>
     <string name="message_welcome">Visit our home page to find out more about this powerful web browser?</string>
 
     <string name="page_requests_by_time">Requests by time</string>
@@ -356,7 +359,7 @@
     <string name="settings_about">About</string>
     <string name="pref_summary_about">Version, contact, and legal details</string>
     <string name="settings_contribute">Contribute</string>
-    <string name="pref_summary_contribute">Help Fulguris grow and succeed</string>
+    <string name="pref_summary_contribute">Help XHub grow and succeed</string>
     <string name="pref_title_privacy_policy">Privacy Policy</string>
     <string name="pref_summary_privacy_policy">See our privacy policy online</string>
     <string name="pref_title_terms_and_conditions">Terms &amp; Conditions</string>
@@ -410,7 +413,7 @@
     <string name="pref_summary_off_crash_reports">Crash reports will not be sent</string>
     <string name="pref_summary_on_analytics">Help improve the app by sending usage data</string>
     <string name="pref_summary_off_analytics">Usage data will not be sent</string>
-    <string name="pref_title_accept_terms">I want to use Fulguris</string>
+    <string name="pref_title_accept_terms">I want to use XHub</string>
     <string name="pref_summary_on_accept_terms">You have accepted our terms and conditions</string>
     <string name="pref_summary_off_accept_terms">Accept our terms and conditions to continue</string>
 
@@ -418,17 +421,17 @@
     <string name="pref_title_desktop_width">Desktop width</string>
     <string name="pref_summary_desktop_width">Desktop mode viewport width, set it higher for smaller content</string>
     <string name="pref_title_no_sponsorship">In-app sponsorship not available</string>
-    <string name="pref_summary_no_sponsorship">Use Fulguris from Google Play to sponsor us.</string>
+    <string name="pref_summary_no_sponsorship">Use XHub from Google Play to sponsor us.</string>
     <string name="pref_title_free_download">Free download</string>
-    <string name="pref_summary_free_download">Fulguris is Open Source Software. You can download our free edition including full feature set and unlimited tabs.</string>
+    <string name="pref_summary_free_download">XHub is Open Source Software. You can download our free edition including full feature set and unlimited tabs.</string>
     <string name="pref_title_sponsorship_github">Sponsor us on GitHub</string>
     <string name="pref_summary_sponsorship_github">You can sponsor our work on GitHub to help make this project a success.</string>
     <string name="pref_title_sponsorship_five_stars">Five stars review</string>
     <string name="pref_summary_sponsorship_five_stars">Giving us a five stars review on Google Play is a great way to help this project.</string>
     <string name="pref_title_contribute_translations">Translations</string>
-    <string name="pref_summary_contribute_translations">You can help translate Fulguris to your locale language on Crowdin.</string>
+    <string name="pref_summary_contribute_translations">You can help translate XHub to your locale language on Crowdin.</string>
     <string name="pref_title_contribute_share">Spread the word</string>
-    <string name="pref_summary_contribute_share">Dazzle your friends and communities by sharing Fulguris with them.</string>
+    <string name="pref_summary_contribute_share">Dazzle your friends and communities by sharing XHub with them.</string>
     <string name="pref_title_language">Language</string>
     <string name="language_system_default">System default</string>
     <string name="close_tab">Close current tab</string>
@@ -644,7 +647,7 @@
 
     <!--  Third-party app launch prompt -->
     <string name="dialog_title_third_party_app">Launch third-party app?</string>
-    <string name="dialog_message_third_party_app">You will leave Fulguris</string>
+    <string name="dialog_message_third_party_app">You will leave XHub</string>
 
     <string name="per_month">\u0020/ month</string>
     <string name="per_year">\u0020/ year</string>
@@ -671,7 +674,7 @@
     <string name="stop_tts">Stop reading</string>
 
     <!-- Application name which can be translated -->
-    <string name="locale_app_name">xhub Web Browser</string>
+    <string name="locale_app_name">XHub Browser</string>
 
     <!--
     Long press on image link disambiguation:
@@ -803,7 +806,7 @@
     <string name="message_render_process_crashed">Render process crashed. You may need to reload some web pages.</string>
 
     <!-- App Introduction Strings -->
-    <string name="intro_welcome_title">Welcome to Fulguris</string>
+    <string name="intro_welcome_title">Welcome to XHub</string>
     <string name="intro_welcome_description">Experience fast, secure, and customizable web browsing with advanced privacy features and modern design.</string>
     <string name="intro_title_terms">Let\'s Get Started!</string>
     <string name="intro_title_telemetry">Help Us, Help You!</string>
@@ -811,7 +814,7 @@
     <string name="intro_description_ad_blocker">Enable our powerful ad blocker to browse faster, safer, and with fewer distractions. You can always change this later in settings.</string>
     <string name="intro_notification_permission_title">Notification permission</string>
     <string name="video_detected">Video detected</string>
-    <string name="intro_notification_permission_description">Allow Fulguris to send notifications, notably for download completion and during private sessions.</string>
+    <string name="intro_notification_permission_description">Allow XHub to send notifications, notably for download completion and during private sessions.</string>
 
     <string name="pref_title_enable_ad_blocker">Ad blocker</string>
     <string name="pref_summary_on_enable_ad_blocker">Enjoy a cleaner, safer web experience</string>
@@ -910,6 +913,11 @@
     <string name="home_settings_desc">Settings</string>
     <string name="home_bookmarks_desc">Bookmarks</string>
     <string name="home_voice_search_desc">Voice search</string>
-    <string name="home_brand_name">xHub</string>
+    <string name="home_brand_name">XHub</string>
+    <string name="search_overlay_site_suggestions">Site suggestions</string>
+    <string name="search_overlay_recent_searches">Recent searches</string>
+    <string name="search_overlay_hint">Ask anything or navigate...</string>
+    <string name="shortcut_drag_to_reorder">Drag to reorder</string>
+    <string name="shortcut_remove_site">Remove site</string>
 </resources>
 
