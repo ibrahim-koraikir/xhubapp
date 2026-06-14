@@ -277,6 +277,9 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
     // We had to use that to avoid crashes when using tab animations
     private var iPlaceHolder: Space? = null
 
+    // Holds favicon fetch subscriptions for the home-screen shortcuts so they aren't GC'd
+    private val faviconDisposables = io.reactivex.disposables.CompositeDisposable()
+
     /**
      * Only called when the current tab just opened from an ACTION_VIEW intent is closed
      * Tab could have been opened by another app or by ourselves from another activity
@@ -1753,6 +1756,8 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
      * vivid gradient title shader (gold → pink → violet).
      */
     private fun buildDynamicShortcuts() {
+        // Clear previous favicon subscriptions before rebuilding the grid
+        faviconDisposables.clear()
         val container = iBinding.homeScreenOverlay.findViewById<android.widget.LinearLayout>(
             R.id.shortcutsDynamicContainer
         ) ?: return
@@ -2009,25 +2014,27 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
                         }
                         frame.addView(faviconIv)
 
-                        // Async favicon fetch
-                        faviconModel.realFaviconForUrl(site.url, true)
-                            .subscribeOn(io.reactivex.schedulers.Schedulers.io())
-                            .observeOn(mainScheduler)
-                            .subscribeBy(
-                                onSuccess = { bmp ->
-                                    faviconIv.setImageBitmap(bmp)
-                                    faviconIv.isVisible = true
-                                    initial.isVisible  = false
-                                    frame.setCardBackgroundColor(android.graphics.Color.WHITE)
-                                },
-                                onComplete = {
-                                    // No real favicon available — keep letter placeholder visible
-                                    Timber.d("No favicon found for ${site.url}, keeping letter placeholder")
-                                },
-                                onError = { err ->
-                                    Timber.w(err, "Favicon fetch error for ${site.url}")
-                                }
-                            )
+                        // Async favicon fetch — store Disposable so it isn't GC'd before completion
+                        faviconDisposables.add(
+                            faviconModel.realFaviconForUrl(site.url, true)
+                                .subscribeOn(io.reactivex.schedulers.Schedulers.io())
+                                .observeOn(mainScheduler)
+                                .subscribeBy(
+                                    onSuccess = { bmp ->
+                                        faviconIv.setImageBitmap(bmp)
+                                        faviconIv.isVisible = true
+                                        initial.isVisible  = false
+                                        frame.setCardBackgroundColor(android.graphics.Color.WHITE)
+                                    },
+                                    onComplete = {
+                                        // No real favicon available — keep letter placeholder visible
+                                        Timber.d("No favicon found for ${site.url}, keeping letter placeholder")
+                                    },
+                                    onError = { err ->
+                                        Timber.w(err, "Favicon fetch error for ${site.url}")
+                                    }
+                                )
+                        )
 
                         tile.addView(frame)
 
@@ -4514,12 +4521,13 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
 
         tabsManager.currentTab?.let {tab ->
 
-            if (isLoading()) {
-                return tab.url
-            }
-
+            // Always show the search hint on the home page, even while it's loading
             if (tab.url.isSpecialUrl()) {
                 return getString(R.string.search_overlay_hint)
+            }
+
+            if (isLoading()) {
+                return tab.url
             }
 
             return when (aInfo) {
