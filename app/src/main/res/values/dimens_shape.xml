@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Corner-radius tokens. Used DIRECTLY inside home-screen drawables.
+         NOTE: the app-wide ShapeAppearance.App.Small/Medium/LargeComponent
+         styles (styles.xml:1004-1017) are NOT changed in Phase 1 — they stay
+         at 8dp app-wide. Repointing those is Phase-2 scope. -->
+    <dimen name="radius_sm">8dp</dimen>
+    <dimen name="radius_md">12dp</dimen>
+    <dimen name="radius_lg">16dp</dimen>
+    <dimen name="radius_xl">18dp</dimen>   <!-- tile squircle — deliberately tuned -->
+    <dimen name="radius_full">28dp</dimen> <!-- pills, circles -->
+
+    <!-- Elevation tokens. -->
+    <dimen name="elevation_none">0dp</dimen>
+    <dimen name="elevation_sm">1dp</dimen>
+    <dimen name="elevation_md">3dp</dimen>  <!-- shortcut tiles -->
+    <dimen name="elevation_lg">6dp</dimen>  <!-- flame button -->
+</resources>
