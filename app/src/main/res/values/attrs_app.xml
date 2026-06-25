@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- ── Home-screen semantic color tokens ─────────────────────────────── -->
+    <!-- Each is assigned a concrete per-theme value in styles.xml
+         (Theme.App.Light/White/Dark/Black). Layouts & drawables reference
+         them as ?attr/appColor* so the home screen is theme-adaptive. -->
+
+    <attr name="appColorAccentOrange" format="color" />
+    <!-- 35%-alpha orange for decorative quote mark (large 60sp text, non-body) -->
+    <attr name="appColorAccentOrangeFaint" format="color" />
+    <attr name="appColorAccentOrangeLight" format="color" />
+    <attr name="appColorAccentOrangeDark" format="color" />
+    <attr name="appColorAccentPurple" format="color" />
+
+    <attr name="appColorHomeTileSurface" format="color" />
+    <attr name="appColorHomeStroke" format="color" />
+    <attr name="appColorHomeTileStroke" format="color" />
+
+    <attr name="appColorMutedForeground" format="color" />
+    <attr name="appColorSubtleForeground" format="color" />
+    <attr name="appColorDimForeground" format="color" />
+    <attr name="appColorIconTint" format="color" />
+    <attr name="appColorGroupLabel" format="color" />
+
+    <!-- Starfield scrim color (the overlay View on top of the background image) -->
+    <attr name="appStarfieldScrim" format="color" />
+
+    <!-- The home background drawable itself (reference, NOT color) -->
+    <attr name="appHomeBackground" format="reference" />
+
+</resources>
