@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Home screen hero background for LIGHT/WHITE themes.
+     Counterpart to bg_home_hero.xml (which is the dark warm-red wash).
+     Neutral near-white base with a faint warm radial glow top-right so the
+     hero still has subtle depth without the heavy dark wash. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Base: transparent (lets the starfield_light show through) -->
+    <item android:id="@+id/heroBase">
+        <shape android:shape="rectangle">
+            <solid android:color="@android:color/transparent" />
+        </shape>
+    </item>
+
+    <!-- Faint warm radial glow, top-right — subtle on light backgrounds -->
+    <item android:id="@+id/heroGlowOrange">
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="radial"
+                android:startColor="#14D9531E"
+                android:endColor="#00D9531E"
+                android:gradientRadius="480dp"
+                android:centerX="0.85"
+                android:centerY="0.05" />
+        </shape>
+    </item>
+
+</layer-list>

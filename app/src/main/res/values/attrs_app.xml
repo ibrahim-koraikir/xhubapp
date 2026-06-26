@@ -34,4 +34,8 @@
     <!-- The home background drawable itself (reference, NOT color) -->
     <attr name="appHomeBackground" format="reference" />
 
+    <!-- The hero-section background drawable (the warm wash behind the quote/stats).
+         Dark warm gradient on dark themes; neutral light wash on light themes. -->
+    <attr name="appHomeHeroBackground" format="reference" />
+
 </resources>

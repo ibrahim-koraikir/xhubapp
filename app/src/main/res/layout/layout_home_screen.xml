@@ -8,128 +8,63 @@
     android:visibility="gone"
     tools:visibility="visible">
 
-    <!-- Full-screen Starfield Background Image -->
+    <!-- Full-screen Starfield Background Image (theme-aware via ?attr/appHomeBackground) -->
     <ImageView
         android:id="@+id/homeScreenBackground"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:scaleType="centerCrop"
-        android:src="@drawable/bg_home_starfield"
+        android:src="?attr/appHomeBackground"
         android:contentDescription="@null"
         android:importantForAccessibility="no" />
 
-    <!-- 80% Transparent Dark Overlay for Premium Darkish Background -->
+    <!-- Scrim overlay — theme-aware (?attr/appStarfieldScrim: dark on dark themes, faint on light) -->
     <View
         android:id="@+id/homeScreenBackgroundOverlay"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#CC000000"
+        android:background="?attr/appStarfieldScrim"
         android:importantForAccessibility="no" />
 
-    <com.google.android.material.appbar.AppBarLayout
-        android:id="@+id/homeAppBarLayout"
+    <!-- Scrollable body (hero header now scrolls with the page) -->
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/homeScrollView"
         android:layout_width="match_parent"
-        android:layout_height="@dimen/home_appbar_height"
-        android:background="@android:color/transparent"
-        app:elevation="0dp">
+        android:layout_height="match_parent"
+        android:fillViewport="true"
+        android:scrollbars="none"
+        android:overScrollMode="never">
 
-        <com.google.android.material.appbar.CollapsingToolbarLayout
-            android:id="@+id/homeCollapsingToolbar"
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            app:layout_scrollFlags="scroll|exitUntilCollapsed"
-            app:contentScrim="@color/home_background"
-            app:titleEnabled="false">
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="?attr/appHomeHeroBackground"
+            android:paddingHorizontal="0dp"
+            android:paddingTop="0dp"
+            android:paddingBottom="@dimen/home_padding_bottom">
 
-            <!-- Expanded Header: Brand + Greeting -->
+            <!-- ── HERO HEADER (static quote / streak / stats) ─────────── -->
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
+                android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:gravity="center"
-                android:paddingTop="16dp"
-                android:paddingBottom="8dp"
-                app:layout_collapseMode="parallax">
+                android:paddingTop="@dimen/home_hero_padding_top"
+                android:paddingHorizontal="@dimen/home_hero_padding_h"
+                android:paddingBottom="@dimen/home_hero_padding_bottom">
 
-                <!-- Logo row -->
+                <!-- ── Action row: settings (left) · streak chip + flame button (right) ── -->
                 <LinearLayout
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:layout_gravity="center_horizontal">
+                    android:gravity="center_vertical">
 
+                    <!-- Settings (glass circle) -->
                     <FrameLayout
-                        android:layout_width="@dimen/home_logo_badge_size"
-                        android:layout_height="@dimen/home_logo_badge_size"
-                        android:background="@drawable/bg_home_logo_gradient"
-                        android:layout_marginEnd="14dp"
-                        android:padding="1dp">
-
-                        <ImageView
-                            android:layout_width="match_parent"
-                            android:layout_height="match_parent"
-                            android:layout_gravity="center"
-                            android:src="@drawable/ic_comet_logo"
-                            android:contentDescription="@null"
-                            android:importantForAccessibility="no"
-                            android:scaleType="fitCenter"
-                            android:padding="8dp"
-                            app:tint="@color/home_foreground" />
-                    </FrameLayout>
-
-                    <!-- Brand name — only in expanded header -->
-                    <TextView
-                        android:id="@+id/homeTitle"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/home_brand_name"
-                        android:textColor="@color/home_foreground"
-                        android:textSize="@dimen/home_header_title_size"
-                        android:fontFamily="sans-serif-black"
-                        android:includeFontPadding="false"
-                        android:letterSpacing="0.01" />
-                </LinearLayout>
-
-                <!-- Greeting sub-line: updated in code; placeholder keeps layout preview readable -->
-                <TextView
-                    android:id="@+id/homeGreeting"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/home_greeting_morning"
-                    android:textColor="@color/home_muted_foreground"
-                    android:textSize="@dimen/home_header_subtitle_size"
-                    android:fontFamily="sans-serif-light"
-                    android:letterSpacing="0.04"
-                    android:layout_marginTop="6dp"
-                    android:layout_gravity="center_horizontal" />
-
-            </LinearLayout>
-
-            <!-- Collapsed Toolbar (pinned) — brand name omitted here; expanded header carries it -->
-            <androidx.appcompat.widget.Toolbar
-                android:id="@+id/homeToolbar"
-                android:layout_width="match_parent"
-                android:layout_height="?attr/actionBarSize"
-                app:layout_collapseMode="pin"
-                app:contentInsetStart="0dp"
-                app:contentInsetStartWithNavigation="0dp">
-
-                <androidx.constraintlayout.widget.ConstraintLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:paddingHorizontal="16dp">
-
-                    <!-- Settings button (left) -->
-                    <FrameLayout
-                        android:id="@+id/homeSettingsBtnContainer"
-                        android:layout_width="@dimen/home_avatar_size"
-                        android:layout_height="@dimen/home_avatar_size"
-                        android:background="@drawable/bg_home_profile_ring"
-                        android:padding="1dp"
-                        app:layout_constraintLeft_toLeftOf="parent"
-                        app:layout_constraintTop_toTopOf="parent"
-                        app:layout_constraintBottom_toBottomOf="parent">
+                        android:layout_width="@dimen/home_hero_action_btn"
+                        android:layout_height="@dimen/home_hero_action_btn"
+                        android:background="@drawable/bg_home_action_glass">
 
                         <ImageButton
                             android:id="@+id/homeSettingsBtn"
@@ -139,77 +74,262 @@
                             android:src="@drawable/ic_settings"
                             android:padding="10dp"
                             android:scaleType="fitCenter"
-                            app:tint="@color/home_foreground"
+                            app:tint="?attr/colorOnBackground"
                             android:contentDescription="@string/home_settings_desc" />
                     </FrameLayout>
 
-                    <!-- Collapsed brand name — centered between the two icon buttons -->
+                    <!-- Spacer pushes the right group to the end -->
+                    <View
+                        android:layout_width="0dp"
+                        android:layout_height="0dp"
+                        android:layout_weight="1" />
+
+                    <!-- Streak chip + flame button -->
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <!-- Day streak chip -->
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:background="@drawable/bg_home_streak_chip"
+                            android:paddingHorizontal="10dp"
+                            android:paddingVertical="6dp"
+                            android:layout_marginEnd="8dp"
+                            android:contentDescription="@string/home_streak_desc">
+
+                            <ImageView
+                                android:layout_width="@dimen/home_hero_streak_icon"
+                                android:layout_height="@dimen/home_hero_streak_icon"
+                                android:src="@drawable/ic_zap"
+                                android:contentDescription="@null"
+                                android:importantForAccessibility="no"
+                                app:tint="?attr/appColorAccentOrangeLight" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="@dimen/spacing_xs"
+                                android:text="@string/home_streak_count"
+                                android:textColor="?attr/appColorAccentOrangeLight"
+                                android:textAppearance="@style/TextAppearance.App.BodyMedium"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="@dimen/spacing_xs"
+                                android:text="@string/home_streak_label"
+                                android:textColor="?attr/appColorAccentOrangeLight"
+                                android:textAppearance="@style/TextAppearance.App.BodySmall" />
+                        </LinearLayout>
+
+                        <!-- Flame (bookmarks) button -->
+                        <FrameLayout
+                            android:id="@+id/homeBookmarksButton"
+                            android:layout_width="@dimen/home_hero_action_btn"
+                            android:layout_height="@dimen/home_hero_action_btn"
+                            android:background="@drawable/bg_home_flame_btn"
+                            android:elevation="6dp">
+
+                            <ImageView
+                                android:layout_width="@dimen/home_hero_flame_icon"
+                                android:layout_height="@dimen/home_hero_flame_icon"
+                                android:layout_gravity="center"
+                                android:src="@drawable/ic_flame"
+                                android:contentDescription="@string/home_flame_desc"
+                                app:tint="?attr/colorOnBackground" />
+                        </FrameLayout>
+                    </LinearLayout>
+                </LinearLayout>
+
+                <!-- ── Greeting pill ────────────────────────────────────── -->
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:background="@drawable/bg_home_greeting_pill"
+                    android:paddingHorizontal="14dp"
+                    android:paddingVertical="8dp"
+                    android:layout_gravity="center_horizontal"
+                    android:layout_marginTop="22dp">
+
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="@string/home_brand_name"
-                        android:textColor="@color/home_foreground"
-                        android:textSize="@dimen/home_collapsed_title_size"
-                        android:fontFamily="sans-serif-black"
-                        app:layout_constraintLeft_toRightOf="@id/homeSettingsBtnContainer"
-                        app:layout_constraintRight_toLeftOf="@id/homeBookmarksButton"
-                        app:layout_constraintTop_toTopOf="parent"
-                        app:layout_constraintBottom_toBottomOf="parent" />
+                        android:text="👋"
+                        android:textAppearance="@style/TextAppearance.App.BodyMedium" />
 
-                    <!-- Right button: Tinder-style flame (bookmarks) -->
-                    <FrameLayout
-                        android:id="@+id/homeBookmarksButton"
-                        android:layout_width="@dimen/home_avatar_size"
-                        android:layout_height="@dimen/home_avatar_size"
-                        android:background="@drawable/bg_home_profile_ring"
-                        android:padding="1dp"
-                        app:layout_constraintRight_toRightOf="parent"
-                        app:layout_constraintTop_toTopOf="parent"
-                        app:layout_constraintBottom_toBottomOf="parent">
+                    <TextView
+                        android:id="@+id/homeGreeting"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/spacing_sm"
+                        android:text="@string/home_greeting_morning"
+                        android:textColor="?attr/appColorMutedForeground"
+                        android:textAppearance="@style/TextAppearance.App.GreetingLabel" />
 
-                        <com.google.android.material.imageview.ShapeableImageView
-                            android:id="@+id/homeBookmarksIcon"
-                            android:layout_width="match_parent"
-                            android:layout_height="match_parent"
-                            android:scaleType="fitCenter"
-                            android:padding="10dp"
-                            android:contentDescription="@string/home_bookmarks_desc"
-                            app:shapeAppearanceOverlay="@style/ShapeAppearanceOverlay.App.CornerSize50Percent"
-                            android:src="@drawable/ic_launcher_foreground" />
-                    </FrameLayout>
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/spacing_xs"
+                        android:text="@string/home_user_name"
+                        android:textColor="?attr/appColorAccentOrangeLight"
+                        android:textAppearance="@style/TextAppearance.App.GreetingLabel"
+                        android:textStyle="bold" />
+                </LinearLayout>
 
-                </androidx.constraintlayout.widget.ConstraintLayout>
+                <!-- ── Quote mark ───────────────────────────────────────── -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="❝"
+                    android:textColor="?attr/appColorAccentOrangeFaint"
+                    android:textAppearance="@style/TextAppearance.App.QuoteMark"
+                    android:layout_marginTop="@dimen/spacing_md"
+                    android:layout_gravity="center_horizontal" />
 
-            </androidx.appcompat.widget.Toolbar>
+                <!-- ── Quote text (homeTitle id — required by HomeScreenLayoutTest) ── -->
+                <TextView
+                    android:id="@+id/homeTitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/home_quote_text"
+                    android:textColor="?attr/colorOnBackground"
+                    android:textAppearance="@style/TextAppearance.App.DisplayMedium"
+                    android:textStyle="bold"
+                    android:gravity="center"
+                    android:letterSpacing="0.01"
+                    android:layout_marginTop="-12dp"
+                    android:layout_marginHorizontal="@dimen/spacing_xs" />
 
-        </com.google.android.material.appbar.CollapsingToolbarLayout>
+                <!-- ── Divider + "Quote of the day" label ───────────────── -->
+                <View
+                    android:layout_width="@dimen/spacing_xl"
+                    android:layout_height="@dimen/elevation_sm"
+                    android:background="@drawable/bg_home_quote_divider"
+                    android:layout_gravity="center_horizontal"
+                    android:layout_marginTop="@dimen/spacing_lg" />
 
-    </com.google.android.material.appbar.AppBarLayout>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/home_quote_label"
+                    android:textColor="?attr/appColorAccentOrange"
+                    android:textAppearance="@style/TextAppearance.App.LabelMedium"
+                    android:layout_gravity="center_horizontal"
+                    android:layout_marginTop="@dimen/spacing_sm" />
 
-    <!-- Scrollable body -->
-    <androidx.core.widget.NestedScrollView
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:fillViewport="true"
-        android:scrollbars="none"
-        android:overScrollMode="never"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+                <!-- ── Stat chips: saved · downloads · Private ──────────── -->
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center"
+                    android:layout_gravity="center_horizontal"
+                    android:layout_marginTop="@dimen/spacing_xl">
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:paddingHorizontal="@dimen/home_padding_horizontal"
-            android:paddingTop="@dimen/home_padding_top"
-            android:paddingBottom="@dimen/home_padding_bottom">
+                    <!-- Saved -->
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:background="@drawable/bg_home_stat_chip"
+                        android:paddingHorizontal="@dimen/spacing_md"
+                        android:paddingVertical="7dp"
+                        android:layout_marginEnd="@dimen/spacing_sm">
 
-            <!-- ── SHORTCUTS SECTION ────────────────────────────────────── -->
+                        <ImageView
+                            android:layout_width="@dimen/home_stat_icon"
+                            android:layout_height="@dimen/home_stat_icon"
+                            android:src="@drawable/ic_bookmark"
+                            android:contentDescription="@null"
+                            android:importantForAccessibility="no"
+                            app:tint="?attr/appColorDimForeground" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="@dimen/spacing_xs"
+                            android:text="@string/home_stat_saved"
+                            android:textColor="?attr/appColorDimForeground"
+                            android:textAppearance="@style/TextAppearance.App.LabelSmall" />
+                    </LinearLayout>
+
+                    <!-- Downloads -->
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:background="@drawable/bg_home_stat_chip"
+                        android:paddingHorizontal="@dimen/spacing_md"
+                        android:paddingVertical="7dp"
+                        android:layout_marginEnd="@dimen/spacing_sm">
+
+                        <ImageView
+                            android:layout_width="@dimen/home_stat_icon"
+                            android:layout_height="@dimen/home_stat_icon"
+                            android:src="@drawable/ic_download"
+                            android:contentDescription="@null"
+                            android:importantForAccessibility="no"
+                            app:tint="?attr/appColorDimForeground" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="@dimen/spacing_xs"
+                            android:text="@string/home_stat_downloads"
+                            android:textColor="?attr/appColorDimForeground"
+                            android:textAppearance="@style/TextAppearance.App.LabelSmall" />
+                    </LinearLayout>
+
+                    <!-- Private -->
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:background="@drawable/bg_home_stat_chip"
+                        android:paddingHorizontal="@dimen/spacing_md"
+                        android:paddingVertical="7dp">
+
+                        <ImageView
+                            android:layout_width="@dimen/home_stat_icon"
+                            android:layout_height="@dimen/home_stat_icon"
+                            android:src="@drawable/ic_shield"
+                            android:contentDescription="@null"
+                            android:importantForAccessibility="no"
+                            app:tint="?attr/appColorAccentPurple" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="@dimen/spacing_xs"
+                            android:text="@string/home_stat_private"
+                            android:textColor="?attr/appColorDimForeground"
+                            android:textAppearance="@style/TextAppearance.App.LabelSmall" />
+                    </LinearLayout>
+                </LinearLayout>
+
+            </LinearLayout>
+
+            <!-- ── SHORTCUTS SECTION (preserved — internal contents unchanged) ── -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:background="@drawable/bg_home_shortcut_card"
-                android:padding="@dimen/home_card_padding">
+                android:padding="@dimen/home_card_padding"
+                android:layout_marginHorizontal="@dimen/home_padding_horizontal"
+                android:layout_marginTop="@dimen/home_padding_top">
 
                 <!-- Section header row -->
                 <androidx.constraintlayout.widget.ConstraintLayout
@@ -223,9 +343,8 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:text="@string/home_quick_access_title"
-                        android:textColor="@color/home_foreground"
-                        android:textSize="@dimen/home_section_title_size"
-                        android:fontFamily="sans-serif-medium"
+                        android:textColor="?attr/colorOnBackground"
+                        android:textAppearance="@style/TextAppearance.App.TitleLarge"
                         android:letterSpacing="0.01"
                         app:layout_constraintTop_toTopOf="parent"
                         app:layout_constraintStart_toStartOf="parent"
@@ -237,9 +356,8 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:text="@string/home_quick_access_subtitle"
-                        android:textColor="@color/home_subtle_foreground"
-                        android:textSize="@dimen/home_section_subtitle_size"
-                        android:fontFamily="sans-serif"
+                        android:textColor="?attr/appColorSubtleForeground"
+                        android:textAppearance="@style/TextAppearance.App.BodySmall"
                         app:layout_constraintTop_toBottomOf="@+id/shortcutsTitle"
                         app:layout_constraintStart_toStartOf="parent"
                         app:layout_constraintEnd_toStartOf="@+id/btnEditShortcuts"
@@ -268,27 +386,29 @@
                             android:src="@drawable/ic_edit_outline"
                             android:contentDescription="@null"
                             android:importantForAccessibility="no"
-                            android:tint="@color/home_dim_foreground" />
+                            android:tint="?attr/appColorDimForeground" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginStart="@dimen/home_edit_icon_label_gap"
                             android:text="@string/home_edit_shortcuts"
-                            android:textColor="@color/home_dim_foreground"
-                            android:textSize="@dimen/home_edit_text_size"
-                            android:fontFamily="sans-serif-medium" />
+                            android:textColor="?attr/appColorDimForeground"
+                            android:textAppearance="@style/TextAppearance.App.BodyMedium" />
 
                     </LinearLayout>
 
                 </androidx.constraintlayout.widget.ConstraintLayout>
 
-                <!-- Dynamic shortcut tile grid populated in code -->
-                <LinearLayout
+                <!-- Dynamic shortcut tile grid.
+                     COMMENT 6: was a LinearLayout rebuilt programmatically on every home visit;
+                     now a RecyclerView so tiles are recycled and only changed items are rebound. -->
+                <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/shortcutsDynamicContainer"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical" />
+                    android:nestedScrollingEnabled="false"
+                    android:overScrollMode="never" />
 
             </LinearLayout>
 
