@@ -86,6 +86,17 @@
     <color name="home_token_starfield_scrim_dark">#CC000000</color>
     <color name="home_token_starfield_scrim_black">#E6000000</color>
 
+    <!-- ── Glassmorphism overlays. White-alpha on dark, black-alpha on light (inverts for visibility). ── -->
+    <color name="home_token_glass_fill_light">#0F000000</color>
+    <color name="home_token_glass_fill_white">#0F000000</color>
+    <color name="home_token_glass_fill_dark">#0FFFFFFF</color>
+    <color name="home_token_glass_fill_black">#0FFFFFFF</color>
+
+    <color name="home_token_glass_stroke_light">#1A000000</color>
+    <color name="home_token_glass_stroke_white">#1A000000</color>
+    <color name="home_token_glass_stroke_dark">#1AFFFFFF</color>
+    <color name="home_token_glass_stroke_black">#1AFFFFFF</color>
+
     <!-- ── Dark-theme background (tonal elevation support). ── -->
     <color name="home_token_bg_dark">#FF121212</color>
 

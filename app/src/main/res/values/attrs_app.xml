@@ -26,6 +26,11 @@
     <!-- Starfield scrim color (the overlay View on top of the background image) -->
     <attr name="appStarfieldScrim" format="reference|color" />
 
+    <!-- Glassmorphism overlays: translucent fills/strokes for pills, chips, glass buttons.
+         White-alpha on dark themes, black-alpha on light themes (inverts for visibility). -->
+    <attr name="appColorGlassFill" format="reference|color" />
+    <attr name="appColorGlassStroke" format="reference|color" />
+
     <!-- The home background drawable itself (reference, NOT color) -->
     <attr name="appHomeBackground" format="reference" />
 

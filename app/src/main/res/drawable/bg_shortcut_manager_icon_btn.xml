@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Shortcut manager icon button: glass stroke fill, 17dp corner radius. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="?attr/appColorGlassFill" />
+    <corners android:radius="@dimen/radius_xl" />
+</shape>
