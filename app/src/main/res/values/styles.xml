@@ -270,6 +270,27 @@ colorControlNormal:
 
 <!--        <item name="android:windowFullscreen">true</item>-->
 
+        <!-- Home-screen semantic tokens (Light). Orange deepened for WCAG-AA on white.
+             Values reference @color/home_token_* (single source in colors_app.xml).
+             Declared in *.Base (not the empty Light shell) so Robolectric SDK-27 unit tests
+             can resolve them via resolveAttribute — child-shell overrides applied via setTheme
+             on an already-initialized Application context are not picked up by Robolectric. -->
+        <item name="appColorAccentOrange">@color/home_token_accent_orange_light</item>
+        <item name="appColorAccentOrangeFaint">@color/home_token_accent_orange_faint_light</item>
+        <item name="appColorAccentOrangeLight">@color/home_token_accent_orange_light_light</item>
+        <item name="appColorAccentOrangeDark">@color/home_token_accent_orange_dark_light</item>
+        <item name="appColorAccentPurple">@color/home_token_accent_purple_light</item>
+        <item name="appColorHomeTileSurface">@color/home_token_tile_surface_light</item>
+        <item name="appColorHomeStroke">@color/home_token_stroke_light</item>
+        <item name="appColorHomeTileStroke">@color/home_token_tile_stroke_light</item>
+        <item name="appColorMutedForeground">@color/home_token_muted_fg_light</item>
+        <item name="appColorSubtleForeground">@color/home_token_subtle_fg_light</item>
+        <item name="appColorDimForeground">@color/home_token_dim_fg_light</item>
+        <item name="appColorIconTint">@color/home_token_icon_tint_light</item>
+        <item name="appColorGroupLabel">@color/home_token_group_label_light</item>
+        <item name="appStarfieldScrim">@color/home_token_starfield_scrim_light</item>
+        <item name="appHomeBackground">@drawable/bg_home_starfield_light</item>
+
     </style>
 
 
@@ -448,6 +469,23 @@ colorControlNormal:
         <item name="enableEdgeToEdge">true</item>
 
 <!--        <item name="android:windowFullscreen">true</item>-->
+
+        <!-- Home-screen semantic tokens (White). Same as Light but pure-white tile surface and near-flat scrim. -->
+        <item name="appColorAccentOrange">@color/home_token_accent_orange_white</item>
+        <item name="appColorAccentOrangeFaint">@color/home_token_accent_orange_faint_white</item>
+        <item name="appColorAccentOrangeLight">@color/home_token_accent_orange_light_white</item>
+        <item name="appColorAccentOrangeDark">@color/home_token_accent_orange_dark_white</item>
+        <item name="appColorAccentPurple">@color/home_token_accent_purple_white</item>
+        <item name="appColorHomeTileSurface">@color/home_token_tile_surface_white</item>
+        <item name="appColorHomeStroke">@color/home_token_stroke_white</item>
+        <item name="appColorHomeTileStroke">@color/home_token_tile_stroke_white</item>
+        <item name="appColorMutedForeground">@color/home_token_muted_fg_white</item>
+        <item name="appColorSubtleForeground">@color/home_token_subtle_fg_white</item>
+        <item name="appColorDimForeground">@color/home_token_dim_fg_white</item>
+        <item name="appColorIconTint">@color/home_token_icon_tint_white</item>
+        <item name="appColorGroupLabel">@color/home_token_group_label_white</item>
+        <item name="appStarfieldScrim">@color/home_token_starfield_scrim_white</item>
+        <item name="appHomeBackground">@drawable/bg_home_starfield_light</item>
 
     </style>
 
@@ -654,6 +692,27 @@ colorControlNormal:
         <item name="enableEdgeToEdge">true</item>
 
 <!--        <item name="android:windowFullscreen">true</item>-->
+
+        <!-- Home-screen semantic tokens (Dark). Orange/purple kept vivid — pops on dark. -->
+        <item name="appColorAccentOrange">@color/home_token_accent_orange_dark</item>
+        <item name="appColorAccentOrangeFaint">@color/home_token_accent_orange_faint_dark</item>
+        <item name="appColorAccentOrangeLight">@color/home_token_accent_orange_light_dark</item>
+        <item name="appColorAccentOrangeDark">@color/home_token_accent_orange_dark_dark</item>
+        <item name="appColorAccentPurple">@color/home_token_accent_purple_dark</item>
+        <item name="appColorHomeTileSurface">@color/home_token_tile_surface_dark</item>
+        <item name="appColorHomeStroke">@color/home_token_stroke_dark</item>
+        <item name="appColorHomeTileStroke">@color/home_token_tile_stroke_dark</item>
+        <item name="appColorMutedForeground">@color/home_token_muted_fg_dark</item>
+        <item name="appColorSubtleForeground">@color/home_token_subtle_fg_dark</item>
+        <item name="appColorDimForeground">@color/home_token_dim_fg_dark</item>
+        <item name="appColorIconTint">@color/home_token_icon_tint_dark</item>
+        <item name="appColorGroupLabel">@color/home_token_group_label_dark</item>
+        <item name="appStarfieldScrim">@color/home_token_starfield_scrim_dark</item>
+        <item name="appHomeBackground">@drawable/bg_home_starfield</item>
+        <!-- Tonal elevation: on dark surfaces real shadows are invisible, so M3 lifts via overlay. -->
+        <item name="android:colorBackground">@color/home_token_bg_dark</item>
+        <item name="elevationOverlayColor">@color/md_theme_dark_surfaceVariant</item>
+
     </style>
 
 
@@ -856,87 +915,43 @@ colorControlNormal:
         <item name="enableEdgeToEdge">true</item>
 
 <!--        <item name="android:windowFullscreen">true</item>-->
-    </style>
 
-    <style name="Theme.App.Light" parent="Theme.App.Light.Base">
-        <!-- Home-screen semantic tokens (Light). Orange deepened to #D9531E for WCAG-AA on white. -->
-        <item name="appColorAccentOrange">#D9531E</item>
-        <item name="appColorAccentOrangeFaint">#59D9531E</item>
-        <item name="appColorAccentOrangeLight">#C24416</item>
-        <item name="appColorAccentOrangeDark">#A8330F</item>
-        <item name="appColorAccentPurple">#6F4BE6</item>
-        <item name="appColorHomeTileSurface">#F3F3F6</item>
-        <item name="appColorHomeStroke">#D7D7DD</item>
-        <item name="appColorHomeTileStroke">#1A000000</item>
-        <item name="appColorMutedForeground">#5C5C66</item>
-        <item name="appColorSubtleForeground">#6E6E78</item>
-        <item name="appColorDimForeground">#42424A</item>
-        <item name="appColorIconTint">#5C5C66</item>
-        <item name="appColorGroupLabel">#8A8A94</item>
-        <item name="appStarfieldScrim">#14FFFFFF</item>
-        <item name="appHomeBackground">@drawable/bg_home_starfield_light</item>
-    </style>
-
-    <style name="Theme.App.White" parent="Theme.App.White.Base">
-        <!-- Home-screen semantic tokens (White). Same as Light but pure-white tile surface and near-flat scrim. -->
-        <item name="appColorAccentOrange">#D9531E</item>
-        <item name="appColorAccentOrangeFaint">#59D9531E</item>
-        <item name="appColorAccentOrangeLight">#C24416</item>
-        <item name="appColorAccentOrangeDark">#A8330F</item>
-        <item name="appColorAccentPurple">#6F4BE6</item>
-        <item name="appColorHomeTileSurface">#FFFFFFFF</item>
-        <item name="appColorHomeStroke">#D7D7DD</item>
-        <item name="appColorHomeTileStroke">#1A000000</item>
-        <item name="appColorMutedForeground">#5C5C66</item>
-        <item name="appColorSubtleForeground">#6E6E78</item>
-        <item name="appColorDimForeground">#42424A</item>
-        <item name="appColorIconTint">#5C5C66</item>
-        <item name="appColorGroupLabel">#8A8A94</item>
-        <item name="appStarfieldScrim">#0A000000</item>
-        <item name="appHomeBackground">@drawable/bg_home_starfield_light</item>
-    </style>
-
-    <style name="Theme.App.Dark" parent="Theme.App.Dark.Base">
-        <!-- Home-screen semantic tokens (Dark). Orange/purple kept vivid — pops on dark. -->
-        <item name="appColorAccentOrange">#FF6B35</item>
-        <item name="appColorAccentOrangeFaint">#59FF6B35</item>
-        <item name="appColorAccentOrangeLight">#FF8C5B</item>
-        <item name="appColorAccentOrangeDark">#BF3A1E</item>
-        <item name="appColorAccentPurple">#A78BFA</item>
-        <item name="appColorHomeTileSurface">#FF161616</item>
-        <item name="appColorHomeStroke">#FF333333</item>
-        <item name="appColorHomeTileStroke">#1AFFFFFF</item>
-        <item name="appColorMutedForeground">#FF888888</item>
-        <item name="appColorSubtleForeground">#77FFFFFF</item>
-        <item name="appColorDimForeground">#CCFFFFFF</item>
-        <item name="appColorIconTint">#80FFFFFF</item>
-        <item name="appColorGroupLabel">#AAFFFFFF</item>
-        <item name="appStarfieldScrim">#CC000000</item>
-        <item name="appHomeBackground">@drawable/bg_home_starfield</item>
-        <!-- Tonal elevation: on dark surfaces real shadows are invisible, so M3 lifts via overlay. -->
-        <item name="android:colorBackground">#FF121212</item>
-        <item name="elevationOverlayColor">@color/md_theme_dark_surfaceVariant</item>
-    </style>
-
-    <style name="Theme.App.Black" parent="Theme.App.Black.Base">
         <!-- Home-screen semantic tokens (Black / OLED). Dark values but OLED-pure surface + 90% scrim. -->
-        <item name="appColorAccentOrange">#FF6B35</item>
-        <item name="appColorAccentOrangeFaint">#59FF6B35</item>
-        <item name="appColorAccentOrangeLight">#FF8C5B</item>
-        <item name="appColorAccentOrangeDark">#BF3A1E</item>
-        <item name="appColorAccentPurple">#A78BFA</item>
-        <item name="appColorHomeTileSurface">#FF0B0B0B</item>
-        <item name="appColorHomeStroke">#FF333333</item>
-        <item name="appColorHomeTileStroke">#1AFFFFFF</item>
-        <item name="appColorMutedForeground">#FF888888</item>
-        <item name="appColorSubtleForeground">#77FFFFFF</item>
-        <item name="appColorDimForeground">#CCFFFFFF</item>
-        <item name="appColorIconTint">#80FFFFFF</item>
-        <item name="appColorGroupLabel">#AAFFFFFF</item>
-        <item name="appStarfieldScrim">#E6000000</item>
+        <item name="appColorAccentOrange">@color/home_token_accent_orange_black</item>
+        <item name="appColorAccentOrangeFaint">@color/home_token_accent_orange_faint_black</item>
+        <item name="appColorAccentOrangeLight">@color/home_token_accent_orange_light_black</item>
+        <item name="appColorAccentOrangeDark">@color/home_token_accent_orange_dark_black</item>
+        <item name="appColorAccentPurple">@color/home_token_accent_purple_black</item>
+        <item name="appColorHomeTileSurface">@color/home_token_tile_surface_black</item>
+        <item name="appColorHomeStroke">@color/home_token_stroke_black</item>
+        <item name="appColorHomeTileStroke">@color/home_token_tile_stroke_black</item>
+        <item name="appColorMutedForeground">@color/home_token_muted_fg_black</item>
+        <item name="appColorSubtleForeground">@color/home_token_subtle_fg_black</item>
+        <item name="appColorDimForeground">@color/home_token_dim_fg_black</item>
+        <item name="appColorIconTint">@color/home_token_icon_tint_black</item>
+        <item name="appColorGroupLabel">@color/home_token_group_label_black</item>
+        <item name="appStarfieldScrim">@color/home_token_starfield_scrim_black</item>
         <item name="appHomeBackground">@drawable/bg_home_starfield</item>
         <!-- Tonal elevation on OLED. -->
         <item name="elevationOverlayColor">@color/md_theme_dark_surfaceVariant</item>
+
+    </style>
+
+    <style name="Theme.App.Light" parent="Theme.App.Light.Base">
+        <!-- Home-screen semantic tokens are declared in Theme.App.Light.Base.
+             See note there about why they live in Base rather than this shell. -->
+    </style>
+
+    <style name="Theme.App.White" parent="Theme.App.White.Base">
+        <!-- Home-screen semantic tokens are declared in Theme.App.White.Base. -->
+    </style>
+
+    <style name="Theme.App.Dark" parent="Theme.App.Dark.Base">
+        <!-- Home-screen semantic tokens are declared in Theme.App.Dark.Base. -->
+    </style>
+
+    <style name="Theme.App.Black" parent="Theme.App.Black.Base">
+        <!-- Home-screen semantic tokens are declared in Theme.App.Black.Base. -->
     </style>
 
     <!-- Day theme to be used when following system default dark theme -->

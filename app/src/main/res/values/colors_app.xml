@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+ Single source of truth for home-screen token HEX VALUES. Concrete hex lives only here;
+ theme styles (styles.xml) reference these by name, and layouts/drawables reference them
+ indirectly via ?attr/appColor*. Using @color/ references (rather than raw hex in styles)
+ is required for Robolectric SDK-27 theme-attr resolution to work in unit tests.
+
+ Naming: home_token_<role>_<theme>  — where <theme> ∈ {light, white, dark, black}.
+ White usually aliases Light values except where noted.
+-->
+<resources>
+
+    <!-- ── Orange accent. Deepened to #D9531E in light/white themes for WCAG-AA on white. ── -->
+    <color name="home_token_accent_orange_light">#D9531E</color>
+    <color name="home_token_accent_orange_faint_light">#59D9531E</color>
+    <color name="home_token_accent_orange_light_light">#C24416</color>
+    <color name="home_token_accent_orange_dark_light">#A8330F</color>
+
+    <color name="home_token_accent_orange_white">#D9531E</color>
+    <color name="home_token_accent_orange_faint_white">#59D9531E</color>
+    <color name="home_token_accent_orange_light_white">#C24416</color>
+    <color name="home_token_accent_orange_dark_white">#A8330F</color>
+
+    <!-- Orange kept vivid in dark/black — pops on dark backgrounds. -->
+    <color name="home_token_accent_orange_dark">#FF6B35</color>
+    <color name="home_token_accent_orange_faint_dark">#59FF6B35</color>
+    <color name="home_token_accent_orange_light_dark">#FF8C5B</color>
+    <color name="home_token_accent_orange_dark_dark">#BF3A1E</color>
+
+    <color name="home_token_accent_orange_black">#FF6B35</color>
+    <color name="home_token_accent_orange_faint_black">#59FF6B35</color>
+    <color name="home_token_accent_orange_light_black">#FF8C5B</color>
+    <color name="home_token_accent_orange_dark_black">#BF3A1E</color>
+
+    <!-- ── Purple accent. ── -->
+    <color name="home_token_accent_purple_light">#6F4BE6</color>
+    <color name="home_token_accent_purple_white">#6F4BE6</color>
+    <color name="home_token_accent_purple_dark">#A78BFA</color>
+    <color name="home_token_accent_purple_black">#A78BFA</color>
+
+    <!-- ── Tile surface + strokes. ── -->
+    <color name="home_token_tile_surface_light">#F3F3F6</color>
+    <color name="home_token_tile_surface_white">#FFFFFFFF</color>
+    <color name="home_token_tile_surface_dark">#FF161616</color>
+    <color name="home_token_tile_surface_black">#FF0B0B0B</color>
+
+    <color name="home_token_stroke_light">#D7D7DD</color>
+    <color name="home_token_stroke_white">#D7D7DD</color>
+    <color name="home_token_stroke_dark">#FF333333</color>
+    <color name="home_token_stroke_black">#FF333333</color>
+
+    <color name="home_token_tile_stroke_light">#1A000000</color>
+    <color name="home_token_tile_stroke_white">#1A000000</color>
+    <color name="home_token_tile_stroke_dark">#1AFFFFFF</color>
+    <color name="home_token_tile_stroke_black">#1AFFFFFF</color>
+
+    <!-- ── Foreground / icon / label tones. ── -->
+    <color name="home_token_muted_fg_light">#5C5C66</color>
+    <color name="home_token_muted_fg_white">#5C5C66</color>
+    <color name="home_token_muted_fg_dark">#FF888888</color>
+    <color name="home_token_muted_fg_black">#FF888888</color>
+
+    <color name="home_token_subtle_fg_light">#6E6E78</color>
+    <color name="home_token_subtle_fg_white">#6E6E78</color>
+    <color name="home_token_subtle_fg_dark">#77FFFFFF</color>
+    <color name="home_token_subtle_fg_black">#77FFFFFF</color>
+
+    <color name="home_token_dim_fg_light">#42424A</color>
+    <color name="home_token_dim_fg_white">#42424A</color>
+    <color name="home_token_dim_fg_dark">#CCFFFFFF</color>
+    <color name="home_token_dim_fg_black">#CCFFFFFF</color>
+
+    <color name="home_token_icon_tint_light">#5C5C66</color>
+    <color name="home_token_icon_tint_white">#5C5C66</color>
+    <color name="home_token_icon_tint_dark">#80FFFFFF</color>
+    <color name="home_token_icon_tint_black">#80FFFFFF</color>
+
+    <color name="home_token_group_label_light">#8A8A94</color>
+    <color name="home_token_group_label_white">#8A8A94</color>
+    <color name="home_token_group_label_dark">#AAFFFFFF</color>
+    <color name="home_token_group_label_black">#AAFFFFFF</color>
+
+    <!-- ── Starfield scrim (overlay color on the background image). ── -->
+    <color name="home_token_starfield_scrim_light">#14FFFFFF</color>
+    <color name="home_token_starfield_scrim_white">#0A000000</color>
+    <color name="home_token_starfield_scrim_dark">#CC000000</color>
+    <color name="home_token_starfield_scrim_black">#E6000000</color>
+
+    <!-- ── Dark-theme background (tonal elevation support). ── -->
+    <color name="home_token_bg_dark">#FF121212</color>
+
+</resources>
