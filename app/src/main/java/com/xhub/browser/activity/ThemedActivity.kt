@@ -126,6 +126,11 @@ abstract class ThemedActivity : LocaleAwareActivity() {
     protected fun restart() {
         finish()
         startActivity(Intent(this, javaClass))
+        // Tasteful crossfade so a user-selected theme switch fades rather than snaps.
+        // Gated implicitly: if the OS has animations disabled (Animator duration scale == 0),
+        // the system ignores overridePendingTransition and snaps instantly.
+        @Suppress("DEPRECATION")
+        overridePendingTransition(R.anim.theme_fade_in, R.anim.theme_fade_out)
     }
 
     /**
