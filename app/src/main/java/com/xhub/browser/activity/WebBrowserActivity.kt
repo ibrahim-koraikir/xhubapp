@@ -129,6 +129,9 @@ import java.io.IOException
 import java.util.*
 import javax.inject.Inject
 import com.xhub.browser.favicon.FaviconModel
+import com.xhub.browser.shortcuts.ShortcutItem
+import com.xhub.browser.shortcuts.ShortcutTileAdapter
+import com.xhub.browser.ads.ExoClickInterstitial
 import kotlin.math.abs
 import kotlin.system.exitProcess
 import kotlin.time.TimeSource
@@ -464,6 +467,9 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
 
         // Hook in buttons with onClick handler
         iBindingToolbarContent.buttonReload.setOnClickListener(this)
+        
+        // Show in-app ads overlay after initialization
+        showInAppAds()
     }
 
     /**
@@ -511,6 +517,18 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
 //            tabsManager.tabChanged(tabsManager.tabsModel.indexOfTab(it),false,false)
 //        }
 
+    }
+
+    /**
+     * Show ExoClick interstitial ad
+     * Called after initialization is complete
+     */
+    private fun showInAppAds() {
+        try {
+            ExoClickInterstitial(this).show()
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to show ExoClick interstitial")
+        }
     }
 
     /**
@@ -1641,6 +1659,37 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
     private var targetHomeScreenState: Boolean? = null
 
     /**
+     * Version of the shortcuts data we last rendered to the home screen.
+     * -1 guarantees the first render happens. Subsequent calls to [buildDynamicShortcuts] compare
+     * this against [com.xhub.browser.shortcuts.ShortcutRepository.dataVersion] and skip the rebuild
+     * (which would cancel in-flight favicon fetches) when nothing has changed. See comment 1.
+     */
+    private var shortcutsDataVersion: Int = -1
+
+    /**
+     * Drives home-screen motion (starfield parallax + tile entrance). Lazily instantiated
+     * the first time the shortcut RecyclerView gets its adapter in buildDynamicShortcuts().
+     */
+    private var homeMotionController: com.xhub.browser.ui.HomeMotionController? = null
+
+    /**
+     * Launcher for ManageShortcutsActivity. Registered before onCreate completes (property init).
+     * On RESULT_OK the shortcuts data was saved, so we bump our notion of the version and rebuild.
+     * COMMENT 8: replaces the deprecated startActivityForResult + onActivityResult(REQUEST_CODE) pair.
+     */
+    private val manageShortcutsLauncher: androidx.activity.result.ActivityResultLauncher<android.content.Intent> =
+        registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == android.app.Activity.RESULT_OK) {
+                // Force a rebuild on the next buildDynamicShortcuts() call: the version guard would
+                // otherwise skip it if (somehow) the persisted version matched our last render.
+                // ShortcutRepository.saveGroups already bumped the persisted version, so the guard
+                // would actually allow the rebuild on its own — this is belt-and-braces.
+                shortcutsDataVersion = -1
+                buildDynamicShortcuts()
+            }
+        }
+
+    /**
      * Update the visibility of the native home screen overlay.
      *
      * The homeScreenOverlay sits on top of the web containers in the CoordinatorLayout z-order,
@@ -1658,9 +1707,13 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
                 "front.vis=${iTabViewContainerFront.visibility} front.alpha=${iTabViewContainerFront.alpha} " +
                 "back.vis=${iTabViewContainerBack.visibility} front.childCount=${iTabViewContainerFront.childCount}")
 
-        // If we are already animating towards the desired state, do nothing
+        // If we are already animating towards the desired state, do nothing.
+        // NOTE: we deliberately do NOT call buildDynamicShortcuts() here. Doing so would cancel
+        // every in-flight favicon fetch (buildDynamicShortcuts opens with faviconDisposables.clear())
+        // every time this method fires while already on the home screen — guaranteeing no favicon
+        // download ever completes. Shortcuts are now rebuilt only on real transitions / edits /
+        // resume-after-change. See comment 1.
         if (targetHomeScreenState == isHome) {
-            if (isHome) buildDynamicShortcuts()
             return
         }
 
@@ -1686,12 +1739,13 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
             iBinding.homeScreenOverlay.animate().alpha(1f).setDuration(duration).setListener(null)
 
             buildDynamicShortcuts()
-            // Wire Edit button each time (safe because it's idempotent after first call)
+            // Wire Edit button each time (safe because it's idempotent after first call).
+            // COMMENT 8: launches ManageShortcutsActivity via the registered ActivityResultLauncher
+            // instead of the deprecated startActivityForResult. The result callback rebuilds shortcuts.
             iBinding.homeScreenOverlay.findViewById<android.widget.LinearLayout>(R.id.btnEditShortcuts)
                 ?.setOnClickListener {
-                    startActivityForResult(
-                        android.content.Intent(this, ManageShortcutsActivity::class.java),
-                        ManageShortcutsActivity.REQUEST_CODE
+                    manageShortcutsLauncher.launch(
+                        android.content.Intent(this, ManageShortcutsActivity::class.java)
                     )
                 }
             // Wire Settings button
@@ -1754,35 +1808,25 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
      * Build the home screen shortcut grid dynamically from ShortcutRepository.
      * Premium version: gradient letter avatars, large tiles, ripple+scale press feedback,
      * vivid gradient title shader (gold → pink → violet).
+     *
+     * IMPORTANT: this method is intentionally a no-op when the shortcuts data version hasn't
+     * changed since the last render. Opening with faviconDisposables.clear() cancels every
+     * in-flight network favicon fetch, so calling this on every updateHomeScreenOverlay() tick
+     * reliably prevents any favicon from ever being downloaded. See comment 1.
      */
     private fun buildDynamicShortcuts() {
-        // Clear previous favicon subscriptions before rebuilding the grid
-        faviconDisposables.clear()
-        val container = iBinding.homeScreenOverlay.findViewById<android.widget.LinearLayout>(
-            R.id.shortcutsDynamicContainer
-        ) ?: return
-        container.removeAllViews()
-
-        // ── Brand text gradient shader ──────────────────────────────────────────
-        val homeTitle = iBinding.homeScreenOverlay.findViewById<TextView>(R.id.homeTitle)
-        homeTitle?.post {
-            val paint = homeTitle.paint
-            val width = paint.measureText(homeTitle.text.toString())
-            if (width > 0f) {
-                val shader = android.graphics.LinearGradient(
-                    0f, 0f, width, homeTitle.textSize,
-                    intArrayOf(
-                        android.graphics.Color.parseColor("#ffd600"),
-                        android.graphics.Color.parseColor("#ff007a")
-                    ),
-                    null, android.graphics.Shader.TileMode.CLAMP
-                )
-                homeTitle.paint.shader = shader
-                homeTitle.invalidate()
-            }
+        // Skip the full rebuild (and the destructive faviconDisposables.clear()) if the shortcuts
+        // data hasn't changed since we last rendered it. Callers that genuinely need a rebuild —
+        // e.g. onActivityResult after editing, or an explicit invalidate — bump the version first
+        // via ShortcutRepository.saveGroups, or call rebuildShortcutsForced().
+        val currentVersion = com.xhub.browser.shortcuts.ShortcutRepository.dataVersion(this)
+        if (currentVersion == shortcutsDataVersion) {
+            return
         }
+        shortcutsDataVersion = currentVersion
 
         // ── Time-aware greeting (string resources) ────────────────────────────
+        // homeTitle is now the solid-white hero quote — no gradient shader applied.
         val homeGreeting = iBinding.homeScreenOverlay.findViewById<TextView>(R.id.homeGreeting)
         val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
         homeGreeting?.text = getString(when (hour) {
@@ -1795,287 +1839,106 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
         iBinding.homeScreenOverlay.findViewById<View>(R.id.homeBookmarksButton)
             ?.setOnClickListener { openBookmarks() }
 
-        // ── Load & render shortcuts ───────────────────────────────────────────
-        io.reactivex.Single.fromCallable { com.xhub.browser.shortcuts.ShortcutRepository.loadGroups(this) }
-            .subscribeOn(io.reactivex.schedulers.Schedulers.io())
-            .observeOn(io.reactivex.android.schedulers.AndroidSchedulers.mainThread())
-            .subscribe { groups ->
+        // ── Load & render shortcuts via the RecyclerView adapter ──────────────
+        // COMMENT 6: tiles are now recycled and only changed items are rebound (DiffUtil). Favicon
+        // subscriptions live on the TileViewHolder, not faviconDisposables — they're disposed in
+        // onViewRecycled, and cancelled wholesale when leaving the home screen (see
+        // cancelShortcutFavicons()). The load is still in faviconDisposables so the chain can't
+        // be GC'd before it emits.
+        faviconDisposables.add(
+            io.reactivex.Single.fromCallable { com.xhub.browser.shortcuts.ShortcutRepository.loadGroups(this) }
+                .subscribeOn(io.reactivex.schedulers.Schedulers.io())
+                .observeOn(io.reactivex.android.schedulers.AndroidSchedulers.mainThread())
+                .subscribe { groups ->
+                    val recyclerView = iBinding.homeScreenOverlay
+                        .findViewById<androidx.recyclerview.widget.RecyclerView>(
+                            R.id.shortcutsDynamicContainer
+                        ) ?: return@subscribe
 
-                // ── Design tokens from resources (single source of truth) ─────
-                val density = resources.displayMetrics.density
+                    // COMMENT 2: ALWAYS attach a GridLayoutManager before any adapter work, even on
+                    // the very first render. The previous code only created the LayoutManager inside
+                    // the non-empty branch, so a first-ever empty render (e.g. fresh install with no
+                    // shortcuts) submitted a list with no LayoutManager set, and RecyclerView threw
+                    // "No LayoutManager attached; skipping layout". Initialize it once here and just
+                    // toggle the span count for empty vs. grid below.
+                    val spanCount = 4
+                    if (recyclerView.layoutManager == null) {
+                        recyclerView.layoutManager =
+                            androidx.recyclerview.widget.GridLayoutManager(this, spanCount)
+                    }
+                    val lm = recyclerView.layoutManager as androidx.recyclerview.widget.GridLayoutManager
 
-                // Dimension tokens
-                val tileSize   = resources.getDimensionPixelSize(R.dimen.home_tile_frame_size)
-                val tileRadius = resources.getDimension(R.dimen.home_tile_radius)
-                val tilePad    = resources.getDimensionPixelSize(R.dimen.home_tile_padding)
-                val faviPad    = resources.getDimensionPixelSize(R.dimen.home_tile_favicon_padding)
-                val rowGap     = resources.getDimensionPixelSize(R.dimen.home_tile_row_gap)
-                val labelGap   = resources.getDimensionPixelSize(R.dimen.home_tile_label_margin_top)
-                val groupGap   = resources.getDimensionPixelSize(R.dimen.home_group_gap)
-                val groupLabelGap = resources.getDimensionPixelSize(R.dimen.home_group_label_margin_bottom)
-                val strokePx   = (1 * density).toInt()
-
-                // Color tokens
-                val colorTileSurface  = androidx.core.content.ContextCompat.getColor(this, R.color.home_tile_surface)
-                val colorStroke       = androidx.core.content.ContextCompat.getColor(this, R.color.home_tile_stroke)
-                val colorInitialText  = androidx.core.content.ContextCompat.getColor(this, R.color.home_initial_text)
-                val colorLabelText    = androidx.core.content.ContextCompat.getColor(this, R.color.home_dim_foreground)
-                val colorGroupLabel   = androidx.core.content.ContextCompat.getColor(this, R.color.home_group_label)
-
-                // Text size tokens
-                val initialSizeSp  = resources.getDimension(R.dimen.home_tile_initial_size) / density
-                val labelSizeSp    = resources.getDimension(R.dimen.home_tile_label_size) / density
-                val groupLabelSpSp = resources.getDimension(R.dimen.home_group_label_size) / density
-
-                // ── Empty state ───────────────────────────────────────────────
-                val allSites = groups.flatMap { it.sites }
-                if (allSites.isEmpty()) {
-                    val emptyPad  = resources.getDimensionPixelSize(R.dimen.home_empty_padding_v)
-                    val emptySize = resources.getDimensionPixelSize(R.dimen.home_empty_icon_size)
-                    val emptyTextSp = resources.getDimension(R.dimen.home_empty_text_size) / density
-
-                    container.addView(android.widget.LinearLayout(this).apply {
-                        orientation = android.widget.LinearLayout.VERTICAL
-                        gravity = android.view.Gravity.CENTER
-                        setPadding(0, emptyPad, 0, emptyPad)
-                        layoutParams = android.widget.LinearLayout.LayoutParams(
-                            android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                            android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+                    // Lazily attach the adapter the first time.
+                    val adapter = (recyclerView.adapter as? ShortcutTileAdapter) ?: run {
+                        val newAdapter = ShortcutTileAdapter(
+                            faviconModel = faviconModel,
+                            mainScheduler = mainScheduler,
+                            onTileClick = { onHomeScreenShortcutClick(it) },
+                            onAddFirstShortcut = {
+                                manageShortcutsLauncher.launch(
+                                    android.content.Intent(this, ManageShortcutsActivity::class.java)
+                                )
+                            }
                         )
+                        recyclerView.adapter = newAdapter
+                        recyclerView.itemAnimator?.changeDuration = 0
+                        newAdapter
+                    }
 
-                        // Icon
-                        addView(ImageView(this@WebBrowserActivity).apply {
-                            setImageDrawable(
-                                androidx.core.content.ContextCompat.getDrawable(
-                                    this@WebBrowserActivity, R.drawable.ic_bookmarks
-                                )
-                            )
-                            imageTintList = android.content.res.ColorStateList.valueOf(colorStroke)
-                            layoutParams = android.widget.LinearLayout.LayoutParams(emptySize, emptySize).also {
-                                it.gravity = android.view.Gravity.CENTER_HORIZONTAL
-                                it.bottomMargin = (12 * density).toInt()
+                    // Wire home-screen motion (parallax + tile entrance) once the RecyclerView
+                    // has its adapter. Idempotent — only attaches on the first pass.
+                    if (homeMotionController == null) {
+                        val scrollView = iBinding.homeScreenOverlay
+                            .findViewById<androidx.core.widget.NestedScrollView>(R.id.homeScrollView)
+                        val bg = iBinding.homeScreenOverlay
+                            .findViewById<View>(R.id.homeScreenBackground)
+                        if (scrollView != null && bg != null) {
+                            homeMotionController = com.xhub.browser.ui.HomeMotionController(
+                                scrollView = scrollView,
+                                backgroundView = bg,
+                                recyclerView = recyclerView,
+                                context = this
+                            ).also { it.attach() }
+                        }
+                    }
+
+                    val allSites = groups.flatMap { it.sites }
+                    if (allSites.isEmpty()) {
+                        // Single column for the full-span empty state.
+                        lm.spanCount = 1
+                        adapter.submitList(listOf(ShortcutItem.Empty))
+                        return@subscribe
+                    }
+
+                    // 4-column grid. Headers, spacers and the empty state span all columns.
+                    lm.spanCount = spanCount
+                    lm.spanSizeLookup = object : androidx.recyclerview.widget.GridLayoutManager.SpanSizeLookup() {
+                        override fun getSpanSize(position: Int): Int {
+                            return when (adapter.getItemViewType(position)) {
+                                ShortcutTileAdapter.VIEW_TYPE_HEADER,
+                                ShortcutTileAdapter.VIEW_TYPE_SPACER,
+                                ShortcutTileAdapter.VIEW_TYPE_EMPTY -> spanCount
+                                else -> 1
                             }
-                        })
+                        }
+                    }.apply { isSpanIndexCacheEnabled = true }
 
-                        // Primary label
-                        addView(TextView(this@WebBrowserActivity).apply {
-                            text = getString(R.string.home_empty_state_message)
-                            setTextColor(colorGroupLabel)
-                            textSize = emptyTextSp
-                            gravity = android.view.Gravity.CENTER
-                            layoutParams = android.widget.LinearLayout.LayoutParams(
-                                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
-                                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
-                            ).also { it.bottomMargin = (4 * density).toInt() }
-                        })
-
-                        // Action label (tappable)
-                        addView(TextView(this@WebBrowserActivity).apply {
-                            text = getString(R.string.home_empty_state_action)
-                            setTextColor(colorInitialText)
-                            textSize = emptyTextSp
-                            gravity = android.view.Gravity.CENTER
-                            isClickable = true
-                            isFocusable = true
-                            minHeight = (48 * density).toInt()
-                            minWidth = (48 * density).toInt()
-                            setPadding((16 * density).toInt(), (12 * density).toInt(), 
-                                      (16 * density).toInt(), (12 * density).toInt())
-                            // Set accessibility role to button
-                            androidx.core.view.ViewCompat.setAccessibilityDelegate(
-                                this,
-                                object : androidx.core.view.AccessibilityDelegateCompat() {
-                                    override fun onInitializeAccessibilityNodeInfo(
-                                        host: android.view.View,
-                                        info: androidx.core.view.accessibility.AccessibilityNodeInfoCompat
-                                    ) {
-                                        super.onInitializeAccessibilityNodeInfo(host, info)
-                                        info.className = android.widget.Button::class.java.name
-                                    }
-                                }
-                            )
-                            setOnClickListener {
-                                startActivity(
-                                    android.content.Intent(
-                                        this@WebBrowserActivity,
-                                        ManageShortcutsActivity::class.java
-                                    )
-                                )
-                            }
-                            layoutParams = android.widget.LinearLayout.LayoutParams(
-                                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
-                                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
-                            )
-                        })
-                    })
-                    return@subscribe
+                    // Flatten groups into a list of items, padding the last row of each group so
+                    // trailing tiles don't stretch across all 4 columns.
+                    val items = mutableListOf<ShortcutItem>()
+                    groups.forEach { group ->
+                        if (group.name.isNotBlank()) items += ShortcutItem.Header(group.name)
+                        val tiles = group.sites.map { ShortcutItem.Tile(it) }
+                        items += tiles
+                        val remainder = tiles.size % spanCount
+                        if (remainder != 0) {
+                            repeat(spanCount - remainder) { items += ShortcutItem.PlaceholderCell }
+                        }
+                        items += ShortcutItem.Spacer
+                    }
+                    adapter.submitList(items)
                 }
-
-                // ── Render each group ─────────────────────────────────────────
-                groups.forEach { group ->
-
-                    // Group label
-                    if (group.name.isNotBlank()) {
-                        container.addView(TextView(this).apply {
-                            text = group.name.uppercase()
-                            setTextColor(colorGroupLabel)
-                            textSize = groupLabelSpSp
-                            letterSpacing = 0.12f
-                            setTypeface(null, android.graphics.Typeface.BOLD)
-                            layoutParams = android.widget.LinearLayout.LayoutParams(
-                                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
-                            ).also { it.bottomMargin = groupLabelGap }
-                        })
-                    }
-
-                    // Rows of 4 tiles
-                    var row: android.widget.LinearLayout? = null
-
-                    group.sites.forEachIndexed { idx, site ->
-                        if (idx % 4 == 0) {
-                            row = android.widget.LinearLayout(this).apply {
-                                orientation = android.widget.LinearLayout.HORIZONTAL
-                                layoutParams = android.widget.LinearLayout.LayoutParams(
-                                    android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                                    android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
-                                ).also { it.bottomMargin = rowGap }
-                            }
-                            container.addView(row)
-                        }
-
-                        // Tile wrapper (vertical: icon + label)
-                        val tile = android.widget.LinearLayout(this).apply {
-                            orientation = android.widget.LinearLayout.VERTICAL
-                            gravity = android.view.Gravity.CENTER
-                            isClickable = true
-                            isFocusable = true
-                            tag = site.url
-                            setPadding(tilePad, tilePad, tilePad, tilePad)
-                            setOnClickListener { onHomeScreenShortcutClick(it) }
-                            // Press-scale + ripple feedback
-                            setOnTouchListener { v, event ->
-                                when (event.action) {
-                                    android.view.MotionEvent.ACTION_DOWN ->
-                                        v.animate().scaleX(0.88f).scaleY(0.88f).setDuration(100).start()
-                                    android.view.MotionEvent.ACTION_UP,
-                                    android.view.MotionEvent.ACTION_CANCEL ->
-                                        v.animate().scaleX(1f).scaleY(1f).setDuration(150).start()
-                                }
-                                false
-                            }
-                            layoutParams = android.widget.LinearLayout.LayoutParams(
-                                0, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1f
-                            )
-                        }
-
-                        // Icon circle (MaterialCardView)
-                        val frame = com.google.android.material.card.MaterialCardView(this).apply {
-                            layoutParams = android.widget.LinearLayout.LayoutParams(tileSize, tileSize).also {
-                                it.gravity = android.view.Gravity.CENTER_HORIZONTAL
-                            }
-                            radius = tileRadius
-                            cardElevation = resources.getDimension(R.dimen.home_tile_elevation)
-                            strokeWidth = strokePx
-                            setStrokeColor(android.content.res.ColorStateList.valueOf(colorStroke))
-                            setCardBackgroundColor(colorTileSurface)
-                            clipToOutline = true
-                            outlineProvider = android.view.ViewOutlineProvider.BACKGROUND
-                            // Ripple feedback inside the circular card
-                            foreground = androidx.core.content.ContextCompat.getDrawable(
-                                this@WebBrowserActivity, R.drawable.bg_shortcut_tile_ripple
-                            )
-                        }
-
-                        // Letter initial — medium-weight, vertically centred
-                        val initial = TextView(this).apply {
-                            text = site.name.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
-                            setTextColor(colorInitialText)
-                            textSize = initialSizeSp
-                            setTypeface(null, android.graphics.Typeface.BOLD)
-                            gravity = android.view.Gravity.CENTER
-                            layoutParams = android.widget.FrameLayout.LayoutParams(
-                                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                                android.widget.FrameLayout.LayoutParams.MATCH_PARENT
-                            )
-                        }
-                        frame.addView(initial)
-
-                        // Favicon overlay (hidden until loaded)
-                        val faviconIv = ImageView(this).apply {
-                            scaleType = ImageView.ScaleType.FIT_CENTER
-                            setPadding(faviPad, faviPad, faviPad, faviPad)
-                            setBackgroundColor(android.graphics.Color.TRANSPARENT)
-                            isVisible = false
-                            layoutParams = android.widget.FrameLayout.LayoutParams(
-                                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                                android.widget.FrameLayout.LayoutParams.MATCH_PARENT
-                            )
-                        }
-                        frame.addView(faviconIv)
-
-                        // Async favicon fetch — store Disposable so it isn't GC'd before completion
-                        faviconDisposables.add(
-                            faviconModel.realFaviconForUrl(site.url, true)
-                                .subscribeOn(io.reactivex.schedulers.Schedulers.io())
-                                .observeOn(mainScheduler)
-                                .subscribeBy(
-                                    onSuccess = { bmp ->
-                                        faviconIv.setImageBitmap(bmp)
-                                        faviconIv.isVisible = true
-                                        initial.isVisible  = false
-                                        frame.setCardBackgroundColor(android.graphics.Color.WHITE)
-                                    },
-                                    onComplete = {
-                                        // No real favicon available — keep letter placeholder visible
-                                        Timber.d("No favicon found for ${site.url}, keeping letter placeholder")
-                                    },
-                                    onError = { err ->
-                                        Timber.w(err, "Favicon fetch error for ${site.url}")
-                                    }
-                                )
-                        )
-
-                        tile.addView(frame)
-
-                        // Site-name label below icon
-                        tile.addView(TextView(this).apply {
-                            text = site.name
-                            setTextColor(colorLabelText)
-                            textSize = labelSizeSp
-                            setTypeface(null, android.graphics.Typeface.BOLD)
-                            maxLines = 1
-                            ellipsize = android.text.TextUtils.TruncateAt.END
-                            gravity = android.view.Gravity.CENTER
-                            layoutParams = android.widget.LinearLayout.LayoutParams(
-                                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
-                            ).also { it.topMargin = labelGap }
-                        })
-
-                        row?.addView(tile)
-                    }
-
-                    // Pad incomplete last row so columns stay equal-width
-                    val remainder = group.sites.size % 4
-                    if (remainder != 0) {
-                        repeat(4 - remainder) {
-                            row?.addView(android.widget.LinearLayout(this).apply {
-                                layoutParams = android.widget.LinearLayout.LayoutParams(
-                                    0, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1f
-                                )
-                            })
-                        }
-                    }
-
-                    // Group bottom spacer
-                    container.addView(android.view.View(this).apply {
-                        layoutParams = android.widget.LinearLayout.LayoutParams(
-                            android.widget.LinearLayout.LayoutParams.MATCH_PARENT, groupGap
-                        )
-                    })
-                }
-            }
+        )
     }
 
 
@@ -4521,13 +4384,16 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
 
         tabsManager.currentTab?.let {tab ->
 
-            // Always show the search hint on the home page, even while it's loading
-            if (tab.url.isSpecialUrl()) {
+            // Always show the search hint on any internal page.
+            // tab.url returns "xhub://home" (iTargetUrl) for the home page — NOT a file:// URL —
+            // so we must check both isSpecialUrl() (file://...) and the xhub:/about: schemes.
+            val url = tab.url
+            if (url.isSpecialUrl() || url.isHomeUri() || url.isBookmarkUri() || url.isHistoryUri() || url.isIncognitoUri() || url.isAppScheme()) {
                 return getString(R.string.search_overlay_hint)
             }
 
             if (isLoading()) {
-                return tab.url
+                return url
             }
 
             return when (aInfo) {
@@ -4895,9 +4761,9 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
                 filePathCallback?.onReceiveValue(results)
                 filePathCallback = null
             }
-        } else if (requestCode == ManageShortcutsActivity.REQUEST_CODE && resultCode == Activity.RESULT_OK) {
-            buildDynamicShortcuts()
         } else {
+            // COMMENT 8: the ManageShortcutsActivity.REQUEST_CODE branch was removed — that flow
+            // now uses manageShortcutsLauncher (ActivityResultLauncher) above.
             super.onActivityResult(requestCode, resultCode, intent)
         }
     }
