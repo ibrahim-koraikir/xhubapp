@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Date Group Header for History/Bookmarks list
+  taste-skill: muted small caps, breathing room — no eyebrow-on-every-section reflex
+-->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/text_header"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingStart="20dp"
+    android:paddingEnd="20dp"
+    android:paddingTop="20dp"
+    android:paddingBottom="6dp"
+    android:textColor="?attr/appColorMutedForeground"
+    android:textSize="11sp"
+    android:letterSpacing="0.10"
+    android:textAllCaps="true"
+    android:fontFamily="sans-serif-medium"
+    android:text="Date Header" />

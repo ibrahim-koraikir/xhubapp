@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- impeccable: icon circles should use tinted accent at low opacity, not flat grey -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="@color/app_cat_appearance_container" />
+</shape>
