@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/bg_search_overlay"
+    android:paddingTop="@dimen/spacing_lg"
+    android:paddingHorizontal="@dimen/spacing_lg">
+
+    <!-- Top Handle and Close Button -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <View
+            android:id="@+id/drag_handle"
+            android:layout_width="48dp"
+            android:layout_height="@dimen/elevation_sm"
+            android:layout_gravity="center"
+            android:background="@drawable/bg_handle"
+            android:alpha="0.5" />
+
+        <ImageButton
+            android:id="@+id/btnClose"
+            android:layout_width="@dimen/spacing_xxl"
+            android:layout_height="@dimen/spacing_xxl"
+            android:layout_gravity="end|center_vertical"
+            android:background="@drawable/control_circle_primary_bg"
+            android:backgroundTint="?attr/colorSurfaceVariant"
+            android:src="@drawable/ic_action_delete"
+            app:tint="?attr/appColorMutedForeground" />
+    </FrameLayout>
+
+    <!-- Removed Avatar and Sign in button to match exact Settings screen design -->
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="@dimen/spacing_xl"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingBottom="@dimen/spacing_xxl">
+
+            <!-- Title -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="@dimen/spacing_lg"
+                android:layout_marginStart="@dimen/spacing_sm"
+                android:text="Settings"
+                android:textColor="?attr/colorOnBackground"
+                android:textAppearance="@style/TextAppearance.App.DisplayMedium"
+                android:textStyle="bold" />
+
+            <!-- Card 1 (Main settings) -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@drawable/bg_menu_card"
+                android:paddingVertical="8dp">
+
+                <include layout="@layout/item_settings_menu" android:id="@+id/menuAppearance" />
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="?attr/colorSurfaceVariant" android:layout_marginStart="56dp" />
+                <include layout="@layout/item_settings_menu" android:id="@+id/menuBrowser" />
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="?attr/colorSurfaceVariant" android:layout_marginStart="56dp" />
+                <include layout="@layout/item_settings_menu" android:id="@+id/menuPrivacy" />
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="?attr/colorSurfaceVariant" android:layout_marginStart="56dp" />
+                <include layout="@layout/item_settings_menu" android:id="@+id/menuDomains" />
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="?attr/colorSurfaceVariant" android:layout_marginStart="56dp" />
+                <include layout="@layout/item_settings_menu" android:id="@+id/menuAdBlock" />
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="?attr/colorSurfaceVariant" android:layout_marginStart="56dp" />
+                <include layout="@layout/item_settings_menu" android:id="@+id/menuExtensions" />
+
+            </LinearLayout>
+
+            <!-- Card 2 (Other settings) -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@drawable/bg_menu_card"
+                android:layout_marginTop="@dimen/spacing_lg"
+                android:paddingVertical="8dp">
+
+                <include layout="@layout/item_settings_menu" android:id="@+id/menuBackup" />
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="?attr/colorSurfaceVariant" android:layout_marginStart="56dp" />
+                <include layout="@layout/item_settings_menu" android:id="@+id/menuContribute" />
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="?attr/colorSurfaceVariant" android:layout_marginStart="56dp" />
+                <include layout="@layout/item_settings_menu" android:id="@+id/menuAbout" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+</LinearLayout>
