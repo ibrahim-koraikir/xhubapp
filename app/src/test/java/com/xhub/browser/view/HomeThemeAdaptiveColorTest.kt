@@ -105,7 +105,8 @@ class HomeThemeAdaptiveColorTest {
             "appColorAccentOrangeDark", "appColorAccentPurple", "appColorHomeTileSurface",
             "appColorHomeStroke", "appColorHomeTileStroke", "appColorMutedForeground",
             "appColorSubtleForeground", "appColorDimForeground", "appColorIconTint",
-            "appColorGroupLabel", "appStarfieldScrim"
+            "appColorGroupLabel", "appStarfieldScrim",
+            "appColorAccentPurple2", "appColorSheetGlass", "appColorCardSurface"
         )
         val themes = listOf(
             R.style.Theme_App_Light, R.style.Theme_App_White,
@@ -119,6 +120,28 @@ class HomeThemeAdaptiveColorTest {
                 assertThat(ok).withFailMessage("$name failed to resolve under theme $styleRes").isTrue()
             }
         }
+    }
+
+    @Test
+    fun `phase 2 tokens resolve distinctly across themes`() {
+        val app = RuntimeEnvironment.getApplication()
+
+        val purple2Id = resolveAttrId(app, "appColorAccentPurple2")
+        val sheetGlassId = resolveAttrId(app, "appColorSheetGlass")
+        val cardSurfaceId = resolveAttrId(app, "appColorCardSurface")
+
+        val lightPurple2 = resolveColor(themedContext(R.style.Theme_App_Light), purple2Id)
+        val lightSheetGlass = resolveColor(themedContext(R.style.Theme_App_Light), sheetGlassId)
+        val lightCardSurface = resolveColor(themedContext(R.style.Theme_App_Light), cardSurfaceId)
+
+        val blackPurple2 = resolveColor(themedContext(R.style.Theme_App_Black), purple2Id)
+        val blackSheetGlass = resolveColor(themedContext(R.style.Theme_App_Black), sheetGlassId)
+        val blackCardSurface = resolveColor(themedContext(R.style.Theme_App_Black), cardSurfaceId)
+
+        // All three must differ between light and black themes.
+        assertThat(lightPurple2).isNotEqualTo(blackPurple2)
+        assertThat(lightSheetGlass).isNotEqualTo(blackSheetGlass)
+        assertThat(lightCardSurface).isNotEqualTo(blackCardSurface)
     }
 
     private fun luminance(color: Int): Double {

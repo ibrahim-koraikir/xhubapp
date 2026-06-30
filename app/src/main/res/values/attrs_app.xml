@@ -38,4 +38,12 @@
          Dark warm gradient on dark themes; neutral light wash on light themes. -->
     <attr name="appHomeHeroBackground" format="reference" />
 
+    <!-- Phase 2 tokens. appColorAccentPurple2 is distinct from appColorAccentPurple
+         (home) — the tab grid uses a more saturated purple #9C00FF for its active gradient. -->
+    <attr name="appColorAccentPurple2" format="reference|color" />
+    <!-- Near-black surface for sheet/sheet-glass backgrounds (tab grid sheet, etc.). -->
+    <attr name="appColorSheetGlass" format="reference|color" />
+    <!-- Raised card surface — distinct from tile surface (appColorHomeTileSurface). -->
+    <attr name="appColorCardSurface" format="reference|color" />
+
 </resources>

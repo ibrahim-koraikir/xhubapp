@@ -291,6 +291,9 @@ colorControlNormal:
         <item name="appStarfieldScrim">@color/home_token_starfield_scrim_light</item>
         <item name="appColorGlassFill">@color/home_token_glass_fill_light</item>
         <item name="appColorGlassStroke">@color/home_token_glass_stroke_light</item>
+        <item name="appColorAccentPurple2">@color/home_token_accent_purple2_light</item>
+        <item name="appColorSheetGlass">@color/home_token_sheet_glass_light</item>
+        <item name="appColorCardSurface">@color/home_token_card_surface_light</item>
         <item name="appHomeBackground">@drawable/bg_home_starfield_light</item>
         <item name="appHomeHeroBackground">@drawable/bg_home_hero_light</item>
 
@@ -490,6 +493,9 @@ colorControlNormal:
         <item name="appStarfieldScrim">@color/home_token_starfield_scrim_white</item>
         <item name="appColorGlassFill">@color/home_token_glass_fill_white</item>
         <item name="appColorGlassStroke">@color/home_token_glass_stroke_white</item>
+        <item name="appColorAccentPurple2">@color/home_token_accent_purple2_white</item>
+        <item name="appColorSheetGlass">@color/home_token_sheet_glass_white</item>
+        <item name="appColorCardSurface">@color/home_token_card_surface_white</item>
         <item name="appHomeBackground">@drawable/bg_home_starfield_light</item>
         <item name="appHomeHeroBackground">@drawable/bg_home_hero_light</item>
 
@@ -716,6 +722,9 @@ colorControlNormal:
         <item name="appStarfieldScrim">@color/home_token_starfield_scrim_dark</item>
         <item name="appColorGlassFill">@color/home_token_glass_fill_dark</item>
         <item name="appColorGlassStroke">@color/home_token_glass_stroke_dark</item>
+        <item name="appColorAccentPurple2">@color/home_token_accent_purple2_dark</item>
+        <item name="appColorSheetGlass">@color/home_token_sheet_glass_dark</item>
+        <item name="appColorCardSurface">@color/home_token_card_surface_dark</item>
         <item name="appHomeBackground">@drawable/bg_home_starfield</item>
         <item name="appHomeHeroBackground">@drawable/bg_home_hero</item>
         <!-- Tonal elevation: on dark surfaces real shadows are invisible, so M3 lifts via overlay. -->
@@ -942,6 +951,9 @@ colorControlNormal:
         <item name="appStarfieldScrim">@color/home_token_starfield_scrim_black</item>
         <item name="appColorGlassFill">@color/home_token_glass_fill_black</item>
         <item name="appColorGlassStroke">@color/home_token_glass_stroke_black</item>
+        <item name="appColorAccentPurple2">@color/home_token_accent_purple2_black</item>
+        <item name="appColorSheetGlass">@color/home_token_sheet_glass_black</item>
+        <item name="appColorCardSurface">@color/home_token_card_surface_black</item>
         <item name="appHomeBackground">@drawable/bg_home_starfield</item>
         <item name="appHomeHeroBackground">@drawable/bg_home_hero</item>
         <!-- Tonal elevation on OLED. -->

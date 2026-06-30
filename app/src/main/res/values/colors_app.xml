@@ -100,4 +100,47 @@
     <!-- ── Dark-theme background (tonal elevation support). ── -->
     <color name="home_token_bg_dark">#FF121212</color>
 
+    <!-- ── Phase 2 tokens ─────────────────────────────────────────────── -->
+    <!-- Saturated purple for tab-grid active gradient (distinct from appColorAccentPurple). -->
+    <color name="home_token_accent_purple2_light">#7C3AED</color>
+    <color name="home_token_accent_purple2_white">#7C3AED</color>
+    <color name="home_token_accent_purple2_dark">#9C00FF</color>
+    <color name="home_token_accent_purple2_black">#9C00FF</color>
+
+    <!-- Near-black surface for sheet glass (tab grid sheet, etc.). -->
+    <color name="home_token_sheet_glass_light">#F5F5F7</color>
+    <color name="home_token_sheet_glass_white">#FFFFFF</color>
+    <color name="home_token_sheet_glass_dark">#141414</color>
+    <color name="home_token_sheet_glass_black">#080808</color>
+
+    <!-- Raised card surface (tab cards, hb secondary) — distinct from tile surface. -->
+    <color name="home_token_card_surface_light">#FFFFFF</color>
+    <color name="home_token_card_surface_white">#FFFFFF</color>
+    <color name="home_token_card_surface_dark">#1A1A1A</color>
+    <color name="home_token_card_surface_black">#101010</color>
+
+    <!-- ── Settings category colors (NOT theme-adaptive — category identity). ── -->
+    <!-- Used by SettingsMenuBottomSheet.setupItem. Replaces 20 Color.parseColor calls. -->
+    <color name="app_cat_appearance">#FF007A</color>
+    <color name="app_cat_appearance_container">#33FF007A</color>
+    <color name="app_cat_browser">#2196F3</color>
+    <color name="app_cat_browser_container">#332196F3</color>
+    <color name="app_cat_privacy">#4CAF50</color>
+    <color name="app_cat_privacy_container">#334CAF50</color>
+    <color name="app_cat_domains">#00BCD4</color>
+    <color name="app_cat_domains_container">#3300BCD4</color>
+    <color name="app_cat_adblock">#F44336</color>
+    <color name="app_cat_adblock_container">#33F44336</color>
+    <color name="app_cat_extensions">#9C27B0</color>
+    <color name="app_cat_extensions_container">#339C27B0</color>
+    <color name="app_cat_backup">#607D8B</color>
+    <color name="app_cat_backup_container">#33607D8B</color>
+    <color name="app_cat_contribute">#FF9800</color>
+    <color name="app_cat_contribute_container">#33FF9800</color>
+    <color name="app_cat_about">#E0E0E0</color>
+    <color name="app_cat_about_container">#33E0E0E0</color>
+
+    <!-- ── Tab grid FAB scrim (50% primary — a specific FAB treatment, kept concrete). ── -->
+    <color name="app_fab_scrim">#80FF007A</color>
+
 </resources>
