@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Settings icon container: 40dp circle with per-category color tint at 20% opacity -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="@color/app_cat_appearance_container" />
+</shape>

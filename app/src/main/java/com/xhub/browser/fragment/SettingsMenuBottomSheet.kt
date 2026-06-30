@@ -1,7 +1,6 @@
 ﻿package com.xhub.browser.fragment
 
 import android.content.res.ColorStateList
-import android.graphics.Color
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -12,7 +11,15 @@ import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import dagger.hilt.android.AndroidEntryPoint
 import com.xhub.browser.R
 import com.xhub.browser.activity.WebBrowserActivity
+import com.xhub.browser.settings.fragment.*
 
+/**
+ * Settings menu bottom sheet.
+ * 
+ * IMPORTANT: Fragment class references use `::class.java.name` to ensure R8/ProGuard can trace them.
+ * The XML file `preferences_root.xml` must be kept in sync manually with these class names.
+ * ProGuard rules in `proguard-project.txt` protect the entire settings fragment package.
+ */
 @AndroidEntryPoint
 class SettingsMenuBottomSheet : BottomSheetDialogFragment() {
 
@@ -40,108 +47,108 @@ class SettingsMenuBottomSheet : BottomSheetDialogFragment() {
             view,
             R.id.menuAppearance,
             R.drawable.ic_palette_outline,
-            "#ff007a",
-            "#33ff007a",
+            R.color.app_cat_appearance,
+            R.color.app_cat_appearance_container,
             "Appearance",
             "Language, theme, configurations, menus, toolbars, tabs and panels"
         ) {
-            openSettingsFragment("com.xhub.browser.settings.fragment.DisplaySettingsFragment")
+            openSettingsFragment(DisplaySettingsFragment::class.java.name)
         }
 
         setupItem(
             view,
             R.id.menuBrowser,
             R.drawable.ic_web,
-            "#2196F3",
-            "#332196F3",
+            R.color.app_cat_browser,
+            R.color.app_cat_browser_container,
             "Browser",
             "Homepage, search engine, system and tabs management"
         ) {
-            openSettingsFragment("com.xhub.browser.settings.fragment.GeneralSettingsFragment")
+            openSettingsFragment(GeneralSettingsFragment::class.java.name)
         }
 
         setupItem(
             view,
             R.id.menuPrivacy,
             R.drawable.ic_shield_person_outline,
-            "#4CAF50",
-            "#334CAF50",
+            R.color.app_cat_privacy,
+            R.color.app_cat_privacy_container,
             "Privacy",
             "Storage, telemetry and permissions"
         ) {
-            openSettingsFragment("com.xhub.browser.settings.fragment.PrivacySettingsFragment")
+            openSettingsFragment(PrivacySettingsFragment::class.java.name)
         }
 
         setupItem(
             view,
             R.id.menuDomains,
             R.drawable.ic_domain,
-            "#00BCD4",
-            "#3300BCD4",
+            R.color.app_cat_domains,
+            R.color.app_cat_domains_container,
             "Domains",
             "Manage site settings"
         ) {
-            openSettingsFragment("com.xhub.browser.settings.fragment.DomainsSettingsFragment")
+            openSettingsFragment(DomainsSettingsFragment::class.java.name)
         }
 
         setupItem(
             view,
             R.id.menuAdBlock,
             R.drawable.ic_block,
-            "#F44336",
-            "#33F44336",
+            R.color.app_cat_adblock,
+            R.color.app_cat_adblock_container,
             "Ad blocker",
             "Manage ad blocker filters"
         ) {
-            openSettingsFragment("com.xhub.browser.settings.fragment.AdBlockSettingsFragment")
+            openSettingsFragment(AdBlockSettingsFragment::class.java.name)
         }
 
         setupItem(
             view,
             R.id.menuExtensions,
             R.drawable.ic_extension_outline,
-            "#9C27B0",
-            "#339C27B0",
+            R.color.app_cat_extensions,
+            R.color.app_cat_extensions_container,
             "Extensions",
             "Manage extension scripts"
         ) {
-            openSettingsFragment("com.xhub.browser.settings.fragment.ExtensionsSettingsFragment")
+            openSettingsFragment(ExtensionsSettingsFragment::class.java.name)
         }
 
         setupItem(
             view,
             R.id.menuBackup,
             R.drawable.ic_backup_outline,
-            "#607D8B",
-            "#33607D8B",
+            R.color.app_cat_backup,
+            R.color.app_cat_backup_container,
             "Backup",
             "Export and import bookmarks and sessions"
         ) {
-            openSettingsFragment("com.xhub.browser.settings.fragment.BackupSettingsFragment")
+            openSettingsFragment(BackupSettingsFragment::class.java.name)
         }
 
         setupItem(
             view,
             R.id.menuContribute,
             R.drawable.ic_giftcard,
-            "#FF9800",
-            "#33FF9800",
+            R.color.app_cat_contribute,
+            R.color.app_cat_contribute_container,
             "Contribute",
             "Help Fulguris grow and succeed"
         ) {
-            openSettingsFragment("com.xhub.browser.settings.fragment.SponsorshipSettingsFragment")
+            openSettingsFragment(SponsorshipSettingsFragment::class.java.name)
         }
 
         setupItem(
             view,
             R.id.menuAbout,
             R.drawable.ic_info,
-            "#E0E0E0",
-            "#33E0E0E0",
+            R.color.app_cat_about,
+            R.color.app_cat_about_container,
             "About",
             "Version, contact, and legal details"
         ) {
-            openSettingsFragment("com.xhub.browser.settings.fragment.AboutSettingsFragment")
+            openSettingsFragment(AboutSettingsFragment::class.java.name)
         }
     }
 
@@ -149,8 +156,8 @@ class SettingsMenuBottomSheet : BottomSheetDialogFragment() {
         parent: View,
         id: Int,
         iconRes: Int,
-        iconColorHex: String,
-        containerBgColorHex: String,
+        @androidx.annotation.ColorRes iconColorRes: Int,
+        @androidx.annotation.ColorRes containerColorRes: Int,
         title: String,
         summary: String,
         onClick: () -> Unit
@@ -162,12 +169,15 @@ class SettingsMenuBottomSheet : BottomSheetDialogFragment() {
         val summaryView = itemLayout.findViewById<TextView>(R.id.menuSummary)
 
         icon?.setImageResource(iconRes)
-        try {
-            icon?.imageTintList = ColorStateList.valueOf(Color.parseColor(iconColorHex))
-            iconContainer?.backgroundTintList = ColorStateList.valueOf(Color.parseColor(containerBgColorHex))
-        } catch (e: Exception) {
-            // fallback if color parsing fails
-        }
+        // Category colors are concrete @color resources (app_cat_*); ContextCompat.getColor
+        // can't fail on a valid @ColorRes, so no try/catch is needed (replacing the old
+        // Color.parseColor path that could throw on malformed hex).
+        icon?.imageTintList = ColorStateList.valueOf(
+            androidx.core.content.ContextCompat.getColor(parent.context, iconColorRes)
+        )
+        iconContainer?.backgroundTintList = ColorStateList.valueOf(
+            androidx.core.content.ContextCompat.getColor(parent.context, containerColorRes)
+        )
         textView?.text = title
         summaryView?.text = summary
         itemLayout.setOnClickListener { onClick() }
