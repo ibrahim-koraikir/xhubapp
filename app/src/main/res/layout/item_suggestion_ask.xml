@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:clickable="true"
+    android:focusable="true"
+    android:background="?attr/selectableItemBackground"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="16dp"
+    android:paddingTop="12dp"
+    android:paddingEnd="16dp"
+    android:paddingBottom="12dp"
+    android:minHeight="48dp">
+
+    <!-- Search/History Icon -->
+    <ImageView
+        android:id="@+id/suggestionIcon"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:src="@drawable/ic_find"
+        app:tint="?attr/appColorMutedForeground"
+        android:contentDescription="@null" />
+
+    <!-- Query Text -->
+    <TextView
+        android:id="@+id/title"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="8dp"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="?attr/colorOnBackground"
+        android:textSize="16sp" />
+
+    <!-- Text Action (e.g. "Search Google ->") -->
+    <TextView
+        android:id="@+id/textAction"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="?attr/colorOnBackground"
+        android:textSize="14sp"
+        android:visibility="gone" />
+
+    <!-- Icon Action (e.g. insert arrow) -->
+    <ImageView
+        android:id="@+id/complete_search"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/search_insert_suggestion"
+        android:padding="2dp"
+        android:src="@drawable/ic_insert"
+        app:tint="?attr/appColorMutedForeground" />
+
+</LinearLayout>

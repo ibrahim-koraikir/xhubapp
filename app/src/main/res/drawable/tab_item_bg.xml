@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Tab item background - normal state: dark pill -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Active tab: teal-tinted with subtle border -->
+    <item android:state_activated="true">
+        <shape android:shape="rectangle">
+            <solid android:color="?attr/colorSurfaceVariant" />
+            <corners android:radius="12dp" />
+            <stroke android:width="1dp" android:color="#20B8CD" />
+        </shape>
+    </item>
+    <!-- Pressed state -->
+    <item android:state_pressed="true">
+        <shape android:shape="rectangle">
+            <solid android:color="?attr/colorSurfaceVariant" />
+            <corners android:radius="12dp" />
+        </shape>
+    </item>
+    <!-- Default dark pill -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="?attr/colorSurface" />
+            <corners android:radius="12dp" />
+            <stroke android:width="1dp" android:color="#222222" />
+        </shape>
+    </item>
+</selector>
