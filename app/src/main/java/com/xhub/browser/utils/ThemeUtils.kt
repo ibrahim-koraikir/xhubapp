@@ -1,4 +1,4 @@
-﻿/*
+/*
  * The contents of this file are subject to the Common Public Attribution License Version 1.0.
  * (the "License"); you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at:
@@ -258,8 +258,8 @@ object ThemeUtils {
             // Too bright (white site), make it slightly darker
             DrawableUtils.mixColor(0.20f, requestedColor, Color.BLACK)
         } else if (luminance < 0.15) {
-            // Dark background: keep a consistent near-black dark bar
-            Color.parseColor("#1A1A1A")
+            // Dark background: keep a consistent near-black dark bar (mix black at 90%)
+            DrawableUtils.mixColor(0.90f, Color.BLACK, Color.DKGRAY)
         } else {
             // Mid-range: slightly lighten
             DrawableUtils.mixColor(0.20f, requestedColor, Color.WHITE)
@@ -277,8 +277,8 @@ object ThemeUtils {
             // Too bright (white site), make it slightly darker
             DrawableUtils.mixColor(0.35f, requestedColor, Color.BLACK)
         } else if (luminance < 0.15) {
-            // Dark background: keep a consistent slightly lighter dark bar
-            Color.parseColor("#222222")
+            // Dark background: keep a consistent slightly lighter dark bar (mix black at 87%)
+            DrawableUtils.mixColor(0.87f, Color.BLACK, Color.DKGRAY)
         } else {
             // Mid-range: slightly lighten
             DrawableUtils.mixColor(0.35f, requestedColor, Color.WHITE)

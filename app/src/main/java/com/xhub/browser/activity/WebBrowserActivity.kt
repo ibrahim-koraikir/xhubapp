@@ -71,6 +71,7 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
+import com.google.android.material.color.MaterialColors
 import dagger.hilt.android.AndroidEntryPoint
 import com.xhub.browser.*
 import com.xhub.browser.BuildConfig
@@ -4141,13 +4142,13 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
      */
     private fun applyToolbarColor(color: Int) {
         // FORCE dark toolbar background to match C o                                                                                                                                                                                                                                                                               ud met design - ignore website colors
-        val effectiveColor = Color.parseColor("#0b0b0b")
+        val effectiveColor = MaterialColors.getColor(this, com.google.android.material.R.attr.colorSurface, android.graphics.Color.BLACK)
         
         //Workout a foreground color that  q    qqqwill be working with our background color
         currentToolBarTextColor = foregroundColorFromBackgroundColor(effectiveColor)
         // Change search view text color
         searchView.setTextColor(Color.WHITE)
-        searchView.setHintTextColor(Color.parseColor("#9A9A9A"))
+        searchView.setHintTextColor(MaterialColors.getColor(this, com.xhub.browser.R.attr.appColorSubtleForeground, android.graphics.Color.GRAY))
         // Change tab counter color - Use Comet Teal for the count
         iBindingToolbarContent.tabsButton.apply {
             textColor = getColor(R.color.comet_teal)
@@ -4233,11 +4234,11 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
 
         
         // Search bar colors for Comet skin: Keep it dark/matching the theme, not the website
-        setSearchBarColors(Color.parseColor("#171717")) 
+        setSearchBarColors(MaterialColors.getColor(this, com.google.android.material.R.attr.colorSurface, android.graphics.Color.BLACK))
 
 
         // Progress bar background color - keep it dark
-        iBinding.toolbarInclude.progressView.setBackgroundColor(Color.parseColor("#1a1a1a"))
+        iBinding.toolbarInclude.progressView.setBackgroundColor(MaterialColors.getColor(this, com.google.android.material.R.attr.colorSurface, android.graphics.Color.BLACK))
 
         // Then the color of the status bar itself
         setStatusBarColor(effectiveColor, currentToolBarTextColor == Color.BLACK)
