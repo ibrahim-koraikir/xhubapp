@@ -5,10 +5,10 @@
     <item>
         <shape android:shape="rectangle">
             <gradient
-                android:startColor="#FF007A"
-                android:endColor="#9C00FF"
+                android:startColor="?attr/colorPrimary"
+                android:endColor="?attr/appColorAccentPurple2"
                 android:angle="135" />
-            <corners android:radius="16dp" />
+            <corners android:radius="@dimen/radius_lg" />
         </shape>
     </item>
     <!-- Inner card backdrop - inset by stroke width -->
@@ -18,8 +18,8 @@
         android:right="2dp"
         android:bottom="2dp">
         <shape android:shape="rectangle">
-            <solid android:color="@color/tab_grid_card" />
-            <corners android:radius="14dp" />
+            <solid android:color="?attr/appColorCardSurface" />
+            <corners android:radius="@dimen/radius_lg" />
         </shape>
     </item>
 </layer-list>

@@ -4,7 +4,7 @@
     <!-- Base dark fill -->
     <item>
         <shape android:shape="rectangle">
-            <solid android:color="#F0080808" />
+            <solid android:color="?attr/appColorSheetGlass" />
             <corners
                 android:topLeftRadius="24dp"
                 android:topRightRadius="24dp" />
@@ -14,8 +14,8 @@
     <item android:bottom="2dp">
         <shape android:shape="rectangle">
             <gradient
-                android:startColor="#33FF007A"
-                android:endColor="#00FF007A"
+                android:startColor="?attr/colorPrimary"
+                android:endColor="?attr/colorPrimary"
                 android:angle="270" />
             <corners
                 android:topLeftRadius="24dp"
