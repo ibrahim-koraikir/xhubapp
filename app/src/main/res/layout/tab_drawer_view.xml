@@ -46,7 +46,7 @@
                     android:paddingStart="16dp"
                     android:paddingEnd="16dp"
                     android:text="@string/tabs"
-                    android:textColor="@color/tab_grid_foreground"
+                    android:textColor="?attr/colorOnBackground"
                     android:textSize="13sp"
                     android:textStyle="bold"
                     android:background="@drawable/bg_tab_grid_pill_active"/>
@@ -68,13 +68,13 @@
                         android:layout_height="16dp"
                         android:layout_marginEnd="6dp"
                         android:src="@drawable/ic_incognito"
-                        app:tint="@color/tab_grid_secondary_foreground"/>
+                        app:tint="?attr/appColorMutedForeground"/>
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/action_incognito"
-                        android:textColor="@color/tab_grid_secondary_foreground"
+                        android:textColor="?attr/appColorMutedForeground"
                         android:textSize="13sp"
                         android:textStyle="bold"
                         android:alpha="0.7"/>
@@ -91,7 +91,7 @@
                 android:layout_centerVertical="true"
                 android:padding="8dp"
                 android:text="@string/action_ok"
-                android:textColor="@color/tab_grid_foreground"
+                android:textColor="?attr/colorOnBackground"
                 android:textSize="15sp"
                 android:textStyle="bold"
                 android:clickable="true"
@@ -131,7 +131,7 @@
                 android:layout_alignParentTop="true"
                 android:layout_marginStart="-24dp"
                 android:layout_marginEnd="-24dp"
-                android:background="@color/tab_grid_secondary"/>
+                android:background="?attr/colorSurfaceVariant"/>
 
             <!-- Close All Button -->
             <TextView
@@ -142,7 +142,7 @@
                 android:layout_centerVertical="true"
                 android:padding="8dp"
                 android:text="@string/action_close_all_other_tabs"
-                android:textColor="@color/tab_grid_muted_foreground"
+                android:textColor="?attr/appColorSubtleForeground"
                 android:textSize="15sp"
                 android:textStyle="bold"
                 android:clickable="true"
@@ -156,7 +156,7 @@
                 android:layout_centerInParent="true"
                 android:background="@drawable/bg_tab_grid_fab"
                 android:src="@drawable/ic_action_plus"
-                app:tint="@color/tab_grid_background"
+                app:tint="?attr/appColorSheetGlass"
                 android:contentDescription="@string/action_new_tab"
                 android:elevation="4dp"
                 android:scaleType="center"
@@ -171,7 +171,7 @@
                 android:layout_centerVertical="true"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:src="@drawable/ic_settings"
-                app:tint="@color/tab_grid_foreground"
+                app:tint="?attr/colorOnBackground"
                 android:contentDescription="@string/settings"
                 android:scaleType="centerInside"
                 android:onClick="@{(view) -> uiController.executeAction(view.id)}" />

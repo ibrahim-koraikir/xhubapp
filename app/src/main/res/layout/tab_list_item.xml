@@ -29,7 +29,7 @@
             android:layout_width="16dp"
             android:layout_height="16dp"
             android:layout_marginEnd="8dp"
-            app:tint="@color/tab_grid_foreground"
+            app:tint="?attr/colorOnBackground"
             tools:src="@drawable/ic_web" />
 
         <TextView
@@ -37,7 +37,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:textColor="@color/tab_grid_card_foreground"
+            android:textColor="?attr/colorOnBackground"
             android:textSize="12sp"
             android:textStyle="bold"
             android:maxLines="1"
@@ -56,7 +56,7 @@
                 android:layout_width="14dp"
                 android:layout_height="14dp"
                 android:src="@drawable/ic_action_delete"
-                app:tint="@color/tab_grid_muted_foreground" />
+                app:tint="?attr/appColorSubtleForeground" />
         </LinearLayout>
 
     </LinearLayout>
@@ -64,13 +64,13 @@
     <View
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:background="@color/tab_grid_secondary"/>
+        android:background="?attr/colorSurfaceVariant"/>
 
     <!-- Card Preview -->
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="140dp"
-        android:background="@color/tab_grid_background">
+        android:background="?attr/appColorSheetGlass">
 
         <ImageView
             android:id="@+id/tabPreviewImage"
