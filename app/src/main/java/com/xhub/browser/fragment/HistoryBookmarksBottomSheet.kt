@@ -1,4 +1,4 @@
-﻿package com.xhub.browser.fragment
+package com.xhub.browser.fragment
 
 import android.app.Dialog
 import android.graphics.Color
@@ -140,7 +140,7 @@ class HistoryBookmarksBottomSheet : BottomSheetDialogFragment() {
     }
 
     private fun updateTabUI() {
-        val inactiveColor = ContextCompat.getColor(requireContext(), R.color.hb_muted_foreground)
+        val inactiveColor = com.google.android.material.color.MaterialColors.getColor(requireContext(), android.R.attr.textColorSecondary, Color.GRAY)
 
         if (currentMode == Mode.HISTORY) {
             tabHistory.setBackgroundResource(R.drawable.bg_hb_tab_pill_active)
@@ -231,10 +231,6 @@ class HistoryBookmarksBottomSheet : BottomSheetDialogFragment() {
             url.contains("google.com") -> 0
             else -> R.drawable.ic_history
         },
-        iconBgColorRes = when {
-            url.contains("google.com") -> android.R.color.white
-            else -> R.color.hb_secondary
-        },
         isGoogle = url.contains("google.com"),
         isFaded = false
     )
@@ -244,7 +240,6 @@ class HistoryBookmarksBottomSheet : BottomSheetDialogFragment() {
         url = url,
         time = "",
         iconRes = R.drawable.ic_bookmark,
-        iconBgColorRes = R.color.hb_secondary,
         isGoogle = false,
         isFaded = false
     )
@@ -262,7 +257,6 @@ sealed class HbItem {
         val url: String,
         val time: String,
         val iconRes: Int,
-        val iconBgColorRes: Int,
         val isGoogle: Boolean,
         val isFaded: Boolean
     ) : HbItem()
@@ -335,7 +329,16 @@ class HistoryBookmarksAdapter(private val onItemClick: (String) -> Unit) :
             // Set icon background color
             val bgDrawable = ContextCompat.getDrawable(itemView.context, R.drawable.bg_hb_icon_circle)?.mutate() as? GradientDrawable
             if (bgDrawable != null) {
-                bgDrawable.setColor(ContextCompat.getColor(itemView.context, item.iconBgColorRes))
+                val iconBgColor = if (item.isGoogle) {
+                    Color.WHITE
+                } else {
+                    com.google.android.material.color.MaterialColors.getColor(
+                        itemView.context,
+                        com.google.android.material.R.attr.colorSurfaceVariant,
+                        Color.DKGRAY
+                    )
+                }
+                bgDrawable.setColor(iconBgColor)
                 iconContainer.background = bgDrawable
             }
 

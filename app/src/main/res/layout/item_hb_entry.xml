@@ -51,7 +51,7 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
                 android:text="G"
-                android:textColor="@color/hb_icon_google_blue"
+                android:textColor="@color/app_google_blue"
                 android:textSize="16sp"
                 android:textStyle="bold"
                 android:visibility="gone" />
@@ -70,7 +70,7 @@
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:textColor="@color/hb_foreground"
+                android:textColor="?attr/colorOnBackground"
                 android:textSize="15sp"
                 android:letterSpacing="0.005"
                 tools:text="Website Title" />
@@ -82,7 +82,7 @@
                 android:layout_marginTop="3dp"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:textColor="@color/hb_muted_foreground"
+                android:textColor="?attr/appColorMutedForeground"
                 android:textSize="12sp"
                 tools:text="www.example.com" />
         </LinearLayout>
@@ -93,7 +93,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="12dp"
-            android:textColor="@color/hb_muted_foreground"
+            android:textColor="?attr/appColorMutedForeground"
             android:textSize="12sp"
             tools:text="7:42 PM" />
     </LinearLayout>
