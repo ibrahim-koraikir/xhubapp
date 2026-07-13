@@ -2153,6 +2153,34 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
             ?.setOnClickListener { openDownloads() }
         overlay.findViewById<android.view.View>(R.id.homeStatStealthContainer)
             ?.setOnClickListener { executeAction(R.id.action_incognito) }
+
+        // Update button → check for updates
+        overlay.findViewById<android.view.View>(R.id.homeUpdateButton)
+            ?.setOnClickListener {
+                val context = this
+                Toast.makeText(context, R.string.checking_for_updates, Toast.LENGTH_SHORT).show()
+                UpdateChecker.checkForUpdates(context, object : UpdateChecker.Callback {
+                    override fun onUpdateAvailable(latestVersion: String, releaseUrl: String) {
+                        UpdateChecker.showUpdateDialog(context, latestVersion, releaseUrl)
+                    }
+
+                    override fun onNoUpdate() {
+                        MaterialAlertDialogBuilder(context)
+                            .setTitle(R.string.update_not_found)
+                            .setMessage(context.getString(R.string.update_not_found_message, BuildConfig.VERSION_NAME))
+                            .setPositiveButton(R.string.action_done, null)
+                            .show()
+                    }
+
+                    override fun onError(errorMsg: String) {
+                        MaterialAlertDialogBuilder(context)
+                            .setTitle(R.string.update_check_failed)
+                            .setMessage(R.string.update_check_failed_message)
+                            .setPositiveButton(R.string.action_done, null)
+                            .show()
+                    }
+                })
+            }
     }
 
     /**
@@ -2515,34 +2543,6 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
             return
         }
         shortcutsDataVersion = currentVersion
-
-        // ── Update button → check for updates ─────────────────────────────────
-        iBinding.homeScreenOverlay.findViewById<View>(R.id.homeUpdateButton)
-            ?.setOnClickListener {
-                val context = this
-                Toast.makeText(context, R.string.checking_for_updates, Toast.LENGTH_SHORT).show()
-                UpdateChecker.checkForUpdates(context, object : UpdateChecker.Callback {
-                    override fun onUpdateAvailable(latestVersion: String, releaseUrl: String) {
-                        UpdateChecker.showUpdateDialog(context, latestVersion, releaseUrl)
-                    }
-
-                    override fun onNoUpdate() {
-                        MaterialAlertDialogBuilder(context)
-                            .setTitle(R.string.update_not_found)
-                            .setMessage(context.getString(R.string.update_not_found_message, BuildConfig.VERSION_NAME))
-                            .setPositiveButton(R.string.action_done, null)
-                            .show()
-                    }
-
-                    override fun onError(errorMsg: String) {
-                        MaterialAlertDialogBuilder(context)
-                            .setTitle(R.string.update_check_failed)
-                            .setMessage(R.string.update_check_failed_message)
-                            .setPositiveButton(R.string.action_done, null)
-                            .show()
-                    }
-                })
-            }
 
         // ── Load & render shortcuts via the RecyclerView adapter ──────────────
         // COMMENT 6: tiles are now recycled and only changed items are rebound (DiffUtil). Favicon
