@@ -43,7 +43,7 @@ object UpdateChecker {
 
     fun checkForUpdates(context: Context, callback: Callback) {
         val queue = Volley.newRequestQueue(context.applicationContext)
-        val jsonObjectRequest = JsonObjectRequest(
+        val jsonObjectRequest = object : JsonObjectRequest(
             Request.Method.GET, GITHUB_API_URL, null,
             { response ->
                 try {
@@ -62,10 +62,17 @@ object UpdateChecker {
                 }
             },
             { error ->
-                Timber.e(error, "Update check request failed")
-                callback.onError(error.localizedMessage ?: "Network error")
+                val errorMsg = error.localizedMessage ?: "Network error (status code: ${error.networkResponse?.statusCode})"
+                Timber.e(error, "Update check request failed: $errorMsg")
+                callback.onError(errorMsg)
             }
-        )
+        ) {
+            override fun getHeaders(): Map<String, String> {
+                val headers = HashMap<String, String>()
+                headers["User-Agent"] = "XHub-Browser-UpdateChecker"
+                return headers
+            }
+        }
 
         // Tag the request with the object so we can cancel if needed
         jsonObjectRequest.tag = this
