@@ -1,4 +1,4 @@
-﻿/*
+/*
  * The contents of this file are subject to the Common Public Attribution License Version 1.0.
  * (the "License"); you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at:
@@ -126,7 +126,6 @@ class ReadingActivity : ThemedActivity(), TextToSpeech.OnInitListener {
         val intent = intent
         try {
             if (!loadPage(intent)) {
-                //setText(getString(R.string.untitled), getString(R.string.loading_failed));
             }
         } catch (e: IOException) {
             e.printStackTrace()
@@ -213,9 +212,6 @@ class ReadingActivity : ThemedActivity(), TextToSpeech.OnInitListener {
                 // TODO: somehow TTS is broken after following a link
                 // Restarting the activity does not help for some reason
                 // We ought to check TTS error codes and debug that at some point
-                //launch(this@ReadingActivity, mUrl!!, file)
-                //finish()
-
             }
         }
         strBuilder.setSpan(clickable, start, end, flags)
@@ -279,7 +275,6 @@ class ReadingActivity : ThemedActivity(), TextToSpeech.OnInitListener {
             mTitle!!.alpha = 1.0f
             mTitle!!.visibility = View.VISIBLE
             setTextViewHTML(mTitle!!, title)
-            //mTitle!!.text = title
         } else {
             mTitle!!.text = title
             setTextViewHTML(mTitle!!, title)
@@ -383,7 +378,6 @@ class ReadingActivity : ThemedActivity(), TextToSpeech.OnInitListener {
     override fun onInit(status: Int) {
         if (status == TextToSpeech.SUCCESS) {
             var result: Int = iTtsEngine.setLanguage(Locale.getDefault())
-            //iTtsEngine.stop()
 
             // Try falling back to US english then
             if (result == TextToSpeech.LANG_MISSING_DATA

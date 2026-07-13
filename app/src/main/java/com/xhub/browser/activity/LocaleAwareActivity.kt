@@ -1,4 +1,4 @@
-﻿/* This Source Code Form is subject to the terms of the Mozilla Public
+/* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 package com.xhub.browser.activity
@@ -21,7 +21,6 @@ import timber.log.Timber
 import java.util.Locale
 import javax.inject.Inject
 
-//@AndroidEntryPoint
 abstract class LocaleAwareActivity :
     AppCompatActivity() {
     @Volatile
@@ -82,8 +81,6 @@ abstract class LocaleAwareActivity :
      */
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-
-        //onConfigurationChanged(getResources().getConfiguration());
     }
 
     /**

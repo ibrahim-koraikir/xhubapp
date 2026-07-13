@@ -1,4 +1,4 @@
-﻿/*
+/*
  * The contents of this file are subject to the Common Public Attribution License Version 1.0.
  * (the "License"); you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at:
@@ -33,7 +33,7 @@ import kotlin.coroutines.CoroutineContext
 /**
  * Fulguris component
  */
-abstract class Component : DefaultLifecycleObserver  /*: androidx.lifecycle.ViewModel()*/ {
+abstract class Component : DefaultLifecycleObserver {
 
     // Setup an async scope on the main/UI thread dispatcher.
     // This one as opposed to viwModelScope will not be cancelled therefore all operation will complete before the process quits.
@@ -43,35 +43,7 @@ abstract class Component : DefaultLifecycleObserver  /*: androidx.lifecycle.View
     // Typically used for file write or read operations.
     val iScopeThreadPool = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    /*
-class CloseableCoroutineScope(context: CoroutineContext) : Closeable, CoroutineScope {
-    override val coroutineContext: CoroutineContext = context
 
-    override fun close() {
-        coroutineContext.cancel()
-    }
-}*/
-
-    /*
-    override fun onCleared() {
-        super.onCleared()
-        // This was not working here cause that callback comes after viewModelScope and all its jobs are cancelled
-//        runBlocking {
-//            viewModelScope.join()
-//        }
-
-        // Make sure all async operations from our ViewModels are completed before we quit.
-        // This is needed as the ViewModel default behaviour is to cancel all outstanding operations.
-        // That should make sure sessions are always saved properly.
-        //runBlocking {
-            //ioScope.job()?.join()
-        //}
-
-
-        //ioScope.cancel()
-    }
-
- */
 
 }
 

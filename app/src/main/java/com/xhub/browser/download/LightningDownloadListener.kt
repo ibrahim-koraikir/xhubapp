@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright 2014 A.C.R. Development
  */
 package com.xhub.browser.download
@@ -62,11 +62,19 @@ class LightningDownloadListener     //Injector.getInjector(context).inject(this)
         downloadManager.query(q)?.use { cursor ->
             if (!cursor.moveToFirst()) return
             val status = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
-            val filename = cursor.getString(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_TITLE))
-                ?.takeIf { it.isNotBlank() } ?: downloadHandler.iFilename
+            // Prefer the local filename we tracked when enqueuing, then the cursor title,
+            // then a generic placeholder. Do NOT fall back to a shared mutable field on
+            // DownloadHandler, which is racy across concurrent downloads.
+            val filename = downloadHandler.getFilenameForDownloadId(id)
+                ?: cursor.getString(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_TITLE))
+                    ?.takeIf { it.isNotBlank() }
+                ?: context.getString(R.string.unknown_file)
+            // Clean up the map entry now that we've consumed it — the map is a singleton and
+            // entries are never removed otherwise, causing it to grow unbounded in long sessions.
+            downloadHandler.removeFilenameForDownloadId(id)
 
             val notifMgr = NotificationManagerCompat.from(browserActivity)
-            val channelId = browserActivity.CHANNEL_ID
+            val channelId = browserActivity.channelId
             val builder = NotificationCompat.Builder(browserActivity, channelId)
                 .setSmallIcon(R.drawable.ic_download_outline)
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
@@ -79,6 +87,10 @@ class LightningDownloadListener     //Injector.getInjector(context).inject(this)
                             .setContentTitle(browserActivity.getString(R.string.download_complete))
                             .setContentText(filename).build())
                     }
+                    // Live-update the home hero "Downloads" chip once a download completes so its
+                    // count doesn't go stale while the user sits on the home screen. Cheap no-op
+                    // when the home overlay isn't visible.
+                    browserActivity.refreshHomeStatsIfVisible()
                     browserActivity.makeSnackbar(
                         browserActivity.getString(R.string.download_complete),
                         KDuration,

@@ -58,6 +58,9 @@ import androidx.core.view.isVisible
 import androidx.customview.widget.ViewDragHelper
 import androidx.databinding.DataBindingUtil
 import androidx.drawerlayout.widget.DrawerLayout
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.fragment.app.FragmentManager
 import androidx.palette.graphics.Palette
 import androidx.preference.Preference
@@ -88,7 +91,11 @@ import com.xhub.browser.database.HistoryEntry
 import com.xhub.browser.database.SearchSuggestion
 import com.xhub.browser.database.WebPage
 import com.xhub.browser.database.bookmark.BookmarkRepository
+import com.xhub.browser.database.downloads.DownloadsRepository
 import com.xhub.browser.database.history.HistoryRepository
+import com.xhub.browser.download.DownloadProgress
+import com.xhub.browser.download.DownloadProgressBus
+import com.xhub.browser.download.YtDlpDownloadService
 import com.xhub.browser.databinding.ActivityMainBinding
 import com.xhub.browser.databinding.ToolbarContentBinding
 import com.xhub.browser.di.*
@@ -124,6 +131,7 @@ import io.reactivex.Completable
 import io.reactivex.Scheduler
 import io.reactivex.rxkotlin.subscribeBy
 import io.reactivex.schedulers.Schedulers
+import kotlinx.coroutines.launch
 import org.json.JSONObject
 import timber.log.Timber
 import java.io.IOException
@@ -132,7 +140,8 @@ import javax.inject.Inject
 import com.xhub.browser.favicon.FaviconModel
 import com.xhub.browser.shortcuts.ShortcutItem
 import com.xhub.browser.shortcuts.ShortcutTileAdapter
-import com.xhub.browser.ads.ExoClickInterstitial
+import com.xhub.browser.ads.AdConfigRepository
+import com.xhub.browser.ads.DirectLinkAdManager
 import kotlin.math.abs
 import kotlin.system.exitProcess
 import kotlin.time.TimeSource
@@ -147,7 +156,7 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
     WebBrowser, OnClickListener, PreferenceFragmentCompat.OnPreferenceStartFragmentCallback {
 
     // Notifications
-    lateinit var CHANNEL_ID: String
+    lateinit var channelId: String
 
     // Tab view being currently displayed
     private val currentTabView: WebViewEx?
@@ -197,6 +206,7 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
 
     // The singleton BookmarkManager
     @Inject lateinit var bookmarkManager: BookmarkRepository
+    @Inject lateinit var downloadsModel: DownloadsRepository
     @Inject lateinit var historyModel: HistoryRepository
     @Inject lateinit var searchEngineProvider: SearchEngineProvider
     @Inject lateinit var inputMethodManager: InputMethodManager
@@ -275,7 +285,6 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
     private val longPressBackRunnable = Runnable {
         // Disable this for now as it is popping up when exiting full screen video mode.
         // See: https://github.com/Slion/Fulguris/issues/81
-        //showCloseDialog(tabsManager.positionOf(tabsManager.currentTab))
     }
 
     // We had to use that to avoid crashes when using tab animations
@@ -284,15 +293,16 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
     // Holds favicon fetch subscriptions for the home-screen shortcuts so they aren't GC'd
     private val faviconDisposables = io.reactivex.disposables.CompositeDisposable()
 
+    // Holds the remote-shortcuts network fetch subscription. Kept SEPARATE from faviconDisposables
+    // because buildDynamicShortcuts() calls faviconDisposables.clear() on every home render, which
+    // would otherwise cancel an in-flight remote fetch before it could land. Disposed in onDestroy().
+    private val remoteShortcutsDisposables = io.reactivex.disposables.CompositeDisposable()
+
     /**
      * Only called when the current tab just opened from an ACTION_VIEW intent is closed
      * Tab could have been opened by another app or by ourselves from another activity
      */
     override fun closeActivity(aIntent: Intent) {
-        //performExitCleanUp()
-
-        //aIntent.log("CloseActivity")
-
         mainHandler.postDelayed({
             // TODO: All extras name in one place
             try {
@@ -376,7 +386,6 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
 
             applyWindowInsets(view, windowInsets)
 
-            //windowInsets
             WindowInsetsCompat.CONSUMED
         }
 
@@ -410,16 +419,27 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
         if (isIncognito()) {
             incognitoNotification = IncognitoNotification(this, notificationManager)
         }
-        tabsManager.addTabNumberChangedListener {
+        // Keep strong references to the three tab-number listeners we register from this Activity
+        // so we can unregister them in onDestroy(). TabsManager is an application-scoped singleton;
+        // without explicit removal these lambdas (which capture `this`) would leak the Activity for
+        // the entire process lifetime. See onDestroy().
+        incognitoTabNumberListener = { count: Int ->
             if (isIncognito()) {
-                if (it == 0) {
+                if (count == 0) {
                     incognitoNotification?.hide()
                 } else {
-                    incognitoNotification?.show(it)
+                    incognitoNotification?.show(count)
                 }
             }
-        }
-        tabsManager.addTabNumberChangedListener(::updateTabNumber)
+        }.also { tabsManager.addTabNumberChangedListener(it) }
+
+        updateTabNumberListener = { count: Int -> updateTabNumber(count) }
+            .also { tabsManager.addTabNumberChangedListener(it) }
+
+        // Live-update the home hero "Private" chip whenever the tab count changes (covers stealth
+        // tab open/close). Cheap no-op via refreshHomeStatsIfVisible() when not on the home screen.
+        homeStatsTabNumberListener = { _: Int -> refreshHomeStatsIfVisible() }
+            .also { tabsManager.addTabNumberChangedListener(it) }
 
         // Setup our presenter
         tabsManager.iWebBrowser = this
@@ -464,13 +484,296 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
         }
 
         // This callback is trigger after we switch session, Could be useful at some point
-        //tabsManager.doAfterInitialization {}
 
         // Hook in buttons with onClick handler
         iBindingToolbarContent.buttonReload.setOnClickListener(this)
-        
-        // Show in-app ads overlay after initialization
-        showInAppAds()
+
+        // COMMENT 4: show the interstitial after tabs finish initializing (mirrors checkForUpdates),
+        // Direct-link ads (download flavor only): open as normal tabs, never full-screen WebView.
+        if (BuildConfig.ADS_ENABLED) {
+            val directAdsPrefs = getSharedPreferences("direct_ads", android.content.Context.MODE_PRIVATE)
+            adConfigRepo = AdConfigRepository(directAdsPrefs)
+            directLinkAdManager = DirectLinkAdManager(
+                repo = adConfigRepo,
+                prefs = directAdsPrefs,
+                openAdTab = { url, show ->
+                    tabsManager.newTab(UrlInitializer(url), show)
+                }
+            )
+            adConfigRepo.refreshAsync(lifecycleScope)
+            // One silent background ad tab after tabs are ready.
+            tabsManager.doOnceAfterInitialization {
+                directLinkAdManager.maybeShowLaunchAd()
+            }
+        }
+
+        // Observe video-download progress and drive the in-app progress card. This is what makes
+        // download progress visible even when POST_NOTIFICATIONS is denied (the previous
+        // notification-only feedback silently showed nothing in that case).
+        collectDownloadProgress()
+
+        // Fetch the latest home-screen shortcut list from our remote CDN in the background. This is
+        // what lets us push new sites/groups WITHOUT an app update. It is throttled internally and
+        // preserves the user's own edits (their edits live in a separate overlay). When a NEW list
+        // actually lands, ShortcutRepository bumps the data version, so we just force a rebuild of
+        // the home grid on the main thread (the version guard in buildDynamicShortcuts() would
+        // otherwise no-op).
+        refreshRemoteShortcuts()
+    }
+
+    /**
+     * Background refresh of the remote shortcut list via [com.xhub.browser.shortcuts.RemoteShortcutsFetcher].
+     * Runs off the main thread (network). If it fetched a genuinely new list we invalidate our
+     * rendered version and rebuild the home grid so the new sites appear without a restart.
+     * Never fetches in incognito.
+     */
+    private fun refreshRemoteShortcuts() {
+        if (isIncognito()) return
+        remoteShortcutsDisposables.add(
+            io.reactivex.Single
+                .fromCallable { com.xhub.browser.shortcuts.RemoteShortcutsFetcher.refresh(this) }
+                .subscribeOn(io.reactivex.schedulers.Schedulers.io())
+                .observeOn(io.reactivex.android.schedulers.AndroidSchedulers.mainThread())
+                .subscribe({ changed ->
+                    if (changed) {
+                        // Force the next buildDynamicShortcuts() to actually rebuild.
+                        shortcutsDataVersion = -1
+                        buildDynamicShortcuts()
+                    }
+                }, { error ->
+                    Timber.w(error, "refreshRemoteShortcuts failed")
+                })
+        )
+    }
+
+    /**
+     * Maximum number of shortcut tiles rendered per group before a full-span "Show more" toggle
+     * appears. Groups at or below this count show all their tiles with no toggle.
+     */
+    private val kShortcutGroupCap = 12
+
+    /**
+     * Names of groups the user has expanded past [kShortcutGroupCap] via the "Show more" toggle.
+     * This is transient UI state, not persisted: it is cleared when leaving the home screen so
+     * every fresh home visit starts collapsed.
+     */
+    private val expandedGroups = mutableSetOf<String>()
+
+    /**
+     * Toggle a group's expanded/collapsed state (from the "Show more (N)" / "Show less" chip) and
+     * rebuild the grid. Forces the version guard open so the rebuild actually runs.
+     */
+    fun onShowMoreClick(groupName: String) {
+        if (!expandedGroups.add(groupName)) {
+            expandedGroups.remove(groupName)
+        }
+        shortcutsDataVersion = -1
+        buildDynamicShortcuts()
+    }
+
+    /**
+     * Show the long-press context menu for a home-screen shortcut tile. Offers open-in-background,
+     * open-in-new-tab, open-in-stealth, copy link, share, edit and remove. The tile's URL is read
+     * from its tag (set in [ShortcutTileAdapter]); the display name is read from the tile label,
+     * falling back to the URL host.
+     */
+    fun onHomeScreenShortcutLongClick(view: View) {
+        // User has discovered long-press — suppress the hint Toast permanently.
+        if (!userPreferences.shortcutLongPressDone) {
+            userPreferences.shortcutLongPressDone = true
+        }
+        view.isHapticFeedbackEnabled = true
+        view.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+
+        val url = view.tag as? String ?: return
+        if (url.isBlank()) return
+        val name = ((view as? android.widget.LinearLayout)?.getChildAt(1) as? android.widget.TextView)?.text?.toString()
+            ?.takeIf { it.isNotBlank() }
+            ?: Uri.parse(url).host ?: url
+
+        // The favorite item is dynamic: it toggles based on whether the site is already starred.
+        val isFav = com.xhub.browser.shortcuts.ShortcutRepository.isFavorite(this, url)
+        // COMMENT: replaced the plain MaterialAlertDialog list with a Material bottom sheet that
+        // shows each action as an icon + label row (matches SettingsMenuBottomSheet styling).
+        val sheet = com.google.android.material.bottomsheet.BottomSheetDialog(this)
+        val sheetView = layoutInflater.inflate(R.layout.bottom_sheet_shortcut_actions, null)
+        sheet.setContentView(sheetView)
+
+        sheetView.findViewById<android.widget.TextView>(R.id.shortcutSheetTitle)?.text = name
+        val actionsContainer =
+            sheetView.findViewById<android.widget.LinearLayout>(R.id.shortcutSheetActions)
+
+        // Adds one icon+label row that dismisses the sheet and runs [onClick] when tapped.
+        // [destructive] tints the icon/label with the error color (used for Remove).
+        fun addActionRow(
+            @androidx.annotation.DrawableRes iconRes: Int,
+            label: String,
+            destructive: Boolean = false,
+            onClick: () -> Unit
+        ) {
+            val row = layoutInflater.inflate(R.layout.item_shortcut_action, actionsContainer, false)
+            val icon = row.findViewById<android.widget.ImageView>(R.id.shortcutActionIcon)
+            val labelView = row.findViewById<android.widget.TextView>(R.id.shortcutActionLabel)
+            icon.setImageResource(iconRes)
+            labelView.text = label
+            if (destructive) {
+                // Resolve ?attr/colorError from the current theme (defined in styles.xml). We resolve
+                // it via the theme rather than MaterialColors.getColor(view, R.attr.colorError)
+                // because that attr int isn't exposed by this Material version's R class.
+                val tv = android.util.TypedValue()
+                theme.resolveAttribute(R.attr.colorError, tv, true)
+                val err = if (tv.resourceId != 0) {
+                    androidx.core.content.ContextCompat.getColor(this, tv.resourceId)
+                } else {
+                    tv.data
+                }
+                icon.imageTintList = android.content.res.ColorStateList.valueOf(err)
+                labelView.setTextColor(err)
+            }
+            row.setOnClickListener {
+                sheet.dismiss()
+                onClick()
+            }
+            actionsContainer.addView(row)
+        }
+
+        addActionRow(R.drawable.ic_tab, getString(R.string.dialog_open_background_tab)) {
+            openShortcutInBackground(url)
+        }
+        addActionRow(R.drawable.ic_baseline_open_in_new_24, getString(R.string.dialog_open_new_tab)) {
+            tabsManager.newTab(UrlInitializer(url), true)
+        }
+        addActionRow(R.drawable.ic_incognito_24, getString(R.string.dialog_open_incognito_tab)) {
+            startActivity(IncognitoActivity.createIntent(this, url.toUri()))
+        }
+        addActionRow(R.drawable.ic_content_copy, getString(R.string.dialog_copy_link)) {
+            copyShortcutLink(name, url)
+        }
+        addActionRow(R.drawable.ic_share, getString(R.string.action_share)) {
+            shareShortcutLink(url)
+        }
+        addActionRow(
+            if (isFav) R.drawable.ic_star_full else R.drawable.ic_action_star,
+            getString(if (isFav) R.string.shortcut_remove_favorite else R.string.shortcut_add_favorite)
+        ) {
+            toggleFavorite(name, url)
+        }
+        addActionRow(R.drawable.ic_edit, getString(R.string.action_edit)) {
+            manageShortcutsLauncher.launch(Intent(this, ManageShortcutsActivity::class.java))
+        }
+        addActionRow(R.drawable.ic_delete_outline, getString(R.string.action_remove), destructive = true) {
+            confirmRemoveShortcut(name, url)
+        }
+
+        sheet.show()
+    }
+
+    /**
+     * Open [url] in a background tab (does not switch to it). Shows a toast on success so the user
+     * gets feedback. A null result means the max-tab limit was hit (TabsManager already surfaces
+     * that), so we stay silent in that case.
+     */
+    private fun openShortcutInBackground(url: String) {
+        val tab = tabsManager.newTab(UrlInitializer(url), false)
+        if (tab != null) {
+            com.xhub.browser.ui.message.XHubMessage.show(
+                this,
+                R.string.shortcut_opened_in_background,
+                style = com.xhub.browser.ui.message.MessageStyle.Info,
+                gravity = if (configPrefs.toolbarsBottom) Gravity.TOP else Gravity.BOTTOM
+            )
+            iBindingToolbarContent.tabsButton.pulse()
+        }
+    }
+
+    private fun copyShortcutLink(name: String, url: String) {
+        clipboardManager.setPrimaryClip(android.content.ClipData.newPlainText(name, url))
+        com.xhub.browser.ui.message.XHubMessage.show(
+            this,
+            R.string.message_link_copied,
+            style = com.xhub.browser.ui.message.MessageStyle.Success,
+            gravity = if (configPrefs.toolbarsBottom) Gravity.TOP else Gravity.BOTTOM
+        )
+    }
+
+    private fun shareShortcutLink(url: String) {
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, url)
+        }
+        startActivity(Intent.createChooser(shareIntent, getString(R.string.action_share)))
+    }
+
+    /**
+     * Toggle a shortcut's favorite status. Favorites are stored independently
+     * (see [com.xhub.browser.shortcuts.ShortcutRepository.toggleFavorite]) so a starred site keeps
+     * appearing in the pinned Favorites row even if it is later removed from its group. Done off
+     * the main thread since it touches SharedPreferences; on completion we show the matching toast
+     * and rebuild the grid so the Favorites row updates. Uses [remoteShortcutsDisposables] (disposed
+     * in onDestroy, NOT cleared on every buildDynamicShortcuts rebuild) so a grid rebuild can't
+     * cancel the in-flight toggle.
+     */
+    private fun toggleFavorite(name: String, url: String) {
+        remoteShortcutsDisposables.add(
+            io.reactivex.Single
+                .fromCallable {
+                    com.xhub.browser.shortcuts.ShortcutRepository.toggleFavorite(
+                        this, com.xhub.browser.shortcuts.ShortcutSite(name, url)
+                    )
+                }
+                .subscribeOn(io.reactivex.schedulers.Schedulers.io())
+                .observeOn(io.reactivex.android.schedulers.AndroidSchedulers.mainThread())
+                .subscribe({ nowFavorited ->
+                    com.xhub.browser.ui.message.XHubMessage.show(
+                        this,
+                        if (nowFavorited) R.string.shortcut_favorited_toast else R.string.shortcut_unfavorited_toast,
+                        style = com.xhub.browser.ui.message.MessageStyle.Success,
+                        gravity = if (configPrefs.toolbarsBottom) Gravity.TOP else Gravity.BOTTOM
+                    )
+                    shortcutsDataVersion = -1
+                    buildDynamicShortcuts()
+                }, { error ->
+                    Timber.w(error, "toggleFavorite failed")
+                })
+        )
+    }
+
+    private fun confirmRemoveShortcut(name: String, url: String) {
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.shortcut_remove_confirm_title)
+            .setMessage(getString(R.string.shortcut_remove_confirm_message, name))
+            .setPositiveButton(R.string.action_remove) { _, _ -> removeShortcut(url) }
+            .setNegativeButton(R.string.action_cancel, null)
+            .show()
+    }
+
+    /**
+     * Remove a shortcut by URL: load the merged groups, drop the matching site (URL-normalized) and
+     * persist via [com.xhub.browser.shortcuts.ShortcutRepository.saveGroups] (which records a
+     * tombstone in the overlay and bumps the data version), then rebuild the grid. Done off the
+     * main thread since loadGroups touches SharedPreferences.
+     */
+    private fun removeShortcut(url: String) {
+        remoteShortcutsDisposables.add(
+            io.reactivex.Single
+                .fromCallable {
+                    val groups = com.xhub.browser.shortcuts.ShortcutRepository.loadGroups(this)
+                    val key = url.trim().removeSuffix("/").lowercase()
+                    groups.forEach { g ->
+                        g.sites.removeAll { it.url.trim().removeSuffix("/").lowercase() == key }
+                    }
+                    com.xhub.browser.shortcuts.ShortcutRepository.saveGroups(this, groups)
+                    true
+                }
+                .subscribeOn(io.reactivex.schedulers.Schedulers.io())
+                .observeOn(io.reactivex.android.schedulers.AndroidSchedulers.mainThread())
+                .subscribe({
+                    shortcutsDataVersion = -1
+                    buildDynamicShortcuts()
+                }, { error ->
+                    Timber.w(error, "removeShortcut failed")
+                })
+        )
     }
 
     /**
@@ -520,17 +823,24 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
 
     }
 
+    // ── Direct-link ads (normal tabs only; download flavor / ADS_ENABLED) ─────
+
+    private lateinit var adConfigRepo: AdConfigRepository
+    private lateinit var directLinkAdManager: DirectLinkAdManager
+
     /**
-     * Show ExoClick interstitial ad
-     * Called after initialization is complete
+     * Called by [WebPageClient] on every in-page user-gesture main-frame navigation.
+     * Forwards to [DirectLinkAdManager], which may open an ad as a normal tab.
+     * Always returns false so the user's link still loads (ads never intercept).
      */
-    private fun showInAppAds() {
-        try {
-            ExoClickInterstitial(this).show()
-        } catch (e: Exception) {
-            Timber.e(e, "Failed to show ExoClick interstitial")
+    override fun onUserGestureNavigation(url: String): Boolean {
+        return if (::directLinkAdManager.isInitialized) {
+            directLinkAdManager.onUserGestureNavigation(url)
+        } else {
+            false
         }
     }
+
 
     /**
      *
@@ -883,14 +1193,14 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
      */
     private fun createNotificationChannel() {
         // Is that string visible in system UI somehow?
-        CHANNEL_ID = "Fulguris Channel ID"
+        channelId = "Fulguris Channel ID"
         // Create the NotificationChannel, but only on API 26+ because
         // the NotificationChannel class is new and not in the support library
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val name = getString(R.string.downloads)
             val descriptionText = getString(R.string.downloads_notification_description)
             val importance = NotificationManager.IMPORTANCE_DEFAULT
-            val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
+            val channel = NotificationChannel(channelId, name, importance).apply {
                 description = descriptionText
             }
             // Register the channel with the system
@@ -1701,7 +2011,7 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
     private fun updateHomeScreenOverlay() {
         val tab = tabsManager.currentTab ?: return
         val url = tab.url
-        val isHome = url.isHomeUri() || url.isStartPageUrl() || url.isBookmarkUri() || url.isBookmarkUrl()
+        val isHome = com.xhub.browser.ui.HomeOverlayDecision.isHomeScreenUrl(url)
 
         Timber.d("updateHomeScreenOverlay: url=$url isHome=$isHome targetState=$targetHomeScreenState " +
                 "overlay.vis=${iBinding.homeScreenOverlay.visibility} overlay.alpha=${iBinding.homeScreenOverlay.alpha} " +
@@ -1714,7 +2024,7 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
         // every time this method fires while already on the home screen — guaranteeing no favicon
         // download ever completes. Shortcuts are now rebuilt only on real transitions / edits /
         // resume-after-change. See comment 1.
-        if (targetHomeScreenState == isHome) {
+        if (com.xhub.browser.ui.HomeOverlayDecision.shouldSkipTransition(targetHomeScreenState, isHome)) {
             return
         }
 
@@ -1722,7 +2032,7 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
         targetHomeScreenState = isHome
 
         // No animation on first launch, only on transitions
-        val duration = if (wasShowing == null) 0L else 300L
+        val duration = com.xhub.browser.ui.HomeOverlayDecision.animationDurationMs(wasShowing)
 
         Timber.d("updateHomeScreenOverlay: transitioning isHome=$isHome duration=$duration")
 
@@ -1740,23 +2050,19 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
             iBinding.homeScreenOverlay.animate().alpha(1f).setDuration(duration).setListener(null)
 
             buildDynamicShortcuts()
-            // Wire Edit button each time (safe because it's idempotent after first call).
-            // COMMENT 8: launches ManageShortcutsActivity via the registered ActivityResultLauncher
-            // instead of the deprecated startActivityForResult. The result callback rebuilds shortcuts.
-            iBinding.homeScreenOverlay.findViewById<android.widget.LinearLayout>(R.id.btnEditShortcuts)
-                ?.setOnClickListener {
-                    manageShortcutsLauncher.launch(
-                        android.content.Intent(this, ManageShortcutsActivity::class.java)
-                    )
-                }
-            // Wire Settings button
-            iBinding.homeScreenOverlay.findViewById<android.widget.ImageButton>(R.id.homeSettingsBtn)
-                ?.setOnClickListener {
-                    com.xhub.browser.fragment.SettingsMenuBottomSheet().show(supportFragmentManager, "SettingsMenuBottomSheet")
-                }
+            // Refresh greeting and stats on every home-enter (time-sensitive, not version-gated).
+            updateHomeGreeting()
+            updateHomeStats()
+            // Wire hero header actions (Edit, Settings, and the Saved/Downloads/Private stat chips).
+            // Idempotent - safe to call on every home-enter. See wireHomeHeroActions().
+            wireHomeHeroActions()
+            homeMotionController?.resetEntrance()
         } else {
             // Home → Web: fade the overlay OUT revealing the (always-rendered) web content
             // Force-invalidate and requestLayout on both web containers NOW so the GPU renderer is warmed up before the fade ends
+            // Leaving the home screen: collapse any groups the user expanded via "Show more" so
+            // the next home visit starts fresh (transient UI state, not persisted).
+            expandedGroups.clear()
             iTabViewContainerFront.requestLayout()
             iTabViewContainerFront.invalidate()
             iTabViewContainerBack.invalidate()
@@ -1786,7 +2092,7 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
     private fun snapHomeScreenOverlayState() {
         val tab = tabsManager.currentTab ?: return
         val url = tab.url
-        val isHome = url.isHomeUri() || url.isStartPageUrl() || url.isBookmarkUri() || url.isBookmarkUrl()
+        val isHome = com.xhub.browser.ui.HomeOverlayDecision.isHomeScreenUrl(url)
 
         // Cancel any in-flight overlay animation
         iBinding.homeScreenOverlay.animate().cancel()
@@ -1795,6 +2101,13 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
             iBinding.homeScreenOverlay.alpha = 1f
             iBinding.homeScreenOverlay.isVisible = true
             buildDynamicShortcuts()
+            // Refresh greeting and stats immediately (time-sensitive, not version-gated).
+            updateHomeGreeting()
+            updateHomeStats()
+            // Re-wire hero header actions. This is the key fix: the onResume snap path used to
+            // show the overlay WITHOUT wiring the stat-chip click listeners, so tapping
+            // Saved / Downloads / Private did nothing after resuming. Idempotent.
+            wireHomeHeroActions()
         } else {
             iBinding.homeScreenOverlay.isVisible = false
             iBinding.homeScreenOverlay.alpha = 1f // Reset alpha for next use
@@ -1806,35 +2119,400 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
     }
 
     /**
+     * Wire click handlers for the home hero header actions: the Edit and Settings buttons and
+     * the three stat chips (Saved -> Bookmarks, Downloads -> Downloads list, Private -> new
+     * Stealth tab).
+     *
+     * This MUST be called from every code path that makes the home overlay visible
+     * ([updateHomeScreenOverlay] and [snapHomeScreenOverlayState]). Previously the chip
+     * listeners were only attached inside the animated transition branch, so entering home via
+     * the onResume snap path (or when already in the home state) left the chips inert and taps
+     * did nothing. Setting a listener is idempotent, so calling this repeatedly is safe.
+     */
+    private fun wireHomeHeroActions() {
+        val overlay = iBinding.homeScreenOverlay
+        // Edit shortcuts button. COMMENT 8: launches ManageShortcutsActivity via the registered
+        // ActivityResultLauncher instead of the deprecated startActivityForResult.
+        overlay.findViewById<android.widget.LinearLayout>(R.id.btnEditShortcuts)
+            ?.setOnClickListener {
+                manageShortcutsLauncher.launch(
+                    android.content.Intent(this, ManageShortcutsActivity::class.java)
+                )
+            }
+        // Settings button.
+        overlay.findViewById<android.widget.ImageButton>(R.id.homeSettingsBtn)
+            ?.setOnClickListener {
+                com.xhub.browser.fragment.SettingsMenuBottomSheet().show(supportFragmentManager, "SettingsMenuBottomSheet")
+            }
+        // Stat chips: Saved -> Bookmarks, Downloads -> Downloads list, Private -> new Stealth tab.
+        overlay.findViewById<android.view.View>(R.id.homeStatSavedContainer)
+            ?.setOnClickListener { openBookmarks() }
+        overlay.findViewById<android.view.View>(R.id.homeStatDownloadsContainer)
+            ?.setOnClickListener { openDownloads() }
+        overlay.findViewById<android.view.View>(R.id.homeStatStealthContainer)
+            ?.setOnClickListener { executeAction(R.id.action_incognito) }
+    }
+
+    /**
+     * URL of the download currently rendered in the in-app progress card, or null if the card is
+     * hidden. Used so the auto-hide runnable removes the correct entry from [DownloadProgressBus].
+     */
+    private var shownDownloadUrl: String? = null
+    private var downloadCardDismissedUrl: String? = null
+
+    /**
+     * Auto-hide runnable posted after a terminal (COMPLETE/ERROR/CANCELLED) state so the final
+     * message lingers briefly before the card disappears. It also drains the terminal entry from
+     * [DownloadProgressBus] so it isn't re-rendered on the next collect (e.g. after a config change).
+     */
+    private val hideDownloadCardRunnable = Runnable {
+        val url = shownDownloadUrl
+        hideDownloadProgressCard()
+        if (url != null) DownloadProgressBus.remove(url)
+    }
+
+    /**
+     * Collect [DownloadProgressBus] while the Activity is at least STARTED and render the newest
+     * active download in the in-app progress card. repeatOnLifecycle automatically cancels the
+     * collection when the Activity stops and restarts it (re-reading the latest StateFlow value)
+     * when it starts again, so it is both lifecycle-safe and config-change safe.
+     */
+    private fun collectDownloadProgress() {
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                DownloadProgressBus.downloads.collect { renderDownloadProgress(it) }
+            }
+        }
+    }
+
+    /**
+     * Render the in-app download progress card from the current bus snapshot. Shows the newest
+     * RUNNING download if any, otherwise the most recent terminal entry. Terminal states show a
+     * brief final message then auto-hide (and are removed from the bus).
+     */
+    private fun renderDownloadProgress(downloads: Map<String, DownloadProgress>) {
+        val card = iBinding.root
+            .findViewById<com.google.android.material.card.MaterialCardView>(R.id.downloadProgressCard)
+            ?: return
+
+        if (downloads.isEmpty()) {
+            downloadCardDismissedUrl = null
+            if (card.isVisible) hideDownloadProgressCard()
+            return
+        }
+
+        // Prefer an active download; fall back to the most recently updated (terminal) one.
+        val active = downloads.values.lastOrNull { it.state == DownloadProgress.State.RUNNING }
+            ?: downloads.values.last()
+
+        if (active.url == downloadCardDismissedUrl) {
+            hideDownloadProgressCard()
+            return
+        }
+
+        val filenameTv = iBinding.root.findViewById<TextView>(R.id.tvDownloadProgressFilename)
+        val percentTv = iBinding.root.findViewById<TextView>(R.id.tvDownloadProgressPercent)
+        val speedEtaTv = iBinding.root.findViewById<TextView>(R.id.tvDownloadSpeedEta)
+        val iconIv = iBinding.root.findViewById<ImageView>(R.id.ivDownloadProgressIcon)
+        val indicator = iBinding.root
+            .findViewById<com.google.android.material.progressindicator.LinearProgressIndicator>(
+                R.id.downloadProgressIndicator
+            )
+        val cancelBtn = iBinding.root
+            .findViewById<com.google.android.material.button.MaterialButton>(
+                R.id.btnDownloadProgressCancel
+            )
+        val openBtn = iBinding.root
+            .findViewById<com.google.android.material.button.MaterialButton>(
+                R.id.btnDownloadProgressOpen
+            )
+
+        // A fresh update arrived — cancel any pending auto-hide.
+        mainHandler.removeCallbacks(hideDownloadCardRunnable)
+
+        shownDownloadUrl = active.url
+        filenameTv?.text = active.filename
+        card.isVisible = true
+
+        // Keep the card clear of the bottom toolbar (when the "toolbars at bottom" option is on)
+        // and the video-download FAB so they never overlap. The card lives inside web_view_frame
+        // at bottom gravity; lift it by whichever obstruction is present (they're rarely both).
+        (card.layoutParams as? androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams)?.let { lp ->
+            val baseMarginPx = 12.px
+            val toolbarClearancePx = if (configPrefs.toolbarsBottom)
+                baseMarginPx + resources.getDimensionPixelSize(R.dimen.toolbar_height_portrait) else 0
+            // FAB sits bottom|end at 64dp margin, ~56dp tall; +8dp gap clears it fully.
+            val fabClearancePx = if (iBinding.fabDownloadVideo.isVisible) 128.px else 0
+            val desiredBottomMargin = maxOf(baseMarginPx, toolbarClearancePx, fabClearancePx)
+            if (lp.bottomMargin != desiredBottomMargin) {
+                lp.bottomMargin = desiredBottomMargin
+                card.layoutParams = lp
+            }
+
+            // Attach SwipeDismissBehavior programmatically
+            if (lp.behavior == null) {
+                val swipe = com.google.android.material.behavior.SwipeDismissBehavior<View>()
+                swipe.setSwipeDirection(com.google.android.material.behavior.SwipeDismissBehavior.SWIPE_DIRECTION_ANY)
+                swipe.listener = object : com.google.android.material.behavior.SwipeDismissBehavior.OnDismissListener {
+                    override fun onDismiss(view: View) {
+                        val url = shownDownloadUrl
+                        if (url != null) {
+                            downloadCardDismissedUrl = url
+                            DownloadProgressBus.remove(url)
+                        }
+                        hideDownloadProgressCard()
+                        // Reset card view's animated properties so it displays correctly next time
+                        view.alpha = 1f
+                        view.translationX = 0f
+                        view.translationY = 0f
+                    }
+                    override fun onDragStateChanged(state: Int) {}
+                }
+                lp.behavior = swipe
+            }
+        }
+
+        when (active.state) {
+            DownloadProgress.State.RUNNING -> {
+                // Ensure default icon and color
+                iconIv?.tag = null
+                iconIv?.setImageResource(R.drawable.ic_file_download)
+                val tvColor = android.util.TypedValue()
+                theme.resolveAttribute(R.attr.appColorAccentOrange, tvColor, true)
+                iconIv?.imageTintList = android.content.res.ColorStateList.valueOf(
+                    if (tvColor.resourceId != 0) androidx.core.content.ContextCompat.getColor(this, tvColor.resourceId) else tvColor.data
+                )
+
+                openBtn?.isVisible = false
+                cancelBtn?.isVisible = true
+                cancelBtn?.setOnClickListener {
+                    val intent = Intent(this, YtDlpDownloadService::class.java).apply {
+                        action = YtDlpDownloadService.ACTION_CANCEL_DOWNLOAD
+                        putExtra(YtDlpDownloadService.EXTRA_URL, active.url)
+                    }
+                    startService(intent)
+                }
+                if (active.percent < 0) {
+                    indicator?.isIndeterminate = true
+                    percentTv?.text = getString(R.string.video_downloading)
+                } else {
+                    indicator?.isIndeterminate = false
+                    indicator?.setProgressCompat(active.percent, true)
+                    percentTv?.text = "${active.percent}%"
+                }
+                // Populate speed/ETA subtitle row
+                val speedEtaStr = formatSpeedEta(active.speedBytesPerSec, active.etaSeconds)
+                if (speedEtaStr != null) {
+                    speedEtaTv?.text = speedEtaStr
+                    speedEtaTv?.isVisible = true
+                } else {
+                    speedEtaTv?.isVisible = false
+                }
+            }
+            DownloadProgress.State.COMPLETE -> {
+                cancelBtn?.isVisible = false
+                speedEtaTv?.isVisible = false
+                indicator?.isIndeterminate = false
+                indicator?.setProgressCompat(100, true)
+                percentTv?.text = getString(R.string.video_download_complete)
+
+                // Animate checkmark transition and card border pulse once
+                if (iconIv?.tag != "complete") {
+                    iconIv?.tag = "complete"
+                    iconIv?.animate()?.scaleX(0f)?.scaleY(0f)?.setDuration(150)
+                        ?.withEndAction {
+                            iconIv.setImageResource(R.drawable.ic_check)
+                            val tvColor = android.util.TypedValue()
+                            theme.resolveAttribute(R.attr.colorPrimary, tvColor, true)
+                            iconIv.imageTintList = android.content.res.ColorStateList.valueOf(tvColor.data)
+                            iconIv.animate()?.scaleX(1f)?.scaleY(1f)
+                                ?.setInterpolator(android.view.animation.OvershootInterpolator())
+                                ?.setDuration(250)?.start()
+                        }?.start()
+
+                    // Border stroke color flash animation (ValueAnimator)
+                    val tvBorder = android.util.TypedValue()
+                    theme.resolveAttribute(R.attr.appColorGlassStroke, tvBorder, true)
+                    val colorFrom = if (tvBorder.resourceId != 0) androidx.core.content.ContextCompat.getColor(this, tvBorder.resourceId) else tvBorder.data
+
+                    val tvPrimary = android.util.TypedValue()
+                    theme.resolveAttribute(R.attr.colorPrimary, tvPrimary, true)
+                    val colorTo = tvPrimary.data
+
+                    android.animation.ValueAnimator.ofObject(
+                        android.animation.ArgbEvaluator(),
+                        colorFrom,
+                        colorTo,
+                        colorFrom
+                    ).apply {
+                        duration = 800
+                        addUpdateListener { animator ->
+                            card.setStrokeColor(android.content.res.ColorStateList.valueOf(animator.animatedValue as Int))
+                        }
+                        start()
+                    }
+                }
+
+                // Offer an Open action mirroring the success notification's tap behaviour.
+                val location = active.location
+                if (openBtn != null && !location.isNullOrEmpty()) {
+                    openBtn.isVisible = true
+                    openBtn.setOnClickListener {
+                        openDownloadedFile(location, active.filename)
+                        mainHandler.removeCallbacks(hideDownloadCardRunnable)
+                        hideDownloadProgressCard()
+                    }
+                    // Give the user long enough to tap Open before auto-hiding.
+                    mainHandler.postDelayed(hideDownloadCardRunnable, 6000L)
+                } else {
+                    openBtn?.isVisible = false
+                    mainHandler.postDelayed(hideDownloadCardRunnable, 2500L)
+                }
+            }
+            DownloadProgress.State.ERROR -> {
+                iconIv?.tag = null
+                openBtn?.isVisible = false
+                cancelBtn?.isVisible = false
+                speedEtaTv?.isVisible = false
+                indicator?.isIndeterminate = false
+                indicator?.setProgressCompat(0, false)
+                percentTv?.text = getString(R.string.video_download_failed, active.message ?: "")
+                mainHandler.postDelayed(hideDownloadCardRunnable, 2500L)
+            }
+            DownloadProgress.State.CANCELLED -> {
+                iconIv?.tag = null
+                openBtn?.isVisible = false
+                cancelBtn?.isVisible = false
+                speedEtaTv?.isVisible = false
+                indicator?.isIndeterminate = false
+                percentTv?.text = getString(R.string.video_download_cancelled)
+                mainHandler.postDelayed(hideDownloadCardRunnable, 2500L)
+            }
+            DownloadProgress.State.PAUSED -> {
+                // Paused is not a terminal state: keep the card visible (no auto-hide) with the
+                // cancel action available and the bar frozen at the last known percent.
+                iconIv?.tag = null
+                iconIv?.setImageResource(R.drawable.ic_file_download)
+                val tvColor = android.util.TypedValue()
+                theme.resolveAttribute(R.attr.appColorAccentOrange, tvColor, true)
+                iconIv?.imageTintList = android.content.res.ColorStateList.valueOf(
+                    if (tvColor.resourceId != 0) androidx.core.content.ContextCompat.getColor(this, tvColor.resourceId) else tvColor.data
+                )
+
+                openBtn?.isVisible = false
+                cancelBtn?.isVisible = true
+                speedEtaTv?.isVisible = false
+                cancelBtn?.setOnClickListener {
+                    val intent = Intent(this, YtDlpDownloadService::class.java).apply {
+                        action = YtDlpDownloadService.ACTION_CANCEL_DOWNLOAD
+                        putExtra(YtDlpDownloadService.EXTRA_URL, active.url)
+                    }
+                    startService(intent)
+                }
+                indicator?.isIndeterminate = false
+                indicator?.setProgressCompat(active.percent.coerceIn(0, 100), false)
+                percentTv?.text = getString(
+                    R.string.download_progress_paused, active.percent.coerceAtLeast(0)
+                )
+            }
+        }
+    }
+
+    /**
+     * Format download speed + ETA into a human-readable subtitle for the progress card.
+     * Returns null (hides the subtitle row) when both speed and ETA are unknown.
+     * Examples: "3.2 MB/s • 12s remaining", "3.2 MB/s", "12s remaining"
+     */
+    private fun formatSpeedEta(speedBytesPerSec: Long, etaSeconds: Long): String? {
+        val parts = mutableListOf<String>()
+        if (speedBytesPerSec >= 0) {
+            parts.add(android.text.format.Formatter.formatShortFileSize(this, speedBytesPerSec) + "/s")
+        }
+        if (etaSeconds >= 0) {
+            val mins = etaSeconds / 60
+            val secs = etaSeconds % 60
+            val etaStr = if (mins > 0) "${mins}m ${secs}s remaining" else "${secs}s remaining"
+            parts.add(etaStr)
+        }
+        return if (parts.isEmpty()) null else parts.joinToString(" • ")
+    }
+
+    /**
+     * Open a completed download, mirroring the success notification's tap action in
+     * YtDlpDownloadService: content:// URIs are viewed directly, file paths go through the app
+     * FileProvider. Shows a snackbar if no app can handle the file.
+     */
+    private fun openDownloadedFile(location: String, filename: String) {
+        try {
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                if (location.startsWith("content://")) {
+                    setDataAndType(android.net.Uri.parse(location), downloadMimeType(filename))
+                } else {
+                    setDataAndType(
+                        androidx.core.content.FileProvider.getUriForFile(
+                            this@WebBrowserActivity,
+                            "${packageName}.fileprovider",
+                            java.io.File(location)
+                        ),
+                        downloadMimeType(filename)
+                    )
+                }
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(intent)
+        } catch (e: Exception) {
+            Timber.w(e, "Failed to open downloaded file: %s", location)
+            showSnackbar(getString(R.string.video_download_failed, e.localizedMessage ?: ""))
+        }
+    }
+
+    /**
+     * Best-effort MIME type from a filename, falling back to a generic binary type.
+     */
+    private fun downloadMimeType(filename: String): String {
+        val extension = android.webkit.MimeTypeMap.getFileExtensionFromUrl(filename)
+            ?.lowercase(java.util.Locale.ROOT)
+        return android.webkit.MimeTypeMap.getSingleton()
+            .getMimeTypeFromExtension(extension) ?: "application/octet-stream"
+    }
+
+    /**
+     * Hide the in-app download progress card and clear the tracked URL. Idempotent.
+     */
+    private fun hideDownloadProgressCard() {
+        shownDownloadUrl = null
+        iBinding.root
+            .findViewById<com.google.android.material.card.MaterialCardView>(R.id.downloadProgressCard)
+            ?.isVisible = false
+    }
+
+    /**
      * Build the home screen shortcut grid dynamically from ShortcutRepository.
-     * Premium version: gradient letter avatars, large tiles, ripple+scale press feedback,
-     * vivid gradient title shader (gold → pink → violet).
+     * Premium version: gradient letter avatars, large tiles, ripple+scale press feedback.
      *
      * IMPORTANT: this method is intentionally a no-op when the shortcuts data version hasn't
      * changed since the last render. Opening with faviconDisposables.clear() cancels every
      * in-flight network favicon fetch, so calling this on every updateHomeScreenOverlay() tick
-     * reliably prevents any favicon from ever being downloaded. See comment 1.
+     * reliably prevents any favicon from ever being downloaded.
+     *
+     * To force a rebuild without editing shortcuts: set shortcutsDataVersion = -1, then call
+     * buildDynamicShortcuts(). ShortcutRepository.saveGroups already bumps the persisted
+     * version so a normal edit triggers a rebuild on the next call automatically.
+     *
+     * Note: the time-aware greeting is NOT set here (it is time-sensitive and must refresh
+     * every time the home overlay becomes visible). See updateHomeGreeting().
      */
     private fun buildDynamicShortcuts() {
         // Skip the full rebuild (and the destructive faviconDisposables.clear()) if the shortcuts
-        // data hasn't changed since we last rendered it. Callers that genuinely need a rebuild —
-        // e.g. onActivityResult after editing, or an explicit invalidate — bump the version first
-        // via ShortcutRepository.saveGroups, or call rebuildShortcutsForced().
+        // data hasn't changed since we last rendered it. Callers that genuinely need a rebuild
+        // can set shortcutsDataVersion = -1 before calling, or trigger a rebuild indirectly via
+        // ShortcutRepository.saveGroups which bumps the persisted version.
         val currentVersion = com.xhub.browser.shortcuts.ShortcutRepository.dataVersion(this)
         if (currentVersion == shortcutsDataVersion) {
             return
         }
         shortcutsDataVersion = currentVersion
-
-        // ── Time-aware greeting (string resources) ────────────────────────────
-        // homeTitle is now the solid-white hero quote — no gradient shader applied.
-        val homeGreeting = iBinding.homeScreenOverlay.findViewById<TextView>(R.id.homeGreeting)
-        val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
-        homeGreeting?.text = getString(when (hour) {
-            in 0..11  -> R.string.home_greeting_morning
-            in 12..16 -> R.string.home_greeting_afternoon
-            else      -> R.string.home_greeting_evening
-        })
 
         // ── Bookmarks button → open bookmarks ─────────────────────────────────
         iBinding.homeScreenOverlay.findViewById<View>(R.id.homeBookmarksButton)
@@ -1879,31 +2557,33 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
                                 manageShortcutsLauncher.launch(
                                     android.content.Intent(this, ManageShortcutsActivity::class.java)
                                 )
-                            }
+                            },
+                            onTileLongClick = { onHomeScreenShortcutLongClick(it) },
+                            onShowMoreClick = { onShowMoreClick(it) }
                         )
                         recyclerView.adapter = newAdapter
                         recyclerView.itemAnimator?.changeDuration = 0
                         newAdapter
                     }
 
-                    // Wire home-screen motion (parallax + tile entrance) once the RecyclerView
-                    // has its adapter. Idempotent — only attaches on the first pass.
-                    if (homeMotionController == null) {
-                        val scrollView = iBinding.homeScreenOverlay
-                            .findViewById<androidx.core.widget.NestedScrollView>(R.id.homeScrollView)
-                        val bg = iBinding.homeScreenOverlay
-                            .findViewById<View>(R.id.homeScreenBackground)
-                        if (scrollView != null && bg != null) {
-                            homeMotionController = com.xhub.browser.ui.HomeMotionController(
-                                scrollView = scrollView,
-                                backgroundView = bg,
-                                recyclerView = recyclerView,
-                                context = this
-                            ).also { it.attach() }
+                    // Prepend a pinned "⭐ Favorites" group (if the user has starred any sites)
+                    // so it renders above every other group. Favorites are a self-contained store
+                    // (see ShortcutRepository.favoriteSites) so this row survives even if a starred
+                    // site is later removed from its group. It participates in the same 12-cap /
+                    // Show more / row-padding logic as any other group below.
+                    val favorites = com.xhub.browser.shortcuts.ShortcutRepository.favoriteSites(this)
+                    val displayGroups =
+                        if (favorites.isNotEmpty()) {
+                            listOf(
+                                com.xhub.browser.shortcuts.ShortcutGroup(
+                                    getString(R.string.shortcut_favorites_header), favorites
+                                )
+                            ) + groups
+                        } else {
+                            groups
                         }
-                    }
 
-                    val allSites = groups.flatMap { it.sites }
+                    val allSites = displayGroups.flatMap { it.sites }
                     if (allSites.isEmpty()) {
                         // Single column for the full-span empty state.
                         lm.spanCount = 1
@@ -1918,6 +2598,7 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
                             return when (adapter.getItemViewType(position)) {
                                 ShortcutTileAdapter.VIEW_TYPE_HEADER,
                                 ShortcutTileAdapter.VIEW_TYPE_SPACER,
+                                ShortcutTileAdapter.VIEW_TYPE_SHOWMORE,
                                 ShortcutTileAdapter.VIEW_TYPE_EMPTY -> spanCount
                                 else -> 1
                             }
@@ -1927,19 +2608,213 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
                     // Flatten groups into a list of items, padding the last row of each group so
                     // trailing tiles don't stretch across all 4 columns.
                     val items = mutableListOf<ShortcutItem>()
-                    groups.forEach { group ->
+                    displayGroups.forEach { group ->
                         if (group.name.isNotBlank()) items += ShortcutItem.Header(group.name)
-                        val tiles = group.sites.map { ShortcutItem.Tile(it) }
+                        // Per-group cap: show at most kShortcutGroupCap tiles unless the user has
+                        // expanded this group. Groups with more sites get a full-span
+                        // Show more / Show less toggle (see onShowMoreClick).
+                        val expanded = expandedGroups.contains(group.name)
+                        val overCap = group.sites.size > kShortcutGroupCap
+                        val visibleSites =
+                            if (overCap && !expanded) group.sites.take(kShortcutGroupCap)
+                            else group.sites
+                        val tiles = visibleSites.map { ShortcutItem.Tile(it, group.name) }
                         items += tiles
+                        // Pad the last row of the VISIBLE tiles so trailing tiles do not stretch.
                         val remainder = tiles.size % spanCount
                         if (remainder != 0) {
                             repeat(spanCount - remainder) { items += ShortcutItem.PlaceholderCell }
                         }
+                        if (overCap) {
+                            items += ShortcutItem.ShowMore(
+                                groupName = group.name,
+                                hiddenCount = group.sites.size - kShortcutGroupCap,
+                                expanded = expanded
+                            )
+                        }
                         items += ShortcutItem.Spacer
                     }
                     adapter.submitList(items)
+
+                    // Attach motion controller AFTER submitList so doOnNextLayout in
+                    // wireEntrance() fires with children already laid out (Comment 3).
+                    // We only attach it when real shortcut tiles exist so the entrance animation
+                    // is never spent on the empty state.
+                    attachHomeMotionControllerIfNeeded(recyclerView)
+                    homeMotionController?.onShortcutsUpdated()
                 }
         )
+    }
+
+    /**
+     * Lazily create and attach [HomeMotionController] to the RecyclerView.
+     * Must be called AFTER [ShortcutTileAdapter.submitList] so the entrance animation
+     * can observe the next layout pass with actual children present.
+     * Idempotent — only attaches on the first pass.
+     */
+    private fun attachHomeMotionControllerIfNeeded(recyclerView: androidx.recyclerview.widget.RecyclerView) {
+        if (homeMotionController != null) return
+        val scrollView = iBinding.homeScreenOverlay
+            .findViewById<androidx.core.widget.NestedScrollView>(R.id.homeScrollView)
+        val bg = iBinding.homeScreenOverlay
+            .findViewById<View>(R.id.homeScreenBackground)
+        if (scrollView != null && bg != null) {
+            homeMotionController = com.xhub.browser.ui.HomeMotionController(
+                scrollView = scrollView,
+                backgroundView = bg,
+                recyclerView = recyclerView,
+                context = this
+            ).also { it.attach() }
+        }
+    }
+
+    /**
+     * Update the time-of-day greeting on the home screen hero header.
+     * Must be called every time the home overlay becomes visible (not just on data
+     * version changes) so the greeting reflects the actual current hour.
+     * The greeting is NOT set inside buildDynamicShortcuts() for this reason.
+     */
+    private fun updateHomeGreeting() {
+        val homeGreeting = iBinding.homeScreenOverlay.findViewById<TextView>(R.id.homeGreeting)
+            ?: return
+        val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+        homeGreeting.text = getString(when (hour) {
+            in 0..11  -> R.string.home_greeting_morning
+            in 12..16 -> R.string.home_greeting_afternoon
+            else      -> R.string.home_greeting_evening
+        })
+    }
+
+    /**
+     * Update bookmark and download stats on the home screen hero header.
+     * Must be called every time the home overlay becomes visible (not just on data
+     * version changes) so the counts do not go stale.
+     */
+    private fun updateHomeStats() {
+        val savedTv = iBinding.homeScreenOverlay.findViewById<TextView>(R.id.homeStatSaved)
+        val downloadsTv = iBinding.homeScreenOverlay.findViewById<TextView>(R.id.homeStatDownloads)
+        if (savedTv != null) {
+            io.reactivex.Single
+                .fromCallable { bookmarkManager.count() }
+                .subscribeOn(io.reactivex.schedulers.Schedulers.io())
+                .observeOn(io.reactivex.android.schedulers.AndroidSchedulers.mainThread())
+                .subscribe({ countLong ->
+                    val count = countLong.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+                    setStatCountAnimated(savedTv, R.plurals.home_stat_saved_count, count)
+                }, { /* ignore, fallback text already set */ })
+                .also { faviconDisposables.add(it) }
+        }
+        if (downloadsTv != null) {
+            io.reactivex.Single
+                .fromCallable { downloadsModel.count() }
+                .subscribeOn(io.reactivex.schedulers.Schedulers.io())
+                .observeOn(io.reactivex.android.schedulers.AndroidSchedulers.mainThread())
+                .subscribe({ countLong ->
+                    val count = countLong.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+                    setStatCountAnimated(downloadsTv, R.plurals.home_stat_downloads_count, count)
+                }, { /* ignore, fallback text already set */ })
+                .also { faviconDisposables.add(it) }
+        }
+        // Stealth tab count — synchronous (tabsManager.allTabs is an in-memory list).
+        val stealthTv = iBinding.homeScreenOverlay.findViewById<TextView>(R.id.homeStatStealth)
+        if (stealthTv != null) {
+            val count = tabsManager.allTabs.count { it.isIncognito }
+            setStatCountAnimated(stealthTv, R.plurals.home_stat_stealth_count, count)
+        }
+    }
+
+    // Per-chip last displayed count, keyed by the chip's view id. Lets the count-up tween know
+    // which value to animate FROM. Absent = never rendered yet (set instantly, no tween).
+    private val homeStatCounts = HashMap<Int, Int>()
+
+    // In-flight count-up animators, keyed by the chip's view id, so a rapid subsequent update
+    // cancels the previous tween instead of fighting it. Cancelled in onDestroy() for safety.
+    private val homeStatAnimators = HashMap<Int, android.animation.ValueAnimator>()
+
+    /**
+     * Animate a hero stat chip's count with a smooth count-up (or count-down) tween: the number
+     * rolls from its previously displayed value to [newCount] over [STAT_COUNT_ANIM_DURATION_MS],
+     * eased with a DecelerateInterpolator (fast start, gentle settle) so it feels lively but calm.
+     * A light scale pulse is layered on top for extra polish.
+     *
+     * Behaviour:
+     *  - First render for a chip, or an unchanged value, or a not-yet-attached view: the text is set
+     *    instantly with no tween (prevents a jarring roll-from-zero on the first home-enter and
+     *    avoids flicker on redundant refreshes).
+     *  - A new update while a tween is running cancels the old one and starts from the current value.
+     *  - The plural string is re-resolved every frame so grammar stays correct at each interpolated
+     *    value (e.g. "1 download" -> "2 downloads"), and the final frame uses the exact [newCount].
+     *
+     * Lifecycle-safe: animators are tracked in [homeStatAnimators] and cancelled in onDestroy().
+     */
+    private fun setStatCountAnimated(
+        tv: TextView,
+        @androidx.annotation.PluralsRes pluralRes: Int,
+        newCount: Int
+    ) {
+        val viewId = tv.id
+        val oldCount = homeStatCounts[viewId]
+        homeStatCounts[viewId] = newCount
+
+        // No animation needed: first render, unchanged value, or view not attached yet.
+        if (oldCount == null || oldCount == newCount || !tv.isAttachedToWindow) {
+            homeStatAnimators.remove(viewId)?.cancel()
+            tv.text = resources.getQuantityString(pluralRes, newCount, newCount)
+            return
+        }
+
+        // Cancel any in-flight tween for this chip before starting a fresh one.
+        homeStatAnimators.remove(viewId)?.cancel()
+
+        val animator = android.animation.ValueAnimator.ofInt(oldCount, newCount).apply {
+            duration = STAT_COUNT_ANIM_DURATION_MS
+            interpolator = android.view.animation.DecelerateInterpolator(STAT_COUNT_ANIM_DECELERATE)
+            addUpdateListener { anim ->
+                val value = anim.animatedValue as Int
+                tv.text = resources.getQuantityString(pluralRes, value, value)
+            }
+            addListener(object : android.animation.AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: android.animation.Animator) {
+                    homeStatAnimators.remove(viewId)
+                    // Guarantee the exact final text (plural category correct at newCount).
+                    tv.text = resources.getQuantityString(pluralRes, newCount, newCount)
+                }
+            })
+        }
+        homeStatAnimators[viewId] = animator
+
+        // Subtle scale pulse layered on top of the numeric roll for a bit of life.
+        tv.animate()
+            .scaleX(STAT_COUNT_ANIM_SCALE_PULSE)
+            .scaleY(STAT_COUNT_ANIM_SCALE_PULSE)
+            .setDuration(STAT_COUNT_ANIM_DURATION_MS / 3)
+            .withEndAction {
+                tv.animate()
+                    .scaleX(1f)
+                    .scaleY(1f)
+                    .setDuration(STAT_COUNT_ANIM_DURATION_MS / 3)
+                    .start()
+            }
+            .start()
+
+        animator.start()
+    }
+
+    /**
+     * Live-refresh the home hero stat chips (Saved / Downloads / Private) — but only when the home
+     * overlay is currently visible. This lets data-change events (bookmark add/remove, download
+     * completion, stealth-tab open/close) update the counts immediately instead of waiting for the
+     * next home-enter, while staying a cheap no-op when the user is browsing a web page.
+     *
+     * All current callers (handleBookmarksChange, handleDownloadDeleted, the tab-count listener,
+     * and the download completion receiver) run on the main thread; [updateHomeStats] dispatches
+     * its DB reads onto background schedulers and applies results back on the main thread.
+     */
+    fun refreshHomeStatsIfVisible() {
+        if (!::iBinding.isInitialized) return
+        if (iBinding.homeScreenOverlay.isVisible) {
+            updateHomeStats()
+        }
     }
 
 
@@ -3057,11 +3932,15 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
 
         if (userPreferences.onTabCloseShowSnackbar && !skipNextTabClosedSnackbar) {
             // Notify user a tab was closed with an option to recover it
-            makeSnackbar(
-                    getString(R.string.notify_tab_closed), Snackbar.LENGTH_SHORT, if (configPrefs.toolbarsBottom) Gravity.TOP else Gravity.BOTTOM)
-                    .setAction(R.string.button_undo) {
-                        tabsManager.recoverClosedTab()
-                    }.show()
+            com.xhub.browser.ui.message.XHubMessage.show(
+                activity = this,
+                text = getString(R.string.notify_tab_closed),
+                style = com.xhub.browser.ui.message.MessageStyle.Info,
+                durationMs = com.xhub.browser.extensions.KDuration,
+                gravity = if (configPrefs.toolbarsBottom) Gravity.TOP else Gravity.BOTTOM,
+                actionLabel = getString(R.string.button_undo),
+                action = { tabsManager.recoverClosedTab() }
+            )
         }
         skipNextTabClosedSnackbar = false
     }
@@ -3147,7 +4026,7 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
             // so hiding the overlay would reveal a black screen. The Home→Web fade happens in
             // onTabChanged which is triggered by onPageFinished once content is ready.
             val url = aTab.url
-            val isHome = url.isHomeUri() || url.isStartPageUrl() || url.isBookmarkUri() || url.isBookmarkUrl()
+            val isHome = com.xhub.browser.ui.HomeOverlayDecision.isHomeScreenUrl(url)
             if (isHome) {
                 updateHomeScreenOverlay()
             }
@@ -3941,6 +4820,12 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
      *
      * NOTE: Moreover when restarting this activity this is called after the onCreate of the new activity.
      */
+    // Strong references to the tab-number listeners registered in onCreate(), kept so they can be
+    // removed in onDestroy() to avoid leaking this Activity through the TabsManager singleton.
+    private var incognitoTabNumberListener: ((Int) -> Unit)? = null
+    private var updateTabNumberListener: ((Int) -> Unit)? = null
+    private var homeStatsTabNumberListener: ((Int) -> Unit)? = null
+
     override fun onDestroy() {
         Timber.d("onDestroy")
 
@@ -3962,6 +4847,31 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
         //removeTabView()
         // That would do, not strictly needed though
         lastTabView = null
+
+        // Direct-link ads: cancel pending launch-tab posts; reset session launch flag.
+        if (::directLinkAdManager.isInitialized) {
+            directLinkAdManager.onActivityDestroy()
+        }
+
+        // Dispose the remote-shortcuts fetch subscription so a pending callback cannot fire
+        // against this destroyed Activity (it captures this via buildDynamicShortcuts()).
+        remoteShortcutsDisposables.clear()
+
+        // Unregister the tab-number listeners we registered in onCreate(). TabsManager is an
+        // application-scoped singleton, so failing to remove these Activity-capturing lambdas would
+        // leak this Activity for the whole process lifetime. Fixes the pre-existing leak.
+        incognitoTabNumberListener?.let { tabsManager.removeTabNumberChangedListener(it) }
+        incognitoTabNumberListener = null
+        updateTabNumberListener?.let { tabsManager.removeTabNumberChangedListener(it) }
+        updateTabNumberListener = null
+        homeStatsTabNumberListener?.let { tabsManager.removeTabNumberChangedListener(it) }
+        homeStatsTabNumberListener = null
+        // Cancel any in-flight hero-chip count-up tweens so they can't touch views post-destroy.
+        // Iterate a snapshot: ValueAnimator.cancel() synchronously fires onAnimationEnd, which
+        // removes the animator from homeStatAnimators — mutating the map mid-iteration would throw
+        // a ConcurrentModificationException.
+        homeStatAnimators.values.toList().forEach { it.cancel() }
+        homeStatAnimators.clear()
 
         //
         super.onDestroy()
@@ -5017,8 +5927,13 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
      * @param resultMsg the transport message used to send the URL to
      * the newly created WebView.
      */
-    override fun onCreateWindow(resultMsg: Message) {
-        tabsManager.newTab(ResultMessageInitializer(resultMsg), true)
+    override fun onCreateWindow(resultMsg: Message): Boolean {
+        // newTab returns null when the max tab count is reached. In that case the
+        // ResultMessageInitializer never runs, so the transport WebView is never set and the
+        // resultMsg is left unconsumed. Report that back so the chrome client can decline the
+        // popup cleanly instead of letting Chromium fall back to hosting it in the parent WebView
+        // (which throws "Parent WebView cannot host its own popup window").
+        return tabsManager.newTab(ResultMessageInitializer(resultMsg), true) != null
     }
 
     /**
@@ -5072,6 +5987,9 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
             bookmarksView?.handleUpdatedUrl(currentTab.url)
         }
         suggestionsAdapter?.refreshBookmarks()
+        // Live-update the home hero "Saved" chip. All bookmark add/remove/import paths funnel
+        // through handleBookmarksChange(), so this single hook keeps the count fresh.
+        refreshHomeStatsIfVisible()
     }
 
     override fun handleDownloadDeleted() {
@@ -5082,6 +6000,8 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
         if (currentTab != null) {
             bookmarksView?.handleUpdatedUrl(currentTab.url)
         }
+        // Live-update the home hero "Downloads" chip when a download is removed.
+        refreshHomeStatsIfVisible()
     }
 
     override fun handleBookmarkDeleted(bookmark: Bookmark) {
@@ -5093,7 +6013,12 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
         val urlInitializer = UrlInitializer(url)
         when (newTabType) {
             LightningDialogBuilder.NewTab.FOREGROUND -> tabsManager.newTab(urlInitializer, true)
-            LightningDialogBuilder.NewTab.BACKGROUND -> tabsManager.newTab(urlInitializer, false)
+            LightningDialogBuilder.NewTab.BACKGROUND -> {
+                val tab = tabsManager.newTab(urlInitializer, false)
+                if (tab != null) {
+                    iBindingToolbarContent.tabsButton.pulse()
+                }
+            }
             LightningDialogBuilder.NewTab.INCOGNITO -> {
                 closePanels()
                 val intent = IncognitoActivity.createIntent(this, url.toUri())
@@ -5170,6 +6095,15 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
     fun onHomeScreenShortcutClick(view: View) {
         val url = view.tag as? String ?: return
         if (url.isNotBlank()) {
+            // Show long-press tip on every tap until the user has performed a long-press.
+            if (!userPreferences.shortcutLongPressDone) {
+                com.xhub.browser.ui.message.XHubMessage.show(
+                    this,
+                    R.string.shortcut_longpress_hint,
+                    style = com.xhub.browser.ui.message.MessageStyle.Info,
+                    gravity = if (configPrefs.toolbarsBottom) Gravity.TOP else Gravity.BOTTOM
+                )
+            }
             searchTheWeb(url)
         }
     }
@@ -5311,16 +6245,20 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
     override fun onMaxTabReached() {
         // Show a message telling the user to contribute.
         // It provides a link to our settings Contribute section.
-        makeSnackbar(
-                getString(R.string.max_tabs), 10000, if (configPrefs.toolbarsBottom) Gravity.TOP else Gravity.BOTTOM) //Snackbar.LENGTH_LONG
-                .setAction(R.string.show, OnClickListener {
-                    // We want to launch our settings activity
-                    val i = Intent(this, SettingsActivity::class.java)
-                    /** See [SettingsActivity.onResume] for details of how this is handled on the other side */
-                    // Tell our settings activity to load our Contribute/Sponsorship fragment
-                    i.putExtra(FRAGMENT_CLASS_NAME, SponsorshipSettingsFragment::class.java.name)
-                    startActivity(i)
-                }).show()
+        com.xhub.browser.ui.message.XHubMessage.show(
+            activity = this,
+            text = getString(R.string.max_tabs),
+            style = com.xhub.browser.ui.message.MessageStyle.Warning,
+            durationMs = 10000,
+            gravity = if (configPrefs.toolbarsBottom) Gravity.TOP else Gravity.BOTTOM,
+            actionLabel = getString(R.string.show),
+            action = {
+                val i = Intent(this, SettingsActivity::class.java)
+                /** See [SettingsActivity.onResume] for details of how this is handled on the other side */
+                i.putExtra(FRAGMENT_CLASS_NAME, SponsorshipSettingsFragment::class.java.name)
+                startActivity(i)
+            }
+        )
     }
 
     /**
@@ -5516,6 +6454,14 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
     companion object {
 
         private const val TAG = "BrowserActivity"
+
+        // Home hero stat-chip count-change animation tuning.
+        // Duration of the hero-chip count-up tween (whole roll from old value to new value).
+        private const val STAT_COUNT_ANIM_DURATION_MS = 650L
+        // DecelerateInterpolator factor: >1 front-loads the motion for a snappier start.
+        private const val STAT_COUNT_ANIM_DECELERATE = 1.6f
+        // Peak scale of the subtle pulse layered on top of the numeric roll.
+        private const val STAT_COUNT_ANIM_SCALE_PULSE = 1.12f
 
         const val INTENT_PANIC_TRIGGER = "info.guardianproject.panic.action.TRIGGER"
 
