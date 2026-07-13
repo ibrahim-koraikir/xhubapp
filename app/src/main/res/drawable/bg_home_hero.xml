@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Home screen hero overlay for DARK/BLACK themes.
+     Counterpart to bg_home_hero_light.xml.
+     Base is transparent so the starfield + deep-space background
+     (?attr/appHomeBackground → bg_home_space_dark) show through the whole screen.
+     A faint orange radial glow top-right carries subtle depth without burying stars. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Base: transparent (lets the starfield + space background show through) -->
+    <item android:id="@+id/heroBase">
+        <shape android:shape="rectangle">
+            <solid android:color="@android:color/transparent" />
+        </shape>
+    </item>
+
+    <!-- Faint orange radial glow, top-right — subtle depth without burying stars -->
+    <item android:id="@+id/heroGlowOrange">
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="radial"
+                android:startColor="#14FF6B35"
+                android:endColor="#00FF6B35"
+                android:gradientRadius="480dp"
+                android:centerX="0.85"
+                android:centerY="0.05" />
+        </shape>
+    </item>
+
+</layer-list>

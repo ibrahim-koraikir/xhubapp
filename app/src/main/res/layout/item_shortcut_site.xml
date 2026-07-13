@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="52dp"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:background="@drawable/bg_shortcut_manager_site"
+    android:paddingHorizontal="10dp"
+    android:layout_marginBottom="8dp">
+
+    <!-- Drag handle -->
+    <ImageView
+        android:id="@+id/ivSiteDrag"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:src="@drawable/ic_drag_handle_vertical"
+        android:tint="@color/home_muted_foreground"
+        android:padding="12dp"
+        android:scaleType="fitCenter"
+        android:contentDescription="@string/shortcut_drag_to_reorder" />
+
+    <!-- Site icon letter -->
+    <TextView
+        android:id="@+id/tvSiteInitial"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_marginStart="8dp"
+        android:background="@drawable/bg_shortcut_tile"
+        android:gravity="center"
+        android:textColor="@color/home_foreground"
+        android:textSize="13sp"
+        android:textStyle="bold" />
+
+    <!-- Site name + URL -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:layout_marginStart="10dp">
+
+        <TextView
+            android:id="@+id/tvSiteName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            tools:text="Site Name"
+            android:textColor="@color/home_foreground"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:maxLines="1"
+            android:ellipsize="end" />
+
+        <TextView
+            android:id="@+id/tvSiteUrl"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            tools:text="site.com"
+            android:textColor="@color/home_muted_foreground"
+            android:textSize="12sp"
+            android:maxLines="1"
+            android:ellipsize="end" />
+
+    </LinearLayout>
+
+    <!-- Remove button -->
+    <ImageButton
+        android:id="@+id/btnRemoveSite"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:src="@drawable/ic_delete_outline"
+        android:tint="@color/home_muted_foreground"
+        android:padding="8dp"
+        android:scaleType="fitCenter"
+        android:contentDescription="@string/shortcut_remove_site" />
+
+</LinearLayout>

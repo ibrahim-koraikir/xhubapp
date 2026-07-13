@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="280dp"
+    android:height="220dp"
+    android:viewportWidth="280"
+    android:viewportHeight="220">
+    <path
+        android:fillColor="#337E57C2"
+        android:pathData="M145,25c52,0 95,43 95,95s-43,95 -95,95s-95,-43 -95,-95s43,-95 95,-95z" />
+    <path
+        android:fillColor="#22AB47BC"
+        android:pathData="M50,85c40,-35 110,-40 145,5c35,45 15,100 -30,125c-45,25 -105,10 -130,-35c-25,-45 -20,-65 15,-95z" />
+    <!-- Shield -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M140,40c0,0 55,18 55,18v55c0,42 -35,72 -55,82c-20,-10 -55,-40 -55,-82v-55s55,-18 55,-18z" />
+    <path
+        android:fillColor="#FFE1BEE7"
+        android:pathData="M140,58c0,0 38,12 38,12v42c0,30 -24,52 -38,60c-14,-8 -38,-30 -38,-60v-42s38,-12 38,-12z" />
+    <!-- Check -->
+    <path
+        android:fillColor="#FF8E24AA"
+        android:strokeWidth="1"
+        android:pathData="M118,110l16,16 28,-32 -10,-9 -18,20 -8,-8z" />
+    <!-- Lock body -->
+    <path
+        android:fillColor="#FF9C27B0"
+        android:pathData="M125,130h30a8,8 0,0 1,8 8v18a8,8 0,0 1,-8 8h-30a8,8 0,0 1,-8 -8v-18a8,8 0,0 1,8 -8z" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF9C27B0"
+        android:strokeWidth="5"
+        android:pathData="M132,130v-10a8,8 0,0 1,16 0v10" />
+</vector>

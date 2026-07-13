@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Browser must load arbitrary HTTP web content in the WebView -->
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <!-- system only: protects first-party HTTPS and browsing from user-installed CA interception in release -->
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

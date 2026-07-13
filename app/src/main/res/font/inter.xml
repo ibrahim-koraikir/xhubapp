@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Inter — downloadable font from Google Fonts provider.
+    Used on home screen surfaces only (hero, group labels, tile labels).
+    Falls back to system Roboto if the font has not been downloaded yet.
+    See: https://developer.android.com/develop/ui/views/text-and-emoji/downloadable-fonts
+-->
+<font-family xmlns:app="http://schemas.android.com/apk/res-auto"
+    app:fontProviderAuthority="com.google.android.gms.fonts"
+    app:fontProviderPackage="com.google.android.gms"
+    app:fontProviderQuery="Inter"
+    app:fontProviderCerts="@array/com_google_android_gms_fonts_certs">
+</font-family>

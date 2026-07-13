@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingBottom="8dp"
+    android:paddingTop="0dp"
+    android:background="@drawable/bg_dialog_rounded">
+
+    <!-- Drag handle indicator -->
+    <View
+        android:layout_width="36dp"
+        android:layout_height="4dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="10dp"
+        android:layout_marginBottom="6dp"
+        android:background="@drawable/bg_drag_handle" />
+
+    <com.google.android.material.tabs.TabLayout
+        android:id="@+id/dialog_tab_layout"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginHorizontal="12dp"
+        android:layout_marginBottom="4dp"
+        android:background="@drawable/bg_tab_strip"
+        app:tabGravity="fill"
+        app:tabInlineLabel="true"
+        app:tabMaxWidth="0dp"
+        app:tabMode="fixed"
+        app:tabRippleColor="@color/transparent"
+        app:tabSelectedTextColor="@color/bottom_toolbar_text"
+        app:tabTextColor="@color/bottom_toolbar_hint"
+        app:tabIndicatorColor="@color/bottom_toolbar_primary"
+        app:tabIndicatorHeight="2dp"
+        app:tabIndicatorGravity="bottom" />
+
+    <com.xhub.browser.view.DynamicHeightViewPager
+        android:id="@+id/dialog_viewpager"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="4dp" />
+
+</LinearLayout>

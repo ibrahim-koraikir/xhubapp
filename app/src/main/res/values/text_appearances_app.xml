@@ -62,4 +62,21 @@
         <item name="android:letterSpacing">0.02</item>
     </style>
 
+    <!-- ── Home screen surfaces: Inter (Google Fonts downloadable) ────────── -->
+    <!-- Applied only to hero, group labels, and tile labels.
+         Falls back to system Roboto if the font has not been downloaded yet.
+         Do NOT use these in non-home screens — keep the app-wide styles untouched. -->
+    <style name="TextAppearance.App.Home.Display" parent="TextAppearance.App.DisplayMedium">
+        <item name="android:fontFamily">@font/inter</item>
+    </style>
+    <style name="TextAppearance.App.Home.GreetingLabel" parent="TextAppearance.App.GreetingLabel">
+        <item name="android:fontFamily">@font/inter</item>
+    </style>
+    <style name="TextAppearance.App.Home.LabelSmall" parent="TextAppearance.App.LabelSmall">
+        <item name="android:fontFamily">@font/inter</item>
+    </style>
+    <style name="TextAppearance.App.Home.LabelMedium" parent="TextAppearance.App.LabelMedium">
+        <item name="android:fontFamily">@font/inter</item>
+    </style>
+
 </resources>

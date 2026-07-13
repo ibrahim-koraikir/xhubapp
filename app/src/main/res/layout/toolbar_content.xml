@@ -1,0 +1,243 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <!-- Root: vertical, match bottom-browser-wrap CSS -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="@dimen/toolbar_padding_top"
+        android:orientation="vertical">
+
+        <!-- ── ASSISTANT / SEARCH PILL ───────────────────────────── -->
+        <LinearLayout
+            android:id="@+id/assistantPill"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/toolbar_pill_height"
+            android:layout_marginStart="@dimen/toolbar_pill_margin_h"
+            android:layout_marginEnd="@dimen/toolbar_pill_margin_h"
+            android:background="@drawable/bg_bottom_assistant_pill"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="@dimen/toolbar_pill_padding_start"
+            android:paddingEnd="@dimen/toolbar_pill_padding_end"
+            android:elevation="@dimen/toolbar_pill_elevation">
+
+
+            <!-- Comet logo -->
+            <ImageView
+                android:layout_width="@dimen/toolbar_logo_size"
+                android:layout_height="@dimen/toolbar_logo_size"
+                android:importantForAccessibility="no"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_comet_logo"
+                app:tint="@color/bottom_toolbar_text" />
+
+
+
+            <!-- The actual search / address bar (transparent bg, fills pill) -->
+            <include
+                android:id="@+id/address_bar_include"
+                layout="@layout/search"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:layout_marginStart="@dimen/toolbar_search_margin_start"
+                android:layout_marginEnd="@dimen/toolbar_search_margin_end" />
+
+            <!-- Mic icon -->
+            <ImageButton
+                android:id="@+id/toolbarMicButton"
+                android:layout_width="@dimen/toolbar_mic_size"
+                android:layout_height="@dimen/toolbar_mic_size"
+                android:layout_marginEnd="@dimen/toolbar_mic_margin_end"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/home_voice_search_desc"
+                android:scaleType="fitCenter"
+                android:padding="@dimen/toolbar_mic_padding"
+                android:src="@drawable/ic_mic"
+                app:tint="@color/bottom_toolbar_primary" />
+
+
+            <!-- Audio / voice circle (gradient) -->
+            <FrameLayout
+                android:id="@+id/toolbarAudioButton"
+                android:layout_width="@dimen/toolbar_audio_size"
+                android:layout_height="@dimen/toolbar_audio_size"
+                android:background="@drawable/bg_bottom_audio_button"
+                android:clickable="true"
+                android:focusable="true"
+                android:elevation="@dimen/toolbar_audio_elevation">
+
+                <ImageView
+                    android:layout_width="@dimen/toolbar_audio_icon_size"
+                    android:layout_height="@dimen/toolbar_audio_icon_size"
+                    android:layout_gravity="center"
+                    android:contentDescription="@string/home_voice_search_desc"
+                    android:src="@drawable/ic_audio_wave"
+                    app:tint="@color/bottom_toolbar_primary_foreground" />
+
+            </FrameLayout>
+
+
+
+        </LinearLayout>
+
+        <!-- ── NAVIGATION ROW (6 buttons) ────────────────────────── -->
+        <!-- Compact design: 32dp height for efficient space usage -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/toolbar_nav_margin_top"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="@dimen/toolbar_nav_padding_h"
+            android:paddingEnd="@dimen/toolbar_nav_padding_h"
+            android:weightSum="6">
+
+            <!-- Back (arrow-left) -->
+            <FrameLayout
+                android:layout_width="0dp"
+                android:layout_height="@dimen/toolbar_nav_btn_height"
+                android:layout_weight="1">
+                <ImageButton
+                    android:id="@+id/buttonActionBack"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/action_back"
+                    android:padding="@dimen/toolbar_nav_btn_padding"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_arrow_left"
+                    app:tint="@color/bottom_toolbar_text"
+                    app:tooltipText="@{@string/action_back}" />
+            </FrameLayout>
+
+            <!-- Forward (arrow-right) -->
+            <FrameLayout
+                android:layout_width="0dp"
+                android:layout_height="@dimen/toolbar_nav_btn_height"
+                android:layout_weight="1">
+                <ImageButton
+                    android:id="@+id/buttonActionForward"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/action_forward"
+                    android:padding="@dimen/toolbar_nav_btn_padding"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_action_forward"
+                    app:tint="@color/bottom_toolbar_text"
+                    app:tooltipText="@{@string/action_forward}" />
+            </FrameLayout>
+
+            <!-- Bookmarks -->
+            <FrameLayout
+                android:layout_width="0dp"
+                android:layout_height="@dimen/toolbar_nav_btn_height"
+                android:layout_weight="1">
+                <ImageButton
+                    android:id="@+id/buttonBookmarks"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/action_bookmarks"
+                    android:padding="@dimen/toolbar_nav_btn_padding"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_book"
+                    app:tint="@color/bottom_toolbar_text"
+                    app:tooltipText="@{@string/action_bookmarks}" />
+            </FrameLayout>
+
+            <!-- Tabs (square-stack) -->
+            <FrameLayout
+                android:layout_width="0dp"
+                android:layout_height="@dimen/toolbar_nav_btn_height"
+                android:layout_weight="1">
+                <com.xhub.browser.icon.TabCountView
+                    android:id="@+id/tabsButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:contentDescription="@string/tabs"
+                    android:nextFocusDown="@id/web_view"
+                    app:tabIconBorderRadius="@dimen/toolbar_tab_border_radius"
+                    app:tabIconBorderWidth="@dimen/toolbar_tab_border_width"
+                    app:tabIconColor="@color/bottom_toolbar_text"
+                    app:tabIconTextSize="@dimen/toolbar_tab_text_size"
+                    app:tooltipText="@{@string/tabs}" />
+            </FrameLayout>
+
+            <!-- New Tab (plus icon) -->
+            <FrameLayout
+                android:layout_width="0dp"
+                android:layout_height="@dimen/toolbar_nav_btn_height"
+                android:layout_weight="1">
+                <ImageButton
+                    android:id="@+id/buttonNewTab"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/action_new_tab"
+                    android:padding="@dimen/toolbar_nav_btn_padding"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_action_plus"
+                    app:tint="@color/bottom_toolbar_text"
+                    app:tooltipText="@{@string/action_new_tab}" />
+            </FrameLayout>
+
+            <!-- More Menu (3 dots) -->
+            <FrameLayout
+                android:layout_width="0dp"
+                android:layout_height="@dimen/toolbar_nav_btn_height"
+                android:layout_weight="1">
+                <ImageButton
+                    android:id="@+id/buttonMore"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/action_menu"
+                    android:padding="@dimen/toolbar_nav_btn_padding"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_more_vertical"
+                    app:tint="@color/bottom_toolbar_text"
+                    app:tooltipText="@{@string/action_menu}" />
+            </FrameLayout>
+
+        </LinearLayout>
+
+        <!-- Hidden legacy buttons (kept for code compatibility, outside navigation row) -->
+        <FrameLayout
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:visibility="gone">
+
+            <ImageButton
+                android:id="@+id/buttonReader"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:visibility="gone"
+                android:src="@drawable/ic_action_reading" />
+
+            <ImageButton
+                android:id="@+id/buttonReload"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:visibility="gone"
+                android:contentDescription="@string/action_reload"
+                android:src="@drawable/ic_action_refresh"
+                app:tooltipText="@{@string/action_reload}" />
+
+            <ImageButton
+                android:id="@+id/homeButton"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:visibility="gone"
+                android:contentDescription="@string/home"
+                android:src="@drawable/ic_home_outline"
+                app:tooltipText="@{@string/home}" />
+
+        </FrameLayout>
+
+    </LinearLayout>
+
+</layout>

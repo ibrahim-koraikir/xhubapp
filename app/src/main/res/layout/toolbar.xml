@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools">
+
+
+    <!--
+    As this is included from another layout our toolbar_layout id will be overridden by the include id.
+    Though it is still needed to reference the binding object.
+
+    Elevation defines the shadow being cast by our tool bar
+    -->
+    <LinearLayout
+        android:id="@+id/toolbar_layout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_weight="0"
+        android:background="@android:color/transparent"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:orientation="vertical"
+        android:paddingTop="0dp"
+        android:paddingStart="0dp"
+        android:paddingEnd="0dp">
+
+        <FrameLayout
+            android:id="@+id/tabBarContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
+        <com.xhub.browser.view.LinearLayout
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingLeft="0dp"
+            android:paddingRight="0dp"
+            android:paddingBottom="0dp"
+            app:contentInsetEnd="0dp"
+            app:contentInsetStart="0dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical" />
+
+        <com.xhub.browser.view.ProgressBar
+            android:id="@+id/progress_view"
+            android:layout_width="match_parent"
+            android:layout_height="3dp"
+            android:layout_marginTop="4dp"
+            android:background="@color/transparent"
+            app:bidirectionalAnimate="false"
+            app:progressColor="?attr/colorAccent" />
+
+    </LinearLayout>
+</layout>

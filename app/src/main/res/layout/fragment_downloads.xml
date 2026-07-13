@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layout xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- wrap_content so the hosting BottomSheetDialog sizes to the downloads content instead of
+         forcing a full-height fill above the wrap_content ConstraintLayout root (which starved the
+         0dp RecyclerView to 0px). -->
+    <androidx.fragment.app.FragmentContainerView
+        android:id="@+id/fragmentContainerView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:name="com.xhub.browser.settings.fragment.DownloadsFragment"/>
+
+</layout>
+

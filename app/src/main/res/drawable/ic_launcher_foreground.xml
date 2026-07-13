@@ -1,0 +1,25 @@
+<!-- Tinder-style Streamline Icon -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="21"
+    android:viewportHeight="21">
+    
+    <group android:translateX="3.5" android:translateY="3.5">
+        <path
+            android:pathData="M8.21914 0.101872c-0.15125 -0.1149073 -0.35454 -0.1341924 -0.52469 -0.0497739 -0.17016 0.0844189 -0.27779 0.2579599 -0.27779 0.4479049 0 1.754387 -0.41852 4.063177 -2.55177 4.976897 -0.29264 -0.42249 -0.57323 -1.14307 -0.57323 -2.19118 0 -0.17375 -0.0902 -0.33505 -0.23824 -0.42601 -0.14803 -0.09096 -0.33268 -0.09855 -0.48768 -0.02004C2.47744 3.39089 1 4.95839 1 7.92857c0 1.99059 0.74164 3.52133 1.88417 4.55013C4.01799 13.4996 5.5167 14 7 14c1.48329 0 2.982 -0.5004 4.1158 -1.5213C12.2584 11.4499 13 9.91916 13 7.92857c0 -3.98156 -2.9519 -6.43718 -4.78086 -7.826698Z">
+            <aapt:attr name="android:fillColor">
+                <gradient 
+                    android:type="linear"
+                    android:startX="14.04"
+                    android:startY="16.965"
+                    android:endX="-3.727"
+                    android:endY="6.148">
+                    <item android:color="#ffd600" android:offset="0.0" />
+                    <item android:color="#ff007a" android:offset="1.0" />
+                </gradient>
+            </aapt:attr>
+        </path>
+    </group>
+</vector>

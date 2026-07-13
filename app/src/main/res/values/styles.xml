@@ -719,13 +719,13 @@ colorControlNormal:
         <item name="appColorDimForeground">@color/home_token_dim_fg_dark</item>
         <item name="appColorIconTint">@color/home_token_icon_tint_dark</item>
         <item name="appColorGroupLabel">@color/home_token_group_label_dark</item>
-        <item name="appStarfieldScrim">@color/home_token_starfield_scrim_dark</item>
+        <item name="appStarfieldScrim">@drawable/bg_home_scrim_dark</item>
         <item name="appColorGlassFill">@color/home_token_glass_fill_dark</item>
         <item name="appColorGlassStroke">@color/home_token_glass_stroke_dark</item>
         <item name="appColorAccentPurple2">@color/home_token_accent_purple2_dark</item>
         <item name="appColorSheetGlass">@color/home_token_sheet_glass_dark</item>
         <item name="appColorCardSurface">@color/home_token_card_surface_dark</item>
-        <item name="appHomeBackground">@drawable/bg_home_starfield</item>
+        <item name="appHomeBackground">@drawable/bg_home_space_dark</item>
         <item name="appHomeHeroBackground">@drawable/bg_home_hero</item>
         <!-- Tonal elevation: on dark surfaces real shadows are invisible, so M3 lifts via overlay. -->
         <item name="android:colorBackground">@color/home_token_bg_dark</item>
@@ -948,13 +948,13 @@ colorControlNormal:
         <item name="appColorDimForeground">@color/home_token_dim_fg_black</item>
         <item name="appColorIconTint">@color/home_token_icon_tint_black</item>
         <item name="appColorGroupLabel">@color/home_token_group_label_black</item>
-        <item name="appStarfieldScrim">@color/home_token_starfield_scrim_black</item>
+        <item name="appStarfieldScrim">@drawable/bg_home_scrim_black</item>
         <item name="appColorGlassFill">@color/home_token_glass_fill_black</item>
         <item name="appColorGlassStroke">@color/home_token_glass_stroke_black</item>
         <item name="appColorAccentPurple2">@color/home_token_accent_purple2_black</item>
         <item name="appColorSheetGlass">@color/home_token_sheet_glass_black</item>
         <item name="appColorCardSurface">@color/home_token_card_surface_black</item>
-        <item name="appHomeBackground">@drawable/bg_home_starfield</item>
+        <item name="appHomeBackground">@drawable/bg_home_space_dark</item>
         <item name="appHomeHeroBackground">@drawable/bg_home_hero</item>
         <!-- Tonal elevation on OLED. -->
         <item name="elevationOverlayColor">@color/md_theme_dark_surfaceVariant</item>

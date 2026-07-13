@@ -1,0 +1,341 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+ The contents of this file are subject to the Common Public Attribution License Version 1.0.
+ (the "License"); you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at:
+ https://github.com/Slion/Fulguris/blob/main/LICENSE.CPAL-1.0.
+ The License is based on the Mozilla Public License Version 1.1, but Sections 14 and 15 have been
+ added to cover use of software over a computer network and provide for limited attribution for
+ the Original Developer. In addition, Exhibit A has been modified to be consistent with Exhibit B.
+
+ Software distributed under the License is distributed on an "AS IS" basis, WITHOUT WARRANTY OF
+ ANY KIND, either express or implied. See the License for the specific language governing rights
+ and limitations under the License.
+
+ The Original Code is Fulguris.
+
+ The Original Developer is the Initial Developer.
+ The Initial Developer of the Original Code is Stéphane Lenclud.
+
+ All portions of the code written by Stéphane Lenclud are Copyright © 2020 Stéphane Lenclud.
+ All Rights Reserved.
+-->
+<layout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Don't put a background here as it breaks our status bar color -->
+    <androidx.coordinatorlayout.widget.CoordinatorLayout
+        android:id="@+id/coordinator_layout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        tools:context="com.xhub.browser.activity.WebBrowserActivity"
+
+        android:animateLayoutChanges="true"
+        android:fitsSystemWindows="true">
+
+        <androidx.drawerlayout.widget.DrawerLayout
+            android:id="@+id/drawer_layout"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:fitsSystemWindows="true">
+
+            <LinearLayout
+                android:id="@+id/ui_layout"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="vertical"
+                android:background="?android:attr/colorBackground"
+                android:animateLayoutChanges="true">
+
+                <LinearLayout
+                    android:id="@+id/layoutHorizontal"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:orientation="horizontal"
+                    android:background="?android:attr/colorBackground"
+                    android:animateLayoutChanges="true">
+
+                    <LinearLayout
+                        android:id="@+id/layoutTabsLeft"
+                        android:layout_width="@dimen/vertical_tab_width"
+                        android:layout_height="match_parent"
+                        android:layout_weight="0"
+                        android:orientation="vertical"
+                        android:background="?android:attr/colorBackground"
+                        tools:background="?attr/colorError"
+                        android:animateLayoutChanges="true"
+                        tools:visibility="visible">
+
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/layoutPageContainer"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:orientation="vertical"
+                        android:background="?android:attr/colorBackground"
+                        android:animateLayoutChanges="true">
+
+                        <include android:id="@+id/findInPageInclude" layout="@layout/search_interface"/>
+
+                        <!--
+                        FrameLayout needed to animate our tabs.
+                        We keep swapping both PullRefreshLayout to perform smooth flicker free tab animations.
+                        We switched from a FrameLayout to a CoordinatorLayout to be able to display snackbar within our WebView.
+                        -->
+                        <androidx.coordinatorlayout.widget.CoordinatorLayout
+                            android:id="@+id/web_view_frame"
+                            android:layout_width="match_parent"
+                            android:layout_height="0dp"
+                            android:layout_weight="1"
+                            android:animateLayoutChanges="false">
+
+                            <com.xhub.browser.view.PullRefreshLayout
+                                android:id="@+id/tabViewContainerOne"
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:background="?android:attr/colorBackground"
+                                android:clipChildren="true"
+                                android:animateLayoutChanges="false" />
+
+                            <com.xhub.browser.view.PullRefreshLayout
+                                android:id="@+id/tabViewContainerTwo"
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:background="?android:attr/colorBackground"
+                                android:clipChildren="true"
+                                android:animateLayoutChanges="false" />
+
+                            <!-- Native home screen overlay -->
+                            <include
+                                android:id="@+id/homeScreenOverlay"
+                                layout="@layout/layout_home_screen" />
+
+                            <include layout="@layout/touch_tab_switcher"
+                                android:id="@+id/fabInclude" />
+
+                            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                                android:id="@+id/fabDownloadVideo"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="bottom|end"
+                                android:layout_marginBottom="64dp"
+                                android:layout_marginEnd="16dp"
+                                android:src="@drawable/ic_file_download"
+                                android:visibility="gone"
+                                android:contentDescription="@string/action_download"
+                                app:backgroundTint="?attr/colorPrimary"
+                                app:tint="?attr/colorOnPrimary" />
+
+                            <!--
+                            In-app download progress card. Anchored bottom, initially GONE.
+                            Driven by DownloadProgressBus so it shows video-download progress even
+                            when POST_NOTIFICATIONS is denied (notification-only feedback was the
+                            root cause of "download starts but nothing shows").
+                            -->
+                            <com.google.android.material.card.MaterialCardView
+                                android:id="@+id/downloadProgressCard"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="bottom"
+                                android:layout_marginStart="16dp"
+                                android:layout_marginEnd="16dp"
+                                android:layout_marginBottom="12dp"
+                                android:visibility="gone"
+                                app:cardCornerRadius="20dp"
+                                app:cardElevation="10dp"
+                                app:cardBackgroundColor="?attr/appColorSheetGlass"
+                                app:strokeColor="?attr/appColorGlassStroke"
+                                app:strokeWidth="1dp">
+
+                                <LinearLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:orientation="vertical"
+                                    android:paddingStart="16dp"
+                                    android:paddingEnd="16dp"
+                                    android:paddingTop="14dp"
+                                    android:paddingBottom="10dp">
+
+                                    <!-- Row 1: icon + filename + percent badge -->
+                                    <LinearLayout
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:orientation="horizontal"
+                                        android:gravity="center_vertical">
+
+                                        <ImageView
+                                            android:id="@+id/ivDownloadProgressIcon"
+                                            android:layout_width="22dp"
+                                            android:layout_height="22dp"
+                                            android:src="@drawable/ic_file_download"
+                                            android:importantForAccessibility="no"
+                                            android:contentDescription="@null"
+                                            app:tint="?attr/appColorAccentOrange"
+                                            android:layout_marginEnd="10dp" />
+
+                                        <TextView
+                                            android:id="@+id/tvDownloadProgressFilename"
+                                            android:layout_width="0dp"
+                                            android:layout_height="wrap_content"
+                                            android:layout_weight="1"
+                                            android:textSize="14sp"
+                                            android:textStyle="bold"
+                                            android:textColor="?attr/colorOnSurface"
+                                            android:ellipsize="middle"
+                                            android:singleLine="true"
+                                            tools:text="my_video.mp4" />
+
+                                        <TextView
+                                            android:id="@+id/tvDownloadProgressPercent"
+                                            android:layout_width="wrap_content"
+                                            android:layout_height="wrap_content"
+                                            android:layout_marginStart="10dp"
+                                            android:textSize="13sp"
+                                            android:textStyle="bold"
+                                            android:textColor="?attr/colorPrimary"
+                                            tools:text="42%" />
+
+                                    </LinearLayout>
+
+                                    <!-- Row 2: Speed · ETA subtitle (hidden when unknown) -->
+                                    <TextView
+                                        android:id="@+id/tvDownloadSpeedEta"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginTop="2dp"
+                                        android:textSize="12sp"
+                                        android:textColor="?attr/appColorSubtleForeground"
+                                        android:visibility="gone"
+                                        tools:text="3.2 MB/s • 12s remaining"
+                                        tools:visibility="visible" />
+
+                                    <!-- Row 3: Progress bar -->
+                                    <com.google.android.material.progressindicator.LinearProgressIndicator
+                                        android:id="@+id/downloadProgressIndicator"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginTop="10dp"
+                                        app:indicatorColor="?attr/colorPrimary"
+                                        app:trackCornerRadius="6dp"
+                                        app:trackThickness="5dp" />
+
+                                    <!-- Row 4: Action buttons -->
+                                    <LinearLayout
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:orientation="horizontal"
+                                        android:gravity="end"
+                                        android:layout_marginTop="2dp">
+
+                                        <com.google.android.material.button.MaterialButton
+                                            android:id="@+id/btnDownloadProgressCancel"
+                                            style="@style/Widget.MaterialComponents.Button.TextButton"
+                                            android:layout_width="wrap_content"
+                                            android:layout_height="wrap_content"
+                                            android:minWidth="0dp"
+                                            android:minHeight="0dp"
+                                            android:textColor="?attr/appColorSubtleForeground"
+                                            android:text="@string/action_cancel" />
+
+                                        <!-- Shown only on COMPLETE: opens the downloaded file -->
+                                        <com.google.android.material.button.MaterialButton
+                                            android:id="@+id/btnDownloadProgressOpen"
+                                            style="@style/Widget.MaterialComponents.Button.TextButton"
+                                            android:layout_width="wrap_content"
+                                            android:layout_height="wrap_content"
+                                            android:minWidth="0dp"
+                                            android:minHeight="0dp"
+                                            android:visibility="gone"
+                                            android:text="@string/action_open" />
+
+                                    </LinearLayout>
+
+                                </LinearLayout>
+                            </com.google.android.material.card.MaterialCardView>
+
+
+                        </androidx.coordinatorlayout.widget.CoordinatorLayout>
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/layoutTabsRight"
+                        android:layout_width="@dimen/vertical_tab_width"
+                        android:layout_height="match_parent"
+                        android:layout_weight="0"
+                        android:orientation="vertical"
+                        android:background="?android:attr/colorBackground"
+                        tools:background="?attr/colorError"
+                        android:animateLayoutChanges="true">
+
+                    </LinearLayout>
+
+                </LinearLayout>
+
+                <include android:id="@+id/toolbar_include"
+                    layout="@layout/toolbar"/>
+
+            </LinearLayout>
+
+            <!--
+            - android:clickable="true":
+            Needed to fix click through issues.
+            See: https://github.com/Slion/Fulguris/issues/290
+            -->
+            <FrameLayout
+                android:id="@+id/left_drawer"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_gravity="start"
+                android:background="?android:attr/colorBackground"
+                android:fitsSystemWindows="true"
+                android:weightSum="1"
+                android:layout_marginLeft="-64dp"
+                android:clickable="true" >
+
+                <!--  We added the content for cutout support to be able to set margins conveniently -->
+                <FrameLayout
+                    android:id="@+id/leftDrawerContent"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="?android:attr/colorBackground" />
+
+            </FrameLayout>
+
+            <!--
+            - android:clickable="true":
+            Needed to fix click through issues.
+            See: https://github.com/Slion/Fulguris/issues/290
+            -->
+            <FrameLayout
+                android:id="@+id/right_drawer"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_gravity="end"
+                android:background="?android:attr/colorBackground"
+                android:fitsSystemWindows="true"
+                android:weightSum="1"
+                android:layout_marginLeft="-64dp"
+                android:clickable="true">
+
+                <!--  We added the content for cutout support to be able to set margins conveniently -->
+                <FrameLayout
+                    android:id="@+id/rightDrawerContent"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="?android:attr/colorBackground" />
+
+            </FrameLayout>
+
+
+        </androidx.drawerlayout.widget.DrawerLayout>
+
+
+
+
+
+    </androidx.coordinatorlayout.widget.CoordinatorLayout>
+</layout>

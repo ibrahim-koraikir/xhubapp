@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="280dp"
+    android:height="220dp"
+    android:viewportWidth="280"
+    android:viewportHeight="220">
+    <path
+        android:fillColor="#332196F3"
+        android:pathData="M150,25c55,0 95,42 95,95s-40,95 -95,95s-95,-42 -95,-95s40,-95 95,-95z" />
+    <path
+        android:fillColor="#2242A5F5"
+        android:pathData="M60,70c40,-30 95,-20 120,20c25,40 10,90 -30,110c-40,20 -95,5 -115,-35c-20,-40 -10,-75 25,-95z" />
+    <!-- Back card -->
+    <path
+        android:fillColor="#BBFFFFFF"
+        android:pathData="M80,50h140a16,16 0,0 1,16 16v100a16,16 0,0 1,-16 16h-140a16,16 0,0 1,-16 -16v-100a16,16 0,0 1,16 -16z" />
+    <!-- Front card -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M55,70h150a16,16 0,0 1,16 16v100a16,16 0,0 1,-16 16h-150a16,16 0,0 1,-16 -16v-100a16,16 0,0 1,16 -16z" />
+    <!-- Tab chips -->
+    <path android:fillColor="#FFE3F2FD" android:pathData="M70,88h48a10,10 0,0 1,10 10v0a10,10 0,0 1,-10 10h-48a10,10 0,0 1,-10 -10v0a10,10 0,0 1,10 -10z" />
+    <path android:fillColor="#FFBBDEFB" android:pathData="M128,88h48a10,10 0,0 1,10 10v0a10,10 0,0 1,-10 10h-48a10,10 0,0 1,-10 -10v0a10,10 0,0 1,10 -10z" />
+    <path android:fillColor="#FF90CAF9" android:pathData="M186,88h20a10,10 0,0 1,10 10v0a10,10 0,0 1,-10 10h-20a10,10 0,0 1,-10 -10v0a10,10 0,0 1,10 -10z" />
+    <!-- Active tab underline -->
+    <path android:fillColor="#FF2196F3" android:pathData="M75,118h38a3,3 0,0 1,3 3v0a3,3 0,0 1,-3 3h-38a3,3 0,0 1,-3 -3v0a3,3 0,0 1,3 -3z" />
+    <!-- Lines -->
+    <path android:fillColor="#FFE3F2FD" android:pathData="M70,140h130a6,6 0,0 1,6 6v4a6,6 0,0 1,-6 6h-130a6,6 0,0 1,-6 -6v-4a6,6 0,0 1,6 -6z" />
+    <path android:fillColor="#FFBBDEFB" android:pathData="M70,162h95a6,6 0,0 1,6 6v4a6,6 0,0 1,-6 6h-95a6,6 0,0 1,-6 -6v-4a6,6 0,0 1,6 -6z" />
+</vector>

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="280dp"
+    android:height="220dp"
+    android:viewportWidth="280"
+    android:viewportHeight="220">
+    <path
+        android:fillColor="#33FF9800"
+        android:pathData="M140,20c55,0 100,45 100,100s-45,100 -100,100s-100,-45 -100,-100s45,-100 100,-100z" />
+    <path
+        android:fillColor="#22FFB74D"
+        android:pathData="M55,75c45,-40 115,-35 145,15c30,50 5,100 -45,120c-50,20 -110,0 -130,-50c-20,-50 0,-55 30,-85z" />
+    <!-- Success circle -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M140,55m-55,0a55,55 0,1 1,110 0a55,55 0,1 1,-110 0" />
+    <path
+        android:fillColor="#FFFFF3E0"
+        android:pathData="M140,65m-40,0a40,40 0,1 1,80 0a40,40 0,1 1,-80 0" />
+    <path
+        android:fillColor="#FFFF9800"
+        android:pathData="M118,108l16,16 30,-34 -11,-10 -19,22 -8,-8z" />
+    <!-- Shortcut pills -->
+    <path android:fillColor="#FFFFFFFF" android:pathData="M70,150h50a14,14 0,0 1,14 14v0a14,14 0,0 1,-14 14h-50a14,14 0,0 1,-14 -14v0a14,14 0,0 1,14 -14z" />
+    <path android:fillColor="#FFFFFFFF" android:pathData="M135,150h50a14,14 0,0 1,14 14v0a14,14 0,0 1,-14 14h-50a14,14 0,0 1,-14 -14v0a14,14 0,0 1,14 -14z" />
+    <path android:fillColor="#FFFF9800" android:pathData="M200,150h30a14,14 0,0 1,14 14v0a14,14 0,0 1,-14 14h-30a14,14 0,0 1,-14 -14v0a14,14 0,0 1,14 -14z" />
+</vector>

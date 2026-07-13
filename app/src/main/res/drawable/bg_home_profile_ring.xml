@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Premium profile ring: gradient border using layer-list -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Gradient ring layer -->
+    <item>
+        <shape android:shape="oval">
+            <gradient
+                android:startColor="#FF007A"
+                android:endColor="#9C00FF"
+                android:angle="135" />
+        </shape>
+    </item>
+    <!-- Dark centre inset to create ring effect -->
+    <item
+        android:left="2dp"
+        android:top="2dp"
+        android:right="2dp"
+        android:bottom="2dp">
+        <shape android:shape="oval">
+            <solid android:color="#FF121212" />
+        </shape>
+    </item>
+</layer-list>

@@ -44,6 +44,16 @@
     <color name="home_primary">#FFFF007A</color>
     <color name="home_primary_15">#26FF007A</color>
 
+    <!-- ── Hero accent group (orange + purple) ──────────────────────── -->
+    <!-- Vivid orange — hero flame button / streak chip / quote mark -->
+    <color name="home_accent_orange">#FFFF6B35</color>
+    <!-- Light orange — streak count text, static name highlight -->
+    <color name="home_accent_orange_light">#FFFF8C5B</color>
+    <!-- Dark orange — flame button gradient end -->
+    <color name="home_accent_orange_dark">#FFBF3A1E</color>
+    <!-- Soft purple — Private stat chip icon -->
+    <color name="home_accent_purple">#FFA78BFA</color>
+
     <!-- ── Favourite-site brand colours (used by shortcut icons) ────── -->
     <color name="home_fav_netflix">#e50914</color>
     <color name="home_fav_imdb">#f5c518</color>

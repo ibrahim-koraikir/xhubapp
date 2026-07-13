@@ -29,9 +29,6 @@
     <string name="download">Download location</string>
     <string name="settings_advanced">Advanced</string>
     <string name="settings_more">More</string>
-    <string name="update_available">Update available</string>
-    <string name="update_check_error">Update check error, try again later</string>
-    <string name="up_to_date">XHub is up to date</string>
     <string name="show">Show</string>
     <string name="cache">Clear cache on exit</string>
     <string name="reflow">Enable text reflow</string>
@@ -122,10 +119,6 @@
     <string name="downloads_empty_hint">When a video is detected, tap the download button.\nFiles you save will show up here.</string>
     <string name="download_status_complete">Complete</string>
     <string name="download_status_downloading_percent">Downloading %1$d%%</string>
-    <string name="pref_summary_loading_downloads">Loading %1$d / %2$d</string>
-    <string name="pref_summary_updating_downloads">Updating %1$d / %2$d</string>
-    <string name="pref_summary_downloads_count">You have %d download</string>
-    <string name="pref_summary_downloads_count_plural">You have %d downloads</string>
     <string name="cancel_download">Cancel download</string>
     <string name="open_download">Open</string>
     <string name="share_file">Share file</string>
@@ -147,8 +140,6 @@
     <string name="file_does_not_exist">File does not exist</string>
     <string name="error_deleting_file">Error deleting file</string>
     <string name="error_no_permission">No permission to delete file</string>
-    <string name="dialog_title_clear_downloads">Clear downloads?</string>
-    <string name="dialog_message_clear_downloads">%d download(s) will be removed from the list. Files will not be deleted.</string>
     <string name="download_status_orphaned">File not found</string>
     <string name="download_status_downloading">Downloading…</string>
     <string name="download_status_failed">Error: %d</string>
@@ -240,12 +231,6 @@
     <string name="block_remote_frequency_monthly">Monthly</string>
 
     <!-- new ad blocker -->
-    <string name="page_blocked">The following page was blocked:</string>
-    <string name="page_blocked_reason">because of:</string>
-    <string name="page_blocked_list_ad">%s on ad filters</string>
-    <string name="page_blocked_list_user">%s blocked by user rule</string>
-    <string name="page_blocked_list_malware">%s on malware filters</string>
-    <string name="request_blocked">Request blocked</string>
 
     <!-- settings for new ad blocker -->
     <string name="blocklist_update_mode">Auto-update mode</string>
@@ -502,7 +487,6 @@
     <string name="pref_title_dark_mode_default">Force dark mode</string>
     <string name="pref_summary_dark_mode_default">Define if new tabs use force dark mode by default</string>
     <string name="pref_title_allow_mixed_content">Allow mixed content</string>
-    <string name="pref_summary_allow_mixed_content">Allow insecure (HTTP) resources on secure (HTTPS) pages. Weakens security - only enable for trusted sites that require it.</string>
     <string name="pref_title_swap_bookmarks_and_tabs">Swap drawers</string>
     <string name="pref_summary_swap_bookmarks_and_tabs">Tabs and Bookmarks drawers will swap places</string>
     <string name="do_not_track">Request \'Do Not Track\'</string>
@@ -767,7 +751,6 @@
     <string name="accent_teal">Teal</string>
     <string name="accent_yellow">Yellow</string>
     <string name="accent_brown">Brown</string>
-    <string name="search_homepage">Search</string>
 
     <string name="search_incognito">Private search</string>
     <string name="incognito">Stealth</string>
@@ -830,13 +813,7 @@
     <string name="intro_action_skip">Skip</string>
     <string name="intro_action_next">Next</string>
     <string name="intro_action_done">Get started</string>
-    <string name="intro_title_terms">Let\'s Get Started!</string>
-    <string name="intro_title_telemetry">Help Us, Help You!</string>
-    <string name="intro_title_ad_blocker">Be Safe!</string>
     <string name="intro_description_ad_blocker">Enable our powerful ad blocker to browse faster, safer, and with fewer distractions. You can always change this later in settings.</string>
-    <string name="intro_notification_permission_title">Notification permission</string>
-    <string name="video_detected">Video detected</string>
-    <string name="intro_notification_permission_description">Allow XHub to send notifications, notably for download completion and during private sessions.</string>
 
     <string name="pref_title_enable_ad_blocker">Ad blocker</string>
     <string name="pref_summary_on_enable_ad_blocker">Enjoy a cleaner, safer web experience</string>
@@ -915,12 +892,9 @@
     <string name="action_install">Install</string>
     <string name="pref_title_source_code">Source code</string>
     <string name="action_done">Done</string>
-    <string name="action_settings">Settings</string>
     <string name="pref_summary_contact_us">Send us an email</string>
     <string name="url_contact_us">mailto:contact@example.com</string>
-    <string name="video_adaptive_stream_message">This video uses adaptive streaming (e.g. YouTube) and cannot be downloaded directly by the browser.</string>
     <string name="video_adaptive_stream_message_ytdlp">This video uses adaptive streaming. Downloading via yt-dlp…</string>
-    <string name="video_cannot_download">Cannot Download</string>
     
     <!-- yt-dlp Video Download -->
     <string name="video_download_started">Download started</string>
@@ -941,15 +915,12 @@
     <string name="download_action_resume">Resume</string>
     <string name="pause_download">Pause download</string>
     <string name="resume_download">Resume download</string>
-    <string name="video_ytdlp_not_ready">Video downloader not ready. Please try again.</string>
     
     <!-- Video Detection Settings -->
     <string name="pref_title_video_detection">Enable video detection</string>
     <string name="pref_summary_video_detection">Show download button when videos are detected on web pages. May expose JavaScript interface to all pages.</string>
     
     <!-- Third-Party Favicon Services Settings -->
-    <string name="pref_title_third_party_favicon_services">Use third-party favicon services</string>
-    <string name="pref_summary_third_party_favicon_services">Allow contacting DuckDuckGo and Google to fetch missing favicons. When disabled, only site-provided favicons are used. Disabling improves privacy by not leaking visited/bookmarked hosts to third parties.</string>
     
     <!-- yt-dlp Warning Dialog -->
     <string name="warning_ytdlp_title">Video Download Notice</string>
@@ -960,7 +931,6 @@
     <string name="home_greeting_morning">Good morning,</string>
     <string name="home_greeting_afternoon">Good afternoon,</string>
     <string name="home_greeting_evening">Good evening,</string>
-    <string name="home_search_hint">Search or enter address…</string>
     <string name="home_quick_access_title">Quick Access</string>
     <string name="home_quick_access_subtitle">Your favourite sites</string>
     <string name="home_edit_shortcuts">Edit</string>
@@ -968,7 +938,6 @@
     <string name="home_empty_state_message">No shortcuts yet</string>
     <string name="home_empty_state_action">Add your favourite sites</string>
     <string name="home_settings_desc">Settings</string>
-    <string name="home_bookmarks_desc">Bookmarks</string>
     <string name="home_update_desc">Check for updates</string>
     <string name="update_available_title">Update Available</string>
     <string name="update_available_message">A new version (%1$s) is available on GitHub. Would you like to view the release page?</string>
@@ -990,8 +959,6 @@
     <string name="home_stat_saved">Saved</string>
     <string name="home_stat_downloads">Downloads</string>
     <string name="home_stat_private">Private</string>
-    <string name="home_streak_desc">Day streak</string>
-    <string name="home_flame_desc">Bookmarks</string>
     <!-- Runtime bookmark count for the "saved" stat chip -->
     <plurals name="home_stat_saved_count">
         <item quantity="one">%d saved</item>
@@ -1008,12 +975,6 @@
         <item quantity="other">%d stealth</item>
     </plurals>
     <!-- ExoClick interstitial ads -->
-    <string name="ad_loading">Loading ad…</string>
-    <string name="ad_close">Close ad</string>
-    <string name="ad_consent_title">Personalized ads</string>
-    <string name="ad_consent_message">This edition of XHub is funded by ads served through ExoClick. Allow personalized ads for a more relevant experience? You can change this later in settings.</string>
-    <string name="ad_consent_allow">Allow</string>
-    <string name="ad_consent_deny">Don\'t allow</string>
 
     <string name="search_overlay_site_suggestions">Site suggestions</string>
     <string name="search_overlay_recent_searches">Recent searches</string>

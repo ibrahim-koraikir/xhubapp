@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Deep space background (near-black) without stars.
+     Used so that only the animated StarfieldView displays stars.
+     Replaces the former warm-red wash with a classic dark-space look. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Base linear gradient (pure black → near-black navy), vertical.
+         Subtle so the twinkling white stars in StarfieldView dominate. -->
+    <item android:id="@+id/spaceBase">
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="linear"
+                android:startColor="#FF000000"
+                android:centerColor="#FF05060A"
+                android:endColor="#FF0A0B12"
+                android:angle="270" />
+        </shape>
+    </item>
+
+    <!-- Faint cool-blue radial glow, top-right — gives the void a hint of nebula depth
+         without overpowering the stars. -->
+    <item android:id="@+id/spaceGlowNebula">
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="radial"
+                android:startColor="#1A2A3B5C"
+                android:endColor="#002A3B5C"
+                android:gradientRadius="480dp"
+                android:centerX="0.85"
+                android:centerY="0.05" />
+        </shape>
+    </item>
+
+</layer-list>

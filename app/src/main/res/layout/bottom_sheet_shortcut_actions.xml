@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Shortcut long-press action bottom sheet.
+  Replaces the old plain MaterialAlertDialog.setItems list with a modern Material
+  bottom sheet: drag handle, site title, and a scrollable list of icon+label action rows.
+  Rows are added programmatically in WebBrowserActivity.onHomeScreenShortcutLongClick.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/bg_bottom_sheet_dialog"
+    android:paddingTop="@dimen/spacing_sm"
+    android:paddingBottom="@dimen/spacing_lg">
+
+    <!-- Drag handle -->
+    <View
+        android:layout_width="40dp"
+        android:layout_height="@dimen/elevation_sm"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="@dimen/spacing_sm"
+        android:layout_marginBottom="@dimen/spacing_md"
+        android:background="@drawable/bg_handle"
+        android:alpha="0.5" />
+
+    <!-- Site title -->
+    <TextView
+        android:id="@+id/shortcutSheetTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="@dimen/spacing_lg"
+        android:paddingEnd="@dimen/spacing_lg"
+        android:paddingBottom="@dimen/spacing_md"
+        android:maxLines="1"
+        android:ellipsize="middle"
+        android:textColor="?attr/colorOnBackground"
+        android:textAppearance="@style/TextAppearance.App.TitleLarge"
+        android:textStyle="bold" />
+
+    <!-- Actions container (rows added programmatically) -->
+    <LinearLayout
+        android:id="@+id/shortcutSheetActions"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical" />
+
+</LinearLayout>

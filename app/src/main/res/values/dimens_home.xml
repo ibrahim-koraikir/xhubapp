@@ -66,6 +66,11 @@
     <!-- Gap between groups -->
     <dimen name="home_group_gap">24dp</dimen>
 
+    <!-- ── Group title accent underline ─────────────────────────── -->
+    <dimen name="home_group_underline_width">28dp</dimen>
+    <dimen name="home_group_underline_height">2dp</dimen>
+    <dimen name="home_group_underline_margin_top">4dp</dimen>
+
     <!-- ── Category pills ───────────────────────────────────────────── -->
     <dimen name="home_pill_radius">12dp</dimen>
     <dimen name="home_pill_padding_h">12dp</dimen>
@@ -74,7 +79,9 @@
     <dimen name="home_pill_gap">8dp</dimen>
 
     <!-- ── Edit button ──────────────────────────────────────────────── -->
-    <dimen name="home_edit_btn_height">36dp</dimen>
+    <!-- 48dp meets the minimum touch-target requirement. Icon stays 14dp;
+         horizontal padding absorbs the extra height on the button. -->
+    <dimen name="home_edit_btn_height">48dp</dimen>
     <dimen name="home_edit_btn_padding_h">14dp</dimen>
     <dimen name="home_edit_icon_size">14dp</dimen>
     <dimen name="home_edit_icon_label_gap">6dp</dimen>
@@ -96,4 +103,24 @@
     <dimen name="home_empty_icon_size">48dp</dimen>
     <dimen name="home_empty_padding_v">32dp</dimen>
     <dimen name="home_empty_text_size">14sp</dimen>
+
+    <!-- ── Hero header (static quote/streak/stats) ─────────────────── -->
+    <!-- Outer padding: top gives status-bar clearance; h/b tune on device -->
+    <dimen name="home_hero_padding_top">28dp</dimen>
+    <dimen name="home_hero_padding_h">20dp</dimen>
+    <dimen name="home_hero_padding_bottom">16dp</dimen>
+    <!-- Action row buttons — 48dp meets Android's minimum 48dp touch-target requirement -->
+    <dimen name="home_hero_action_btn">48dp</dimen>
+    <!-- icon remains 20dp; extra 14dp of container is padding, matching the 48dp target -->
+    <dimen name="home_hero_action_icon">20dp</dimen>
+    <dimen name="home_hero_flame_icon">22dp</dimen>
+    <dimen name="home_hero_streak_icon">16dp</dimen>
+    <!-- Typography -->
+    <dimen name="home_hero_greeting_text">12sp</dimen>
+    <dimen name="home_quote_mark_size">44sp</dimen>
+    <dimen name="home_quote_text_size">19sp</dimen>
+    <dimen name="home_quote_label_size">11sp</dimen>
+    <!-- Stat chips -->
+    <dimen name="home_stat_icon">14dp</dimen>
+    <dimen name="home_stat_text">10sp</dimen>
 </resources>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- App-wide starfield background: full-screen starfield image with an 80% dark
+     overlay (matching the home screen) so foreground text/cards stay readable.
+     Used as android:windowBackground on the Dark and Black themes. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item android:drawable="@drawable/bg_home_space_dark" />
+
+    <item android:id="@+id/appStarfieldOverlay">
+        <shape android:shape="rectangle">
+            <solid android:color="#CC000000" />
+        </shape>
+    </item>
+
+</layer-list>

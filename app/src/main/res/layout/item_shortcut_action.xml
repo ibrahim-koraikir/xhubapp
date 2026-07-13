@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Shortcut long-press action row.
+  Mirrors item_settings_menu styling:
+    - 40dp brand-tinted icon container circle
+    - press_scale stateListAnimator for tactile feedback
+    - TitleMedium label
+  Used by WebBrowserActivity.onHomeScreenShortcutLongClick's bottom sheet.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/shortcutActionRow"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:minHeight="56dp"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:background="?attr/selectableItemBackground"
+    android:clickable="true"
+    android:focusable="true"
+    android:stateListAnimator="@animator/press_scale"
+    android:paddingStart="@dimen/spacing_lg"
+    android:paddingEnd="@dimen/spacing_lg"
+    android:paddingTop="@dimen/spacing_xs"
+    android:paddingBottom="@dimen/spacing_xs">
+
+    <!-- Icon container: 40dp circle -->
+    <FrameLayout
+        android:id="@+id/shortcutActionIconContainer"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:background="@drawable/bg_settings_icon_circle">
+
+        <ImageView
+            android:id="@+id/shortcutActionIcon"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_gravity="center"
+            app:tint="?attr/colorPrimary" />
+    </FrameLayout>
+
+    <!-- Label -->
+    <TextView
+        android:id="@+id/shortcutActionLabel"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginStart="@dimen/spacing_md"
+        android:textColor="?attr/colorOnBackground"
+        android:letterSpacing="0.01"
+        android:textAppearance="@style/TextAppearance.App.TitleMedium" />
+
+</LinearLayout>

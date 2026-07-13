@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:layout_marginBottom="16dp">
+
+    <!-- Group Card -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@drawable/bg_shortcut_manager_group"
+        android:padding="14dp">
+
+        <!-- Group Header -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <!-- Drag handle -->
+            <ImageView
+                android:id="@+id/ivDragHandle"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:src="@drawable/ic_drag_handle_vertical"
+                android:tint="@color/home_muted_foreground"
+                android:padding="4dp"
+                android:contentDescription="Drag to reorder" />
+
+            <!-- Group Name -->
+            <TextView
+                android:id="@+id/tvGroupName"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:text="Group Name"
+                android:textColor="@color/home_foreground"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <!-- Action buttons -->
+            <ImageButton
+                android:id="@+id/btnEditGroup"
+                android:layout_width="34dp"
+                android:layout_height="34dp"
+                android:background="@drawable/bg_shortcut_manager_icon_btn"
+                android:src="@drawable/ic_edit_outline"
+                android:tint="@color/home_foreground"
+                android:padding="7dp"
+                android:contentDescription="Edit group name" />
+
+            <ImageButton
+                android:id="@+id/btnDeleteGroup"
+                android:layout_width="34dp"
+                android:layout_height="34dp"
+                android:layout_marginStart="6dp"
+                android:background="@drawable/bg_shortcut_manager_icon_btn"
+                android:src="@drawable/ic_delete_outline"
+                android:tint="@color/home_foreground"
+                android:padding="7dp"
+                android:contentDescription="Delete group" />
+
+        </LinearLayout>
+
+        <!-- Sites list container -->
+        <LinearLayout
+            android:id="@+id/sitesContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginTop="12dp" />
+
+        <!-- Add Site Button -->
+        <LinearLayout
+            android:id="@+id/btnAddSite"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackground"
+            android:paddingHorizontal="10dp"
+            android:layout_marginTop="4dp">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/ic_add"
+                android:tint="@color/home_primary" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="Add website"
+                android:textColor="@color/home_primary"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</LinearLayout>

@@ -143,4 +143,7 @@
     <!-- ── Tab grid FAB scrim (50% primary — a specific FAB treatment, kept concrete). ── -->
     <color name="app_fab_scrim">#80FF007A</color>
 
+    <!-- ── Brand colors (NOT theme-adaptive — favicon/site identity). ── -->
+    <color name="app_google_blue">#4285f4</color>
+
 </resources>

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="280dp"
+    android:height="220dp"
+    android:viewportWidth="280"
+    android:viewportHeight="220">
+    <path
+        android:fillColor="#334CAF50"
+        android:pathData="M140,20c55,0 100,45 100,100s-45,100 -100,100s-100,-45 -100,-100s45,-100 100,-100z" />
+    <path
+        android:fillColor="#2266BB6A"
+        android:pathData="M55,90c35,-40 100,-45 135,0c35,45 20,100 -20,125c-40,25 -100,15 -125,-30c-25,-45 -20,-60 10,-95z" />
+    <!-- Phone / player frame -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M95,40h90a18,18 0,0 1,18 18v120a18,18 0,0 1,-18 18h-90a18,18 0,0 1,-18 -18v-120a18,18 0,0 1,18 -18z" />
+    <path
+        android:fillColor="#FFE8F5E9"
+        android:pathData="M105,58h70a10,10 0,0 1,10 10v70a10,10 0,0 1,-10 10h-70a10,10 0,0 1,-10 -10v-70a10,10 0,0 1,10 -10z" />
+    <!-- Play triangle -->
+    <path
+        android:fillColor="#FF43A047"
+        android:pathData="M128,85l40,25 -40,25z" />
+    <!-- Download arrow circle -->
+    <path
+        android:fillColor="#FF4CAF50"
+        android:pathData="M140,165m-22,0a22,22 0,1 1,44 0a22,22 0,1 1,-44 0" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M133,152h14v14h10l-17,18 -17,-18h10z" />
+</vector>

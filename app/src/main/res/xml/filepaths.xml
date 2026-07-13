@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Restrict FileProvider access to Downloads folder only for security -->
+    <!-- This prevents other apps with URI grants from accessing arbitrary external files -->
+    <external-path name="downloads" path="Download/" />
+</paths>

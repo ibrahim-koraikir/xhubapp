@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ── Responsive dimensions for sw360dp (small/medium screens) ─── -->
+    <!-- Reduce AppBar height further on smaller screens for better space utilization -->
+    <dimen name="home_appbar_height">140dp</dimen>
+</resources>

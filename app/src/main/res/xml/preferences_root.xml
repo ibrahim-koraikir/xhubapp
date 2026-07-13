@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!--
+    IMPORTANT: Fragment class names in this file must be kept in sync with:
+    1. The actual fragment classes in com.xhub.browser.settings.fragment package
+    2. The class references in SettingsMenuBottomSheet.kt (which uses ::class.java.name)
+    3. ProGuard keep rules in proguard-project.txt
+    
+    When renaming a fragment class:
+    - Update the class name in code
+    - Update this XML file's x:fragment attributes
+    - Verify ProGuard rule covers the package: -keep public class com.xhub.browser.settings.fragment.*
+    - Test in release build to ensure fragment instantiation works
+-->
+
+<PreferenceScreen xmlns:x="http://schemas.android.com/apk/res-auto"
+    xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <Preference
+        x:fragment="com.xhub.browser.settings.fragment.DisplaySettingsFragment"
+        x:title="@string/pref_title_appearance"
+        x:summary="@string/pref_summary_appearance"
+        x:icon="@drawable/ic_palette_outline"
+        x:singleLineTitle="false"
+        />
+
+    <Preference
+        x:fragment="com.xhub.browser.settings.fragment.GeneralSettingsFragment"
+        x:title="@string/pref_title_browser"
+        x:summary="@string/pref_summary_browser"
+        x:icon="@drawable/ic_web"
+        x:singleLineTitle="false"
+        />
+
+    <Preference
+        x:fragment="com.xhub.browser.settings.fragment.PrivacySettingsFragment"
+        x:title="@string/settings_privacy"
+        x:summary="@string/pref_summary_privacy"
+        x:icon="@drawable/ic_shield_person_outline"
+        x:singleLineTitle="false"
+        />
+
+    <Preference
+        x:fragment="com.xhub.browser.settings.fragment.DomainsSettingsFragment"
+        x:summary="@string/pref_summary_domains"
+        x:title="@string/pref_title_domains"
+        x:icon="@drawable/ic_domain"
+        x:singleLineTitle="false"
+        />
+
+    <Preference
+        x:fragment="com.xhub.browser.settings.fragment.AdBlockSettingsFragment"
+        x:title="@string/settings_adblock"
+        x:summary="@string/pref_summary_adblock"
+        x:icon="@drawable/ic_block"
+        x:singleLineTitle="false"
+        />
+
+    <Preference
+        x:fragment="com.xhub.browser.settings.fragment.ExtensionsSettingsFragment"
+        x:title="@string/pref_title_extensions"
+        x:summary="@string/pref_summary_extensions"
+        x:icon="@drawable/ic_extension_outline"
+        x:singleLineTitle="false"
+        />
+
+    <Preference
+        x:fragment="com.xhub.browser.settings.fragment.BackupSettingsFragment"
+        x:title="@string/settings_backup"
+        x:summary="@string/pref_summary_backup"
+        x:icon="@drawable/ic_backup_outline"
+        x:singleLineTitle="false"
+        />
+
+    <!-- Advanced settings are now empty, remove them at some point -->
+    <Preference
+        x:fragment="com.xhub.browser.settings.fragment.AdvancedSettingsFragment"
+        x:isPreferenceVisible="false"
+        x:title="@string/settings_advanced"
+        x:singleLineTitle="false"
+        />
+
+    <Preference
+        x:fragment="com.xhub.browser.settings.fragment.SponsorshipSettingsFragment"
+        x:title="@string/settings_contribute"
+        x:summary="@string/pref_summary_contribute"
+        x:icon="@drawable/ic_giftcard"
+        x:singleLineTitle="false"
+        />
+
+    <!-- About is traditionally last -->
+    <Preference
+        x:fragment="com.xhub.browser.settings.fragment.AboutSettingsFragment"
+        x:title="@string/settings_about"
+        x:summary="@string/pref_summary_about"
+        x:icon="@drawable/ic_info"
+        x:singleLineTitle="false"
+        />
+
+</PreferenceScreen>
