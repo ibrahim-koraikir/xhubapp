@@ -453,16 +453,8 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
                 // Check for update after a short delay, hoping user engagement is better and message more visible
                 mainHandler.postDelayed({ checkForUpdates() }, 3000)
             }
-        } else if (BuildConfig.FLAVOR_BRAND != "slions") {
-            // As per CPAL license show attribution if not slions brand
-            makeSnackbar("",5000, Gravity.TOP).setAction("Powered by ?Fulguris") {
-                Intent(Intent.ACTION_VIEW).apply{
-                    data = Uri.parse(getString(R.string.url_fulguris_home_page))
-                    putExtra("PACKAGE", packageName)
-                    startActivity(this)
-                }
-            }.show()
         }
+        // CPAL attribution is shown in Settings → About ("Based on Fulguris")
 
         // Welcome new users or notify of updates
         tabsManager.doOnceAfterInitialization {
@@ -473,7 +465,7 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
                         // TODO: Remove that a few versions down the road
                         && sessionsManager.sessions().count()==1 && tabsManager.allTabs.count()==1) {
                     // First run
-                    welcomeToFulguris()
+                    welcomeToXHub()
                 } else {
                     // Version was updated
                     notifyVersionUpdate()
@@ -1192,8 +1184,8 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
      * Needed to be able to display system notifications
      */
     private fun createNotificationChannel() {
-        // Is that string visible in system UI somehow?
-        channelId = "Fulguris Channel ID"
+        // Shown in Android system notification settings under the app
+        channelId = "XHub Channel ID"
         // Create the NotificationChannel, but only on API 26+ because
         // the NotificationChannel class is new and not in the support library
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -6176,7 +6168,7 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
     /**
      * Welcome user after first installation.
      */
-    private fun welcomeToFulguris() {
+    private fun welcomeToXHub() {
         MaterialAlertDialogBuilder(this)
                 .setCancelable(true)
                 .setTitle(R.string.title_welcome)

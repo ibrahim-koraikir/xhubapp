@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Data Extraction Rules for XHub Browser (Android 12+)
+    
+    These rules apply to Android 12 (API 31) and above, providing more granular
+    control over cloud backups and device-to-device transfers.
+    
+    SECURITY POLICY:
+    Same exclusions as backup_rules.xml, but with separate control for:
+    - Cloud backup (Google Drive, etc.)
+    - Device-to-device transfer (Android's built-in transfer tool)
+    
+    Both are configured identically to maintain consistent security posture.
+-->
+<data-extraction-rules>
+    <!-- Cloud backup rules (Google Drive, etc.) -->
+    <cloud-backup>
+        <!-- Exclude all databases -->
+        <exclude domain="database" />
+        
+        <!-- Exclude WebView data -->
+        <exclude domain="sharedpref" path="app_webview" />
+        
+        <!-- Exclude session and tab data -->
+        <exclude domain="file" path="app_tabs" />
+        <exclude domain="file" path="app_sessions" />
+        
+        <!-- Exclude cache -->
+        <exclude domain="cache" />
+        
+        <!-- Exclude domain preferences -->
+        <!-- Domain preferences are stored with prefix "[Domain]" followed by reversed domain name -->
+        <!-- Examples: [Domain]com.example.xml, [Domain]com.google.www.xml -->
+        <!-- Since Android backup doesn't support wildcards, we exclude all shared preferences -->
+        <!-- and rely on users to use the app's built-in export/import for data preservation -->
+        <exclude domain="sharedpref" />
+        
+        <!-- Exclude downloaded files -->
+        <exclude domain="file" path="files" />
+    </cloud-backup>
+    
+    <!-- Device-to-device transfer rules -->
+    <device-transfer>
+        <!-- Same exclusions as cloud backup for consistency -->
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="file" path="app_tabs" />
+        <exclude domain="file" path="app_sessions" />
+        <exclude domain="cache" />
+        <exclude domain="file" path="files" />
+    </device-transfer>
+</data-extraction-rules>

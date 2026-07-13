@@ -76,6 +76,7 @@
     <string name="download_as_format">Download as %1$s</string>
     <string name="unknown_file_size">unknown</string>
     <string name="unknown_file_type">unknown</string>
+    <string name="unknown_file">Unknown file</string>
     <string name="action_cancel">Cancel</string>
     <string name="title_warning">Warning</string>
     <string name="title_user_agent">User agent</string>
@@ -118,6 +119,9 @@
     <string name="dialog_title_delete_all_downloads">Delete all downloads?</string>
     <string name="dialog_message_delete_all_downloads">All download entries will be removed and files will be permanently deleted</string>
     <string name="pref_summary_no_downloads">Your download list is empty</string>
+    <string name="downloads_empty_hint">When a video is detected, tap the download button.\nFiles you save will show up here.</string>
+    <string name="download_status_complete">Complete</string>
+    <string name="download_status_downloading_percent">Downloading %1$d%%</string>
     <string name="pref_summary_loading_downloads">Loading %1$d / %2$d</string>
     <string name="pref_summary_updating_downloads">Updating %1$d / %2$d</string>
     <string name="pref_summary_downloads_count">You have %d download</string>
@@ -153,8 +157,14 @@
     <string name="download_status_unknown">Unknown status</string>
     <string name="downloads_could_not_remove">Some downloads could not be removed</string>
     <string name="error_cant_open_file">Error: Can\'t open file</string>
-    <string name="dialog_title_install_apk">Open system settings?</string>
-    <string name="dialog_message_install_apk">To install APK files, you need to enable \"Allow app installs\" in system settings</string>
+    
+    <!-- Settings fragment instantiation errors -->
+    <string name="settings_error_fragment_missing">Settings page \"%s\" is not available</string>
+    <string name="settings_error_fragment_not_found">Settings page not found: %s</string>
+    <string name="settings_error_fragment_instantiation">Cannot load settings page: %s</string>
+    
+    <string name="dialog_title_install_apk">Install APK file?</string>
+    <string name="dialog_message_install_apk">You\'re trying to open an APK file you downloaded. To install apps from downloaded APK files, Android requires you to grant the \"Allow app installs\" permission in system settings.\n\nXHub will only ever ask for this permission when you explicitly open a downloaded APK from the Downloads screen. It is never requested automatically by websites or downloads in the background.</string>
     <string name="install_permission_denied">Cannot install APK without permission</string>
     <string name="action_clear">Clear</string>
     <string name="action_clean">Clean up</string>
@@ -190,7 +200,7 @@
     <string name="pref_category_title_contact_us">Contact us</string>
     <string name="pref_category_title_legal">Legal</string>
     <string name="pref_category_title_attribution">Attribution</string>
-    <string name="fulguris_attribution_title">Powered by Fulguris</string>
+    <string name="fulguris_attribution_title">Based on Fulguris</string>
     <string name="fulguris_attribution_summary">Copyright © 2020 Stéphane Lenclud</string>
     <string name="pref_category_title_telemetry">Telemetry</string>
     <string name="pref_category_title_permissions">Permissions</string>
@@ -292,6 +302,7 @@
     <string name="pref_summary_location_denied">Denied</string>
     <string name="pref_summary_location_ask">Ask</string>
     <string name="title_sign_in">Sign in</string>
+    <string name="title_sign_in_to_host">Sign in to %1$s</string>
     <string name="label_realm">Server message: %s</string>
     <string name="hint_username">Username</string>
     <string name="hint_password">Password</string>
@@ -807,7 +818,18 @@
 
     <!-- App Introduction Strings -->
     <string name="intro_welcome_title">Welcome to XHub</string>
-    <string name="intro_welcome_description">Experience fast, secure, and customizable web browsing with advanced privacy features and modern design.</string>
+    <string name="intro_welcome_description">Fast browsing with home shortcuts, privacy controls, and a modern dark design built for everyday use.</string>
+    <string name="intro_title_tabs">Tabs your way</string>
+    <string name="intro_description_tabs">Open many tabs and open links in the background so you stay on the page you are reading.</string>
+    <string name="intro_title_downloads">Download videos</string>
+    <string name="intro_description_downloads">When a video is detected, tap the download button. Choose quality when XHub offers options.</string>
+    <string name="intro_title_privacy">Stay private</string>
+    <string name="intro_description_privacy">Use Incognito and the ad blocker to cut tracking. Change either anytime in Settings.</string>
+    <string name="intro_title_ready">You\'re ready</string>
+    <string name="intro_description_ready">Long-press home shortcuts for more actions. Find downloads from the menu when you need them.</string>
+    <string name="intro_action_skip">Skip</string>
+    <string name="intro_action_next">Next</string>
+    <string name="intro_action_done">Get started</string>
     <string name="intro_title_terms">Let\'s Get Started!</string>
     <string name="intro_title_telemetry">Help Us, Help You!</string>
     <string name="intro_title_ad_blocker">Be Safe!</string>
@@ -897,12 +919,47 @@
     <string name="pref_summary_contact_us">Send us an email</string>
     <string name="url_contact_us">mailto:contact@example.com</string>
     <string name="video_adaptive_stream_message">This video uses adaptive streaming (e.g. YouTube) and cannot be downloaded directly by the browser.</string>
+    <string name="video_adaptive_stream_message_ytdlp">This video uses adaptive streaming. Downloading via yt-dlp…</string>
     <string name="video_cannot_download">Cannot Download</string>
+    
+    <!-- yt-dlp Video Download -->
+    <string name="video_download_started">Download started</string>
+    <string name="video_download_complete">Video downloaded successfully</string>
+    <string name="video_download_failed">Download failed: %1$s</string>
+    <string name="video_download_error_unsupported">This video could not be downloaded (unsupported or protected).</string>
+    <string name="video_download_error_network">Download failed — check your connection and try again.</string>
+    <string name="video_download_cancelled">Download cancelled</string>
+    <string name="video_downloading">Downloading video…</string>
+    <!-- Live progress text: "Downloading… 45%" and optional " • 2.5 MB/s • ETA 00:30" segments -->
+    <string name="download_progress_percent">Downloading… %1$d%%</string>
+    <string name="download_progress_speed">%1$s/s</string>
+    <string name="download_progress_eta">ETA %1$s</string>
+    <string name="download_progress_starting">Starting…</string>
+    <!-- Pause/resume for in-flight downloads -->
+    <string name="download_progress_paused">Paused • %1$d%%</string>
+    <string name="download_action_pause">Pause</string>
+    <string name="download_action_resume">Resume</string>
+    <string name="pause_download">Pause download</string>
+    <string name="resume_download">Resume download</string>
+    <string name="video_ytdlp_not_ready">Video downloader not ready. Please try again.</string>
+    
+    <!-- Video Detection Settings -->
+    <string name="pref_title_video_detection">Enable video detection</string>
+    <string name="pref_summary_video_detection">Show download button when videos are detected on web pages. May expose JavaScript interface to all pages.</string>
+    
+    <!-- Third-Party Favicon Services Settings -->
+    <string name="pref_title_third_party_favicon_services">Use third-party favicon services</string>
+    <string name="pref_summary_third_party_favicon_services">Allow contacting DuckDuckGo and Google to fetch missing favicons. When disabled, only site-provided favicons are used. Disabling improves privacy by not leaking visited/bookmarked hosts to third parties.</string>
+    
+    <!-- yt-dlp Warning Dialog -->
+    <string name="warning_ytdlp_title">Video Download Notice</string>
+    <string name="warning_ytdlp_message">Downloading videos from some platforms may violate their Terms of Service. Only download videos you have the right to access.\n\nDo you want to continue?</string>
+    <string name="action_continue">Continue</string>
 
     <!-- Home screen -->
-    <string name="home_greeting_morning">Good morning ☀️</string>
-    <string name="home_greeting_afternoon">Good afternoon 🌤</string>
-    <string name="home_greeting_evening">Good evening 🌙</string>
+    <string name="home_greeting_morning">Good morning,</string>
+    <string name="home_greeting_afternoon">Good afternoon,</string>
+    <string name="home_greeting_evening">Good evening,</string>
     <string name="home_search_hint">Search or enter address…</string>
     <string name="home_quick_access_title">Quick Access</string>
     <string name="home_quick_access_subtitle">Your favourite sites</string>
@@ -914,10 +971,62 @@
     <string name="home_bookmarks_desc">Bookmarks</string>
     <string name="home_voice_search_desc">Voice search</string>
     <string name="home_brand_name">XHub</string>
+
+    <!-- Home screen hero header -->
+    <!-- home_user_name and home_streak_count removed: were hardcoded fake data.
+         The greeting name chip is dropped from the layout; streak chip is removed
+         until a real consecutive-day counter is implemented. -->
+    <string name="home_quote_text">The internet has no rules. Make your own.</string>
+    <string name="home_quote_label">Quote of the day</string>
+    <!-- home_stat_saved / home_stat_downloads are set at runtime from
+         BookmarkRepository and DownloadRepository; these are fallback defaults. -->
+    <string name="home_stat_saved">Saved</string>
+    <string name="home_stat_downloads">Downloads</string>
+    <string name="home_stat_private">Private</string>
+    <string name="home_streak_desc">Day streak</string>
+    <string name="home_flame_desc">Bookmarks</string>
+    <!-- Runtime bookmark count for the "saved" stat chip -->
+    <plurals name="home_stat_saved_count">
+        <item quantity="one">%d saved</item>
+        <item quantity="other">%d saved</item>
+    </plurals>
+    <!-- Runtime downloads count for the "downloads" stat chip -->
+    <plurals name="home_stat_downloads_count">
+        <item quantity="one">%d download</item>
+        <item quantity="other">%d downloads</item>
+    </plurals>
+    <!-- Runtime stealth-tab count for the "private" stat chip -->
+    <plurals name="home_stat_stealth_count">
+        <item quantity="one">%d stealth</item>
+        <item quantity="other">%d stealth</item>
+    </plurals>
+    <!-- ExoClick interstitial ads -->
+    <string name="ad_loading">Loading ad…</string>
+    <string name="ad_close">Close ad</string>
+    <string name="ad_consent_title">Personalized ads</string>
+    <string name="ad_consent_message">This edition of XHub is funded by ads served through ExoClick. Allow personalized ads for a more relevant experience? You can change this later in settings.</string>
+    <string name="ad_consent_allow">Allow</string>
+    <string name="ad_consent_deny">Don\'t allow</string>
+
     <string name="search_overlay_site_suggestions">Site suggestions</string>
     <string name="search_overlay_recent_searches">Recent searches</string>
     <string name="search_overlay_hint">Search Google or type a URL</string>
     <string name="shortcut_drag_to_reorder">Drag to reorder</string>
     <string name="shortcut_remove_site">Remove site</string>
+
+    <!-- Home shortcut long-press context menu + show-more -->
+    <string name="shortcut_opened_in_background">Opened in background</string>
+    <string name="shortcut_remove_confirm_title">Remove shortcut?</string>
+    <string name="shortcut_remove_confirm_message">\"%1$s\" will be removed from your home screen.</string>
+    <string name="shortcut_show_more">Show more (%1$d)</string>
+    <string name="shortcut_show_less">Show less</string>
+
+    <!-- Home shortcut favorites -->
+    <string name="shortcut_favorites_header">\u2b50 Favorites</string>
+    <string name="shortcut_add_favorite">Add to Favorites</string>
+    <string name="shortcut_remove_favorite">Remove from Favorites</string>
+    <string name="shortcut_longpress_hint">💡 Tip: Press &amp; hold a shortcut to open in background or incognito</string>
+    <string name="shortcut_favorited_toast">Added to Favorites</string>
+    <string name="shortcut_unfavorited_toast">Removed from Favorites</string>
 </resources>
 

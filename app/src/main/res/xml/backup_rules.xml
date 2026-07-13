@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Backup Rules for XHub Browser
+    
+    SECURITY POLICY:
+    This browser stores sensitive user data that should NOT be included in backups
+    to prevent unintended data exposure. The following data is explicitly excluded:
+    
+    EXCLUDED FROM BACKUP:
+    - Browsing history (databases/)
+    - Session data (app_tabs/, app_sessions/)
+    - ALL shared preferences (sharedpref/) including:
+      * Cookies and authentication tokens
+      * Domain-specific preferences ([Domain]*)
+      * General app preferences
+      * WebView data
+    - Cache and temporary files (cache/, code_cache/)
+    - Downloaded files (files/)
+    
+    INCLUDED IN BACKUP:
+    - NOTHING - All sensitive data is excluded
+    
+    RATIONALE:
+    Since Android backup doesn't support wildcard exclusions and domain preferences
+    use dynamic filenames (e.g., [Domain]com.example.xml), we must exclude ALL
+    shared preferences to ensure domain-specific settings are never backed up.
+    
+    RATIONALE:
+    Browsing data is highly sensitive and personal. Including it in backups could:
+    1. Expose browsing history to backup services (Google Drive, etc.)
+    2. Leak authentication cookies/tokens
+    3. Reveal private browsing patterns
+    4. Compromise user privacy if backup is accessed by third parties
+    
+    Users who want to preserve their browsing data should use the app's built-in
+    export/import functionality which provides explicit, user-controlled data transfer.
+-->
+<full-backup-content>
+    <!-- Exclude all databases (browsing history, bookmarks, etc.) -->
+    <exclude domain="database" />
+    
+    <!-- Exclude ALL shared preferences -->
+    <!-- This includes: -->
+    <!-- - WebView data (cookies, localStorage, session storage) -->
+    <!-- - Domain-specific preferences (files starting with [Domain]) -->
+    <!-- - All other preference files that may contain sensitive data -->
+    <!-- Since Android backup doesn't support wildcards and domain preferences use -->
+    <!-- dynamic filenames like [Domain]com.example.xml, we must exclude all sharedprefs -->
+    <exclude domain="sharedpref" />
+    
+    <!-- Exclude session and tab data -->
+    <exclude domain="file" path="app_tabs" />
+    <exclude domain="file" path="app_sessions" />
+    
+    <!-- Exclude all cache directories -->
+    <exclude domain="cache" />
+    
+    <!-- Exclude downloaded files -->
+    <exclude domain="file" path="files" />
+    
+    <!-- NOTE: General app preferences are also excluded due to the sharedpref exclusion above -->
+    <!-- Users who want to preserve settings should use the app's built-in export/import -->
+</full-backup-content>
