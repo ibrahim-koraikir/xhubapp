@@ -969,6 +969,13 @@
     <string name="home_empty_state_action">Add your favourite sites</string>
     <string name="home_settings_desc">Settings</string>
     <string name="home_bookmarks_desc">Bookmarks</string>
+    <string name="home_update_desc">Check for updates</string>
+    <string name="update_available_title">Update Available</string>
+    <string name="update_available_message">A new version (%1$s) is available on GitHub. Would you like to view the release page?</string>
+    <string name="update_not_found">No Updates</string>
+    <string name="update_not_found_message">You are running the latest version (%1$s) of XHub.</string>
+    <string name="update_check_failed">Update Check Failed</string>
+    <string name="update_check_failed_message">Could not retrieve version information from GitHub. Please try again later.</string>
     <string name="home_voice_search_desc">Voice search</string>
     <string name="home_brand_name">XHub</string>
 

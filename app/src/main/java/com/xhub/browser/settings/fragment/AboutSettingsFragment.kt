@@ -1,4 +1,4 @@
-﻿/*
+/*
  * The contents of this file are subject to the Common Public Attribution License Version 1.0.
  * (the "License"); you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at:
@@ -21,6 +21,8 @@
  */
 
 package com.xhub.browser.settings.fragment
+
+import com.xhub.browser.utils.UpdateChecker
 
 import com.xhub.browser.R
 import com.xhub.browser.BuildConfig
@@ -123,6 +125,23 @@ class AboutSettingsFragment : AbstractSettingsFragment() {
             summary = webViewSummary
         )
 
+        clickablePreference(
+            preference = getString(R.string.pref_key_introduction),
+            summary = getString(R.string.pref_summary_introduction),
+            onClick = {
+                val intent = android.content.Intent(
+                    requireContext(),
+                    com.xhub.browser.activity.OnboardingActivity::class.java
+                )
+                intent.putExtra(
+                    com.xhub.browser.activity.OnboardingActivity.EXTRA_FROM_SETTINGS,
+                    true
+                )
+                startActivity(intent)
+                true
+            }
+        )
+
         // Don't check for updates here - wait until onResume when fragment is actually shown
 
         // Add body to our email link to provide info about device and software
@@ -201,12 +220,35 @@ class AboutSettingsFragment : AbstractSettingsFragment() {
      * DISABLED: Update check infrastructure removed during XHub rebrand
      */
     private fun checkForUpdates() {
-        Timber.d("$ihs: checkForUpdates - DISABLED (no XHub update server)")
-        // Update check feature disabled - no XHub update server infrastructure
-        findPreference<Preference>(SETTINGS_VERSION)?.apply {
-            title = versionString
-            summary = getString(R.string.pref_summary_free_download)
-        }
+        val pref = findPreference<Preference>(SETTINGS_VERSION) ?: return
+        UpdateChecker.checkForUpdates(requireContext(), object : UpdateChecker.Callback {
+            override fun onUpdateAvailable(latestVersion: String, releaseUrl: String) {
+                if (!isAdded) return
+                pref.title = getString(R.string.update_available_title)
+                pref.summary = getString(R.string.update_available_message, latestVersion)
+                
+                pref.setOnPreferenceClickListener {
+                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, Uri.parse(releaseUrl)).apply {
+                        putExtra("PACKAGE", requireContext().packageName)
+                    }
+                    startActivity(intent)
+                    true
+                }
+                UpdateChecker.showUpdateDialog(requireContext(), latestVersion, releaseUrl)
+            }
+
+            override fun onNoUpdate() {
+                if (!isAdded) return
+                pref.title = versionString
+                pref.summary = getString(R.string.pref_summary_free_download)
+            }
+
+            override fun onError(errorMsg: String) {
+                if (!isAdded) return
+                pref.title = versionString
+                pref.summary = getString(R.string.update_check_failed)
+            }
+        })
     }
 
 

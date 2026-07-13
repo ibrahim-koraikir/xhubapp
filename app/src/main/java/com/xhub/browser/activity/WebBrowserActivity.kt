@@ -5,6 +5,8 @@
 
 package com.xhub.browser.activity
 
+import com.xhub.browser.utils.UpdateChecker
+
 import android.animation.*
 import android.annotation.SuppressLint
 import android.app.Activity
@@ -448,10 +450,18 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
 
         initialize(savedInstanceState)
 
-        if (BuildConfig.FLAVOR.contains("slionsFullDownload")) {
+        if (com.xhub.browser.Variant.isDownload()) {
             tabsManager.doOnceAfterInitialization {
                 // Check for update after a short delay, hoping user engagement is better and message more visible
-                mainHandler.postDelayed({ checkForUpdates() }, 3000)
+                mainHandler.postDelayed({
+                    UpdateChecker.checkForUpdates(this, object : UpdateChecker.Callback {
+                        override fun onUpdateAvailable(latestVersion: String, releaseUrl: String) {
+                            UpdateChecker.showUpdateDialog(this@WebBrowserActivity, latestVersion, releaseUrl)
+                        }
+                        override fun onNoUpdate() {}
+                        override fun onError(errorMsg: String) {}
+                    })
+                }, 3000)
             }
         }
         // CPAL attribution is shown in Settings → About ("Based on Fulguris")
@@ -2506,9 +2516,33 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
         }
         shortcutsDataVersion = currentVersion
 
-        // ── Bookmarks button → open bookmarks ─────────────────────────────────
-        iBinding.homeScreenOverlay.findViewById<View>(R.id.homeBookmarksButton)
-            ?.setOnClickListener { openBookmarks() }
+        // ── Update button → check for updates ─────────────────────────────────
+        iBinding.homeScreenOverlay.findViewById<View>(R.id.homeUpdateButton)
+            ?.setOnClickListener {
+                val context = this
+                Toast.makeText(context, R.string.checking_for_updates, Toast.LENGTH_SHORT).show()
+                UpdateChecker.checkForUpdates(context, object : UpdateChecker.Callback {
+                    override fun onUpdateAvailable(latestVersion: String, releaseUrl: String) {
+                        UpdateChecker.showUpdateDialog(context, latestVersion, releaseUrl)
+                    }
+
+                    override fun onNoUpdate() {
+                        MaterialAlertDialogBuilder(context)
+                            .setTitle(R.string.update_not_found)
+                            .setMessage(context.getString(R.string.update_not_found_message, BuildConfig.VERSION_NAME))
+                            .setPositiveButton(R.string.action_done, null)
+                            .show()
+                    }
+
+                    override fun onError(errorMsg: String) {
+                        MaterialAlertDialogBuilder(context)
+                            .setTitle(R.string.update_check_failed)
+                            .setMessage(R.string.update_check_failed_message)
+                            .setPositiveButton(R.string.action_done, null)
+                            .show()
+                    }
+                })
+            }
 
         // ── Load & render shortcuts via the RecyclerView adapter ──────────────
         // COMMENT 6: tiles are now recycled and only changed items are rebound (DiffUtil). Favicon

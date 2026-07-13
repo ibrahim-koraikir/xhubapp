@@ -8,14 +8,24 @@
     android:visibility="gone"
     tools:visibility="visible">
 
-    <!-- Full-screen Starfield Background Image (theme-aware via ?attr/appHomeBackground) -->
-    <ImageView
+    <!-- Full-screen Starfield Background (theme-aware via ?attr/appHomeBackground).
+         Negative margins provide a 12dp bleed on top and bottom so the parallax
+         translation (clamped to ±12dp) never uncovers the window background. -->
+    <View
         android:id="@+id/homeScreenBackground"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:scaleType="centerCrop"
-        android:src="?attr/appHomeBackground"
-        android:contentDescription="@null"
+        android:layout_marginTop="-12dp"
+        android:layout_marginBottom="-12dp"
+        android:background="?attr/appHomeBackground"
+        android:importantForAccessibility="no" />
+
+    <!-- Animated starfield: 80 twinkling white star-dots (30 if reduce-motion is on).
+         Sits above the static background image, below the scrim. z-order: image → stars → scrim. -->
+    <com.xhub.browser.view.StarfieldView
+        android:id="@+id/homeStarfield"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
         android:importantForAccessibility="no" />
 
     <!-- Scrim overlay — theme-aware (?attr/appStarfieldScrim: dark on dark themes, faint on light) -->
@@ -25,6 +35,7 @@
         android:layout_height="match_parent"
         android:background="?attr/appStarfieldScrim"
         android:importantForAccessibility="no" />
+
 
     <!-- Scrollable body (hero header now scrolls with the page) -->
     <androidx.core.widget.NestedScrollView
@@ -91,59 +102,25 @@
                         android:orientation="horizontal"
                         android:gravity="center_vertical">
 
-                        <!-- Day streak chip -->
-                        <LinearLayout
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:orientation="horizontal"
-                            android:gravity="center_vertical"
-                            android:background="@drawable/bg_home_streak_chip"
-                            android:paddingHorizontal="10dp"
-                            android:paddingVertical="6dp"
-                            android:layout_marginEnd="8dp"
-                            android:contentDescription="@string/home_streak_desc">
-
-                            <ImageView
-                                android:layout_width="@dimen/home_hero_streak_icon"
-                                android:layout_height="@dimen/home_hero_streak_icon"
-                                android:src="@drawable/ic_zap"
-                                android:contentDescription="@null"
-                                android:importantForAccessibility="no"
-                                app:tint="?attr/appColorAccentOrangeLight" />
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginStart="@dimen/spacing_xs"
-                                android:text="@string/home_streak_count"
-                                android:textColor="?attr/appColorAccentOrangeLight"
-                                android:textAppearance="@style/TextAppearance.App.BodyMedium"
-                                android:textStyle="bold" />
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginStart="@dimen/spacing_xs"
-                                android:text="@string/home_streak_label"
-                                android:textColor="?attr/appColorAccentOrangeLight"
-                                android:textAppearance="@style/TextAppearance.App.BodySmall" />
-                        </LinearLayout>
-
-                        <!-- Flame (bookmarks) button -->
+                        <!-- Day-streak chip removed: was showing hardcoded fake count.
+                             Re-add with real data once a streak counter is implemented. -->
+                        <!-- Update button -->
                         <FrameLayout
-                            android:id="@+id/homeBookmarksButton"
+                            android:id="@+id/homeUpdateButton"
                             android:layout_width="@dimen/home_hero_action_btn"
                             android:layout_height="@dimen/home_hero_action_btn"
-                            android:background="@drawable/bg_home_flame_btn"
-                            android:elevation="6dp">
+                            android:background="@drawable/bg_home_action_glass">
 
-                            <ImageView
-                                android:layout_width="@dimen/home_hero_flame_icon"
-                                android:layout_height="@dimen/home_hero_flame_icon"
-                                android:layout_gravity="center"
-                                android:src="@drawable/ic_flame"
-                                android:contentDescription="@string/home_flame_desc"
-                                app:tint="?attr/colorOnBackground" />
+                            <ImageButton
+                                android:id="@+id/homeUpdateBtn"
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:background="?attr/selectableItemBackgroundBorderless"
+                                android:src="@drawable/ic_update"
+                                android:padding="10dp"
+                                android:scaleType="fitCenter"
+                                app:tint="?attr/colorOnBackground"
+                                android:contentDescription="@string/home_update_desc" />
                         </FrameLayout>
                     </LinearLayout>
                 </LinearLayout>
@@ -158,7 +135,7 @@
                     android:paddingHorizontal="14dp"
                     android:paddingVertical="8dp"
                     android:layout_gravity="center_horizontal"
-                    android:layout_marginTop="22dp">
+                    android:layout_marginTop="14dp">
 
                     <TextView
                         android:layout_width="wrap_content"
@@ -173,15 +150,18 @@
                         android:layout_marginStart="@dimen/spacing_sm"
                         android:text="@string/home_greeting_morning"
                         android:textColor="?attr/appColorMutedForeground"
-                        android:textAppearance="@style/TextAppearance.App.GreetingLabel" />
+                        android:textAppearance="@style/TextAppearance.App.Home.GreetingLabel" />
 
+                    <!-- User name chip removed: was showing hardcoded "xbuh".
+                         Brand string (@string/home_brand_name) shown instead via
+                         a plain TextView so the greeting reads "Good morning, XHub" -->
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="@dimen/spacing_xs"
-                        android:text="@string/home_user_name"
+                        android:text="@string/home_brand_name"
                         android:textColor="?attr/appColorAccentOrangeLight"
-                        android:textAppearance="@style/TextAppearance.App.GreetingLabel"
+                        android:textAppearance="@style/TextAppearance.App.Home.GreetingLabel"
                         android:textStyle="bold" />
                 </LinearLayout>
 
@@ -202,11 +182,11 @@
                     android:layout_height="wrap_content"
                     android:text="@string/home_quote_text"
                     android:textColor="?attr/colorOnBackground"
-                    android:textAppearance="@style/TextAppearance.App.DisplayMedium"
+                    android:textAppearance="@style/TextAppearance.App.Home.Display"
                     android:textStyle="bold"
                     android:gravity="center"
                     android:letterSpacing="0.01"
-                    android:layout_marginTop="-12dp"
+                    android:layout_marginTop="-8dp"
                     android:layout_marginHorizontal="@dimen/spacing_xs" />
 
                 <!-- ── Divider + "Quote of the day" label ───────────────── -->
@@ -222,7 +202,7 @@
                     android:layout_height="wrap_content"
                     android:text="@string/home_quote_label"
                     android:textColor="?attr/appColorAccentOrange"
-                    android:textAppearance="@style/TextAppearance.App.LabelMedium"
+                    android:textAppearance="@style/TextAppearance.App.Home.LabelMedium"
                     android:layout_gravity="center_horizontal"
                     android:layout_marginTop="@dimen/spacing_sm" />
 
@@ -237,11 +217,15 @@
 
                     <!-- Saved -->
                     <LinearLayout
+                        android:id="@+id/homeStatSavedContainer"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
                         android:gravity="center_vertical"
                         android:background="@drawable/bg_home_stat_chip"
+                        android:foreground="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"
                         android:paddingHorizontal="@dimen/spacing_md"
                         android:paddingVertical="7dp"
                         android:layout_marginEnd="@dimen/spacing_sm">
@@ -255,21 +239,26 @@
                             app:tint="?attr/appColorDimForeground" />
 
                         <TextView
+                            android:id="@+id/homeStatSaved"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginStart="@dimen/spacing_xs"
                             android:text="@string/home_stat_saved"
                             android:textColor="?attr/appColorDimForeground"
-                            android:textAppearance="@style/TextAppearance.App.LabelSmall" />
+                            android:textAppearance="@style/TextAppearance.App.Home.LabelSmall" />
                     </LinearLayout>
 
                     <!-- Downloads -->
                     <LinearLayout
+                        android:id="@+id/homeStatDownloadsContainer"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
                         android:gravity="center_vertical"
                         android:background="@drawable/bg_home_stat_chip"
+                        android:foreground="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"
                         android:paddingHorizontal="@dimen/spacing_md"
                         android:paddingVertical="7dp"
                         android:layout_marginEnd="@dimen/spacing_sm">
@@ -283,21 +272,27 @@
                             app:tint="?attr/appColorDimForeground" />
 
                         <TextView
+                            android:id="@+id/homeStatDownloads"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginStart="@dimen/spacing_xs"
                             android:text="@string/home_stat_downloads"
                             android:textColor="?attr/appColorDimForeground"
-                            android:textAppearance="@style/TextAppearance.App.LabelSmall" />
+                            android:textAppearance="@style/TextAppearance.App.Home.LabelSmall" />
+
                     </LinearLayout>
 
                     <!-- Private -->
                     <LinearLayout
+                        android:id="@+id/homeStatStealthContainer"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
                         android:gravity="center_vertical"
                         android:background="@drawable/bg_home_stat_chip"
+                        android:foreground="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"
                         android:paddingHorizontal="@dimen/spacing_md"
                         android:paddingVertical="7dp">
 
@@ -310,12 +305,13 @@
                             app:tint="?attr/appColorAccentPurple" />
 
                         <TextView
+                            android:id="@+id/homeStatStealth"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginStart="@dimen/spacing_xs"
                             android:text="@string/home_stat_private"
                             android:textColor="?attr/appColorDimForeground"
-                            android:textAppearance="@style/TextAppearance.App.LabelSmall" />
+                            android:textAppearance="@style/TextAppearance.App.Home.LabelSmall" />
                     </LinearLayout>
                 </LinearLayout>
 
