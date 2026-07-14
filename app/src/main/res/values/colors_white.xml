@@ -3,10 +3,10 @@ Generated from https://material-foundation.github.io/material-theme-builder/
 Using source color: #213D6D
 -->
 <resources>
-    <!-- #435E91 --> <color name="md_theme_white_primary">#435E91</color>
+    <!-- XHub brand pink --> <color name="md_theme_white_primary">#FF007A</color>
     <!-- #FFFFFF --> <color name="md_theme_white_onPrimary">#FFFFFF</color>
-    <!-- #D8E2FF --> <color name="md_theme_white_primaryContainer">#D8E2FF</color>
-    <!-- #2A4678 --> <color name="md_theme_white_onPrimaryContainer">#2A4678</color>
+    <!-- #FFD9E6 --> <color name="md_theme_white_primaryContainer">#FFD9E6</color>
+    <!-- #55001F --> <color name="md_theme_white_onPrimaryContainer">#55001F</color>
     <!-- #565E71 --> <color name="md_theme_white_secondary">#565E71</color>
     <!-- #FFFFFF --> <color name="md_theme_white_onSecondary">#FFFFFF</color>
     <!-- #DBE2F9 --> <color name="md_theme_white_secondaryContainer">#DBE2F9</color>

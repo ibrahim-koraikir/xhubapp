@@ -3,10 +3,10 @@ Generated from https://material-foundation.github.io/material-theme-builder/
 Using source color: #213D6D
 -->
 <resources>
-    <!-- Perplexity teal --> <color name="md_theme_dark_primary">#20B8CD</color>
-    <!-- #0A0A0A --> <color name="md_theme_dark_onPrimary">#0A0A0A</color>
-    <!-- #0D3D44 --> <color name="md_theme_dark_primaryContainer">#0D3D44</color>
-    <!-- #B8F0F8 --> <color name="md_theme_dark_onPrimaryContainer">#B8F0F8</color>
+    <!-- XHub brand pink --> <color name="md_theme_dark_primary">#FF007A</color>
+    <!-- #FFFFFF --> <color name="md_theme_dark_onPrimary">#FFFFFF</color>
+    <!-- #3D0020 --> <color name="md_theme_dark_primaryContainer">#3D0020</color>
+    <!-- #FFD9E6 --> <color name="md_theme_dark_onPrimaryContainer">#FFD9E6</color>
     <!-- #BEC6DC --> <color name="md_theme_dark_secondary">#BEC6DC</color>
     <!-- #283041 --> <color name="md_theme_dark_onSecondary">#283041</color>
     <!-- #3F4759 --> <color name="md_theme_dark_secondaryContainer">#3F4759</color>
