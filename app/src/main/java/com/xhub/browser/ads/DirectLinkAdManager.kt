@@ -3,25 +3,31 @@ package com.xhub.browser.ads
 import android.content.SharedPreferences
 import android.os.Handler
 import android.os.Looper
+import com.xhub.browser.view.WebPageTab
 import timber.log.Timber
 
 /**
  * Direct-link ads open as **normal browser navigation** in the current tab.
+ * We pre-load the ad in a detached background tab ahead of time so it loads
+ * instantly when triggered, bypassing redirect delays.
  *
  *  - **Launch** ([maybeShowLaunchAd]): one silent background tab after cold start.
- *  - **Navigation** ([onUserGestureNavigation]): every random 4–7 user-gesture taps, loads
- *    an ad URL in the **current tab** (same-tab navigation). Returns **true** so the
- *    ad intercepts the original link — pressing Back returns to the previous page.
+ *  - **Navigation** ([onUserGestureNavigation]): counts user-gesture navigations.
+ *    We preload the next ad in the background. When the threshold (4-7 taps) hits,
+ *    we instantly switch to the pre-loaded ad tab. Returns **true** to intercept
+ *    the original navigation.
  *
  * @param repo                Supplies random ad URLs from remote config cache.
  * @param openAdTab           Opens [url] as a background tab (used only for launch ad).
- * @param loadInCurrentTab    Loads [url] in the current foreground tab.
+ * @param createPreloadedTab  Creates a detached WebPageTab that loads [url] in the background.
+ * @param showPreloadedTab    Registers and switches to the preloaded WebPageTab in the foreground.
  */
 class DirectLinkAdManager(
     private val repo: AdConfigRepository,
     private val prefs: SharedPreferences,
     private val openAdTab: (url: String, show: Boolean) -> Unit,
-    private val loadInCurrentTab: (url: String) -> Unit,
+    private val createPreloadedTab: (url: String) -> WebPageTab,
+    private val showPreloadedTab: (tab: WebPageTab) -> Unit,
 ) {
 
     companion object {
@@ -34,12 +40,38 @@ class DirectLinkAdManager(
     }
 
     private val handler = Handler(Looper.getMainLooper())
+    private var preloadedAdTab: WebPageTab? = null
 
     /**
-     * Opens one background ad tab on first call after activity create.
+     * Start preloading the next ad in the background.
+     */
+    fun preloadNextAd() {
+        if (preloadedAdTab != null) {
+            Timber.d("DirectAd: Ad already preloaded — skipping")
+            return
+        }
+        val url = repo.randomAdUrl()
+        if (url == null) {
+            Timber.w("DirectAd: No cached ad URLs available to preload")
+            return
+        }
+        try {
+            preloadedAdTab = createPreloadedTab(url)
+            Timber.i("DirectAd: Started preloading next ad in background -> $url")
+        } catch (e: Exception) {
+            Timber.e(e, "DirectAd: Failed to preload ad")
+        }
+    }
+
+    /**
+     * Opens one background ad tab on first call after activity create,
+     * and starts preloading the navigation ad.
      * Safe to call from `onCreate` once tab manager is ready (delayed).
      */
     fun maybeShowLaunchAd() {
+        // Start preloading the navigation ad right away so it is ready early
+        preloadNextAd()
+
         if (prefs.getBoolean(KEY_LAUNCH_DONE, false)) {
             Timber.d("DirectAd: launch ad already fired this session — skipping")
             return
@@ -65,6 +97,7 @@ class DirectLinkAdManager(
     fun onActivityDestroy() {
         prefs.edit().putBoolean(KEY_LAUNCH_DONE, false).apply()
         handler.removeCallbacksAndMessages(null)
+        preloadedAdTab = null
     }
 
     /**
@@ -79,6 +112,9 @@ class DirectLinkAdManager(
         Timber.v("DirectAd: gesture nav count=$count thresh=$thresh (destination=$url)")
         prefs.edit().putInt(KEY_TAP_COUNT, count).apply()
 
+        // Ensure we have a preloaded ad loading/loaded in the background
+        preloadNextAd()
+
         if (count < thresh) return false
 
         prefs.edit()
@@ -86,19 +122,26 @@ class DirectLinkAdManager(
             .putInt(KEY_TAP_THRESH, nextThreshold())
             .apply()
 
-        val adUrl = repo.randomAdUrl()
-        if (adUrl == null) {
-            Timber.w("DirectAd: no cached URLs — skipping navigation ad")
+        val adTab = preloadedAdTab
+        if (adTab == null) {
+            Timber.w("DirectAd: No preloaded ad tab ready — fetching dynamically")
+            // Fallback: trigger a preload now so we have one for next time, but return false
+            // so we don't block the user's flow with a slow load.
+            preloadNextAd()
             return false
         }
 
         try {
-            // Load ad in the current tab (same-tab navigation); return true so the original
-            // link is intercepted. The user can press Back to return to the previous page.
-            loadInCurrentTab(adUrl)
-            Timber.i("DirectAd: loaded ad in current tab -> $adUrl (intercepted nav to $url)")
+            // Instantly show the preloaded tab!
+            showPreloadedTab(adTab)
+            Timber.i("DirectAd: Instantly displayed preloaded ad tab")
+            preloadedAdTab = null // Consumed
+            
+            // Queue up the next preload after a brief delay to avoid overloading network/CPU
+            handler.postDelayed({ preloadNextAd() }, 3_000L)
         } catch (e: Exception) {
-            Timber.e(e, "DirectAd: failed to load ad in current tab")
+            Timber.e(e, "DirectAd: Failed to display preloaded ad tab")
+            preloadedAdTab = null
             return false
         }
 

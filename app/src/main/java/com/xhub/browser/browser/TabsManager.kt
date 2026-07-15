@@ -1,4 +1,4 @@
-﻿package com.xhub.browser.browser
+package com.xhub.browser.browser
 
 import com.xhub.browser.Entitlement
 import com.xhub.browser.R
@@ -14,13 +14,11 @@ import android.os.Bundle
 import androidx.lifecycle.LifecycleOwner
 import com.xhub.browser.Component
 import com.xhub.browser.utils.isBookmarkUrl
-import com.xhub.browser.utils.isDownloadsUrl
 import com.xhub.browser.utils.isHistoryUrl
 import com.xhub.browser.utils.isIncognitoPageUrl
 import com.xhub.browser.utils.isSpecialUrl
 import com.xhub.browser.utils.isStartPageUrl
 import com.xhub.browser.view.BookmarkPageInitializer
-import com.xhub.browser.view.DownloadPageInitializer
 import com.xhub.browser.view.FreezableBundleInitializer
 import com.xhub.browser.view.HistoryPageInitializer
 import com.xhub.browser.view.HomePageInitializer
@@ -54,7 +52,6 @@ class TabsManager @Inject constructor(
     private val incognitoPageInitializer: IncognitoPageInitializer,
     private val bookmarkPageInitializer: BookmarkPageInitializer,
     private val historyPageInitializer: HistoryPageInitializer,
-    private val downloadPageInitializer: DownloadPageInitializer,
     private val noOpPageInitializer: NoOpInitializer,
     private val userPreferences: UserPreferences,
     private val sessionsManager: SessionsManager
@@ -140,6 +137,18 @@ class TabsManager @Inject constructor(
      */
     fun addTabNumberChangedListener(listener: ((Int) -> Unit)) {
         tabNumberListeners += listener
+    }
+
+    /**
+     * Removes a previously registered tab-number-changed listener.
+     *
+     * This must be called by any Activity-scoped listener in its onDestroy() to avoid leaking the
+     * Activity: [TabsManager] is an application-scoped singleton, so a lambda capturing an Activity
+     * would otherwise be retained for the whole process lifetime. Pass the exact same reference that
+     * was given to [addTabNumberChangedListener].
+     */
+    fun removeTabNumberChangedListener(listener: ((Int) -> Unit)) {
+        tabNumberListeners -= listener
     }
 
     /**
@@ -417,7 +426,6 @@ class TabsManager @Inject constructor(
     fun tabInitializerForSpecialUrl(url: String): TabInitializer {
         return when {
             url.isBookmarkUrl() -> bookmarkPageInitializer
-            url.isDownloadsUrl() -> downloadPageInitializer
             url.isStartPageUrl() -> homePageInitializer
             url.isIncognitoPageUrl() -> incognitoPageInitializer
             url.isHistoryUrl() -> historyPageInitializer
@@ -528,7 +536,6 @@ class TabsManager @Inject constructor(
                 homePageInitializer,
                 incognitoPageInitializer,
                 bookmarkPageInitializer,
-                downloadPageInitializer,
                 historyPageInitializer
         )
 
@@ -1152,6 +1159,26 @@ class TabsManager @Inject constructor(
         }
 
         return newTab
+    }
+
+    /**
+     * Register a preloaded tab. Adds the tab to the tabs list and optionally switches to it.
+     */
+    fun registerPreloadedTab(tab: WebPageTab, show: Boolean) {
+        tabList.add(tab)
+        tabMap[tab.id] = tab
+
+        iWebBrowser.notifyTabViewAdded()
+        iWebBrowser.updateTabNumber(size())
+
+        if (show) {
+            switchToTab(indexOfTab(tab))?.let { onTabChanged(it, true, false, false) }
+        } else {
+            val recentTabs = iRecentTabs.toSet()
+            iRecentTabs.clear()
+            iRecentTabs.add(tab)
+            iRecentTabs.addAll(recentTabs)
+        }
     }
 
     companion object {
