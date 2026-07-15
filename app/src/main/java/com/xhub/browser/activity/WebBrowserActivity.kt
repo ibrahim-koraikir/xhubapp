@@ -226,7 +226,6 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
     @Inject lateinit var bookmarkPageFactory: BookmarkPageFactory
     @Inject lateinit var historyPageFactory: HistoryPageFactory
     @Inject lateinit var historyPageInitializer: HistoryPageInitializer
-    @Inject lateinit var downloadPageInitializer: DownloadPageInitializer
     @Inject lateinit var homePageInitializer: HomePageInitializer
     @Inject lateinit var bookmarkPageInitializer: BookmarkPageInitializer
     @Inject @field:MainHandler
@@ -499,7 +498,15 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
                 repo = adConfigRepo,
                 prefs = directAdsPrefs,
                 openAdTab = { url, show ->
-                    tabsManager.newTab(UrlInitializer(url), show)
+                    tabsManager.newTab(UrlInitializer(url), show)?.apply {
+                        isShowingDirectAd = true
+                    }
+                },
+                loadInCurrentTab = { url ->
+                    tabsManager.currentTab?.apply {
+                        isShowingDirectAd = true
+                        loadUrl(url, isAd = true)
+                    }
                 }
             )
             adConfigRepo.refreshAsync(lifecycleScope)
@@ -2832,7 +2839,7 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
      * completion, stealth-tab open/close) update the counts immediately instead of waiting for the
      * next home-enter, while staying a cheap no-op when the user is browsing a web page.
      *
-     * All current callers (handleBookmarksChange, handleDownloadDeleted, the tab-count listener,
+     * All current callers (handleBookmarksChange, the tab-count listener,
      * and the download completion receiver) run on the main thread; [updateHomeStats] dispatches
      * its DB reads onto background schedulers and applies results back on the main thread.
      */
@@ -6015,18 +6022,6 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
         suggestionsAdapter?.refreshBookmarks()
         // Live-update the home hero "Saved" chip. All bookmark add/remove/import paths funnel
         // through handleBookmarksChange(), so this single hook keeps the count fresh.
-        refreshHomeStatsIfVisible()
-    }
-
-    override fun handleDownloadDeleted() {
-        val currentTab = tabsManager.currentTab
-        if (currentTab != null && currentTab.url.isDownloadsUrl()) {
-            currentTab.loadDownloadsPage()
-        }
-        if (currentTab != null) {
-            bookmarksView?.handleUpdatedUrl(currentTab.url)
-        }
-        // Live-update the home hero "Downloads" chip when a download is removed.
         refreshHomeStatsIfVisible()
     }
 

@@ -1,4 +1,4 @@
-﻿package com.xhub.browser.view
+package com.xhub.browser.view
 
 import com.xhub.browser.BuildConfig
 import com.xhub.browser.R
@@ -21,8 +21,9 @@ import com.xhub.browser.extensions.launch
 import com.xhub.browser.extensions.setIcon
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch as coroutineLaunch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import com.xhub.browser.html.homepage.HomePageFactory
 import com.xhub.browser.js.InvertPage
@@ -104,6 +105,13 @@ class WebPageClient(
 
     private var adBlock: AdBlocker
 
+    /**
+     * Coroutine scope bound to the lifetime of this client (i.e. its [WebPageTab]).
+     * Used for userscript downloads so they are cancelled when the tab is torn down,
+     * rather than leaking an Activity reference via an unmanaged scope.
+     */
+    private val userScriptScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
     // Needed this to keep track of all SSL error since it seems onReceivedSslError is not called again after you proceed
     // We use this list to make sure our SSL state is maintained correctly after navigating away and back between various SSL error pages
     private var sslErrorUrls = arrayListOf<String>()
@@ -162,6 +170,14 @@ class WebPageClient(
         adBlock = chooseAdBlocker()
     }
 
+    /**
+     * Tear down this client, cancelling any background work (e.g. in-flight userscript
+     * downloads) so it cannot leak the owning [activity] after the tab is destroyed.
+     */
+    fun destroy() {
+        userScriptScope.cancel()
+    }
+
     private fun chooseAdBlocker(): AdBlocker = if (userPreferences.adBlockEnabled) {
         abpBlockerManager
     } else {
@@ -202,8 +218,19 @@ class WebPageClient(
     override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
         Timber.v("$ihs : shouldInterceptRequest - ${if (request.isForMainFrame) "Main frame" else "Resource"} - ${request.url}")
 
-        // First, check if ad blocker blocks this request (returns dummy response if blocked, null if not)
-        val response = runBlocking { adBlock.shouldBlock(request, currentUrl) }
+        // First, check if ad blocker blocks this request (returns dummy response if blocked, null if not).
+        // shouldBlock is a fast synchronous call over in-memory filter data, safe to invoke directly
+        // on this WebView IO thread without a coroutine bridge. Until the blocklists are loaded it
+        // fails open (returns null), so no request is ever stalled here.
+        val response = if (webPageTab.isShowingDirectAd) {
+            Timber.d("$ihs : Bypassing adblocker for direct ad tab")
+            null
+        } else {
+            if (request.isForMainFrame && !adBlock.isReady()) {
+                Timber.w("$ihs : Ad-block lists not yet ready — main-frame request failing open: ${request.url}")
+            }
+            adBlock.shouldBlock(request, currentUrl)
+        }
         val wasBlocked = response != null
 
         val url = request.url.toString()
@@ -433,126 +460,8 @@ class WebPageClient(
             }
         }
 
-        // Inject script to detect video playing and capture available qualities + resolution
-        val videoScript = """
-            (function() {
-                if (window.__FulgurisVideoSnifferInstalled) return;
-                window.__FulgurisVideoSnifferInstalled = true;
-
-                var anchorQualities = null; // Cache anchor scan results
-                var lastActivityTime = Date.now();
-                var AUTO_DISCONNECT_DELAY = 30000; // 30 seconds of no activity
-
-                function classifyUrl(url) {
-                    if (!url) return 'unknown';
-                    if (url.startsWith('blob:')) return 'blob';
-                    if (url.indexOf('.m3u8') !== -1) return 'hls';
-                    if (url.indexOf('.mpd') !== -1) return 'dash';
-                    if (/^https?:\/\//i.test(url)) return 'direct';
-                    return 'unknown';
-                }
-
-                function scanAnchorsOnce() {
-                    if (anchorQualities !== null) return anchorQualities;
-                    anchorQualities = {};
-                    var anchors = document.querySelectorAll('a[href]');
-                    for (var j = 0; j < anchors.length; j++) {
-                        var href = anchors[j].href || '';
-                        if (/\.(mp4|webm|m4v|ogv|mkv)(\?|${'$'})/i.test(href)) {
-                            var aLabel = anchors[j].getAttribute('data-res')
-                                || anchors[j].getAttribute('label')
-                                || anchors[j].textContent.trim().substring(0, 30)
-                                || 'Download ' + (j + 1);
-                            anchorQualities[aLabel] = href;
-                        }
-                    }
-                    return anchorQualities;
-                }
-
-                function buildQualities(video) {
-                    var qualities = {};
-                    var sources = video.querySelectorAll('source');
-                    for (var i = 0; i < sources.length; i++) {
-                        var s = sources[i];
-                        var sUrl = s.src || s.getAttribute('src') || '';
-                        if (!sUrl) continue;
-                        var label = s.getAttribute('label')
-                            || s.getAttribute('title')
-                            || s.getAttribute('data-res')
-                            || s.getAttribute('res')
-                            || s.getAttribute('size')
-                            || (video.videoHeight > 0 ? video.videoHeight + 'p' : null)
-                            || ('Source ' + (i + 1));
-                        qualities[label] = sUrl;
-                    }
-                    // Only scan anchors once when we have a video, then reuse cached results
-                    var anchorLinks = scanAnchorsOnce();
-                    for (var key in anchorLinks) {
-                        if (anchorLinks.hasOwnProperty(key)) {
-                            qualities[key] = anchorLinks[key];
-                        }
-                    }
-                    return qualities;
-                }
-
-                function reportVideo(video) {
-                    var url = video.currentSrc || video.src || '';
-                    if (!url) return;
-                    var streamType = classifyUrl(url);
-                    var qualities = buildQualities(video);
-                    if (Object.keys(qualities).length === 0) {
-                        qualities['Default'] = url;
-                    }
-                    var resolution = (video.videoHeight > 0) ? video.videoHeight + 'p' : '';
-                    if (window.VideoSniffer) {
-                        window.VideoSniffer.onVideoDetected(
-                            url,
-                            JSON.stringify(qualities),
-                            resolution,
-                            streamType
-                        );
-                    }
-                }
-
-                function scanAllVideos() {
-                    // Short-circuit early if no videos exist
-                    var videos = document.querySelectorAll('video');
-                    if (videos.length === 0) return;
-                    
-                    lastActivityTime = Date.now();
-                    for (var i = 0; i < videos.length; i++) {
-                        var v = videos[i];
-                        if (v.__FulgurisAttached) continue;
-                        v.__FulgurisAttached = true;
-                        v.addEventListener('loadedmetadata', function() { reportVideo(this); });
-                        v.addEventListener('playing', function() { reportVideo(this); });
-                        // Report immediately if already has a source
-                        if (v.readyState >= 1 && (v.currentSrc || v.src)) {
-                            reportVideo(v);
-                        }
-                    }
-                }
-
-                // Initial scan
-                scanAllVideos();
-
-                // Watch for new video elements added dynamically (debounced)
-                var debounceTimer = null;
-                var observer = new MutationObserver(function() {
-                    clearTimeout(debounceTimer);
-                    debounceTimer = setTimeout(function() {
-                        scanAllVideos();
-                        // Auto-disconnect observer after quiet period
-                        if (Date.now() - lastActivityTime > AUTO_DISCONNECT_DELAY) {
-                            observer.disconnect();
-                            observer = null;
-                        }
-                    }, 500);
-                });
-                observer.observe(document.documentElement, { childList: true, subtree: true });
-            })();
-        """.trimIndent()
-        view.evaluateJavascript(videoScript, null)
+        // Inject video sniffer — centralized in WebPageTab to avoid duplication
+        webPageTab.injectVideoSniffer()
         webBrowser.onTabChanged(webPageTab)
 
         // Capture a preview of the page once it's finished loading if it's the foreground tab
@@ -586,6 +495,13 @@ class WebPageClient(
         // and not trigger shouldInterceptRequest for the main frame
         // See: https://github.com/Slion/Fulguris/issues/772
         onPageFinishedDone = false
+
+        // Clear video detection state so each new page starts fresh
+        webPageTab.clearVideoDetectedState()
+
+        if (url.isSpecialUrl() || android.webkit.URLUtil.isAboutUrl(url) || url.isBookmarkUrl() || url.isHistoryUrl()) {
+            webPageTab.isShowingDirectAd = false
+        }
 
         // Cancel any pending preview captures from previous navigation
         webPageTab.cancelPendingCapture()
@@ -703,7 +619,13 @@ class WebPageClient(
             realmLabel.text = activity.getString(R.string.label_realm, realm)
 
             setView(dialogView)
-            setTitle(R.string.title_sign_in)
+            // Show the host requesting credentials in the title so the user can verify the
+            // destination. The host comes from WebView and reflects the actual network host,
+            // which is much harder to spoof than a server-supplied realm alone.
+            setTitle(
+                if (host.isNotBlank()) activity.getString(R.string.title_sign_in_to_host, host)
+                else activity.getString(R.string.title_sign_in)
+            )
             setCancelable(true)
             setPositiveButton(R.string.title_sign_in) { _, _ ->
                 val user = name.text.toString()
@@ -960,25 +882,9 @@ class WebPageClient(
         val uri = Uri.parse(url)
         val headers = webPageTab.requestHeaders
 
-        // Check if ad blocker blocks this main frame navigation early
-        if (request.isForMainFrame) {
-            val response = runBlocking { adBlock.shouldBlock(request, currentUrl) }
-            if (response != null) {
-                Timber.i("$ihs : Blocked main frame navigation to ${request.url} via shouldOverrideUrlLoading")
-                
-                // Track this request as blocked
-                synchronized(pageRequests) {
-                    pageRequests.add(PageRequest(url, true))
-                }
-                
-                // Cancel navigation
-                view.stopLoading()
-                if (activity is WebBrowserActivity) {
-                    activity.closeCurrentTabIfEmpty()
-                }
-                return true
-            }
-        }
+        // Do NOT block main frame navigation here with runBlocking — it freezes the UI thread.
+        // shouldInterceptRequest (off UI thread) will handle blocking the main document.
+        // Main-frame blocking here is removed to avoid UI freeze while waiting for blocklists to load.
 
         // If this is an about page, immediately load, we don't need to leave the app
         // If we are in incognito, immediately load, we don't want the url to leave the app
@@ -990,6 +896,19 @@ class WebPageClient(
         if (url.endsWith(".user.js") && userPreferences.extensionsEnabled && request.isForMainFrame) {
             handleUserScriptInstallation(url)
             return true
+        }
+
+        // Direct-link ad click-counter: notify the activity only on genuine user-tap
+        // main-frame navigations (hasGesture() requires API 24, which matches our WebResourceRequest
+        // usage throughout; incognito tabs are excluded at the manager level too).
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N
+            && request.hasGesture()
+            && request.isForMainFrame
+            && !webPageTab.isIncognito
+        ) {
+            if (webBrowser.onUserGestureNavigation(url)) {
+                return true
+            }
         }
 
         // Regardless of app launch we do not cancel URL loading
@@ -1189,8 +1108,10 @@ class WebPageClient(
     private fun handleUserScriptInstallation(url: String) {
         Timber.i("$ihs : Detected userscript URL: $url")
 
-        // Download the script content with safety limits
-        CoroutineScope(Dispatchers.IO).coroutineLaunch {
+        // Download the script content with safety limits.
+        // Bound to userScriptScope so the download (and its Activity reference) is cancelled
+        // when the owning tab is torn down.
+        userScriptScope.coroutineLaunch {
             var connection: java.net.HttpURLConnection? = null
             try {
                 // Safety constants
@@ -1252,6 +1173,12 @@ class WebPageClient(
                     val scriptContent = buffer.toString()
 
                     withContext(Dispatchers.Main) {
+                        // Don't inflate a dialog on a dead Activity; the download may complete
+                        // after the user has already navigated away or finished the activity.
+                        if (activity.isFinishing || activity.isDestroyed) {
+                            Timber.w("Skipping userscript install dialog: Activity is finishing or destroyed")
+                            return@withContext
+                        }
                         showUserScriptInstallDialog(scriptContent)
                     }
                 } else {

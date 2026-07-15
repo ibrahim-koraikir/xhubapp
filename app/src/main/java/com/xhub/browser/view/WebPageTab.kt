@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright © 2020-2021 Stéphane Lenclud
  * Copyright 2014 A.C.R. Development
  */
@@ -18,6 +18,7 @@ import com.xhub.browser.utils.isBookmarkUri
 import com.xhub.browser.utils.isBookmarkUrl
 import com.xhub.browser.utils.VideoValidationHelper
 import com.xhub.browser.dialog.LightningDialogBuilder
+import com.xhub.browser.download.DownloadFormat
 import com.xhub.browser.download.LightningDownloadListener
 import com.xhub.browser.extensions.*
 import com.xhub.browser.isSupported
@@ -86,7 +87,6 @@ import com.xhub.browser.extensions.removeFromParent
 import com.xhub.browser.extensions.setIcon
 import com.xhub.browser.utils.ThemeUtils
 import com.xhub.browser.utils.isBookmarkUrl
-import com.xhub.browser.utils.isDownloadsUrl
 import com.xhub.browser.utils.isHistoryUrl
 import com.xhub.browser.utils.isSpecialUrl
 import io.reactivex.Scheduler
@@ -108,7 +108,6 @@ class WebPageTab(
     private val homePageInitializer: HomePageInitializer,
     private val incognitoPageInitializer: IncognitoPageInitializer,
     private val bookmarkPageInitializer: BookmarkPageInitializer,
-    private val downloadPageInitializer: DownloadPageInitializer,
     private val historyPageInitializer: HistoryPageInitializer
 ): WebView.FindListener,
     SharedPreferences.OnSharedPreferenceChangeListener {
@@ -230,9 +229,14 @@ class WebPageTab(
     var targetUrl: Uri
         get() = iTargetUrl
         set(value) {
+            // Only clear video detection if we're navigating to a different URL
+            if (iTargetUrl != value) {
+                clearVideoDetectedState()
+            }
             iTargetUrl = value
-            clearVideoDetectedState()
         }
+
+    var isShowingDirectAd = false
 
     var isVideoDetected = false
         private set
@@ -245,7 +249,7 @@ class WebPageTab(
     var detectedStreamType: String = "direct"
         private set
 
-    private fun clearVideoDetectedState() {
+    fun clearVideoDetectedState() {
         if (isVideoDetected) {
             isVideoDetected = false
             detectedVideoUrl = null
@@ -257,14 +261,304 @@ class WebPageTab(
     }
 
     private fun showDownloadFab() {
+        // Only show download FAB if video detection is enabled in settings
+        if (!userPreferences.videoDetectionEnabled) {
+            return
+        }
+        
         val fab = activity.findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(R.id.fabDownloadVideo)
         fab?.let {
-            it.visibility = View.VISIBLE
             it.setOnClickListener { _ ->
                 showVideoDownloadSheet()
             }
+            // Only play the entrance animation when the FAB is actually appearing.
+            // onVideoDetected() can fire repeatedly for the same video (loadedmetadata,
+            // playing, canplay, MutationObserver, the periodic fallback scan, ...), so
+            // re-running the animation every tick would make it flicker/pulse. Guard on
+            // the current visibility so we animate the transition GONE/INVISIBLE -> VISIBLE once.
+            if (it.visibility != View.VISIBLE) {
+                // Cancel any in-flight animation (e.g. a hide fade-out that hasn't finished).
+                it.animate().cancel()
+                it.visibility = View.VISIBLE
+                it.alpha = 0f
+                it.scaleX = FAB_ENTRANCE_START_SCALE
+                it.scaleY = FAB_ENTRANCE_START_SCALE
+                it.animate()
+                    .alpha(1f)
+                    .scaleX(1f)
+                    .scaleY(1f)
+                    .setDuration(FAB_ENTRANCE_DURATION_MS)
+                    .setInterpolator(android.view.animation.DecelerateInterpolator())
+                    .setListener(null)
+                    .start()
+            }
         }
     }
+
+    /**
+     * Injects the video sniffer JavaScript into the current WebView.
+     * Safe to call multiple times — the script guards itself with window._vdInit.
+     * Should be called from onPageFinished and onProgressChanged(100) to survive
+     * redirect/cache scenarios where onPageFinished may be skipped.
+     */
+    fun injectVideoSniffer() {
+        if (!userPreferences.videoDetectionEnabled) return
+        val view = webView ?: return
+
+        val videoScript = """
+            (function() {
+                if (window._vdInit) return;
+                window._vdInit = true;
+
+                var anchorQualities = null;
+
+                // Narrow, path-scoped patterns for known embedded players. We deliberately match
+                // the embed PATH (not just the host) so a real <video> whose src happens to live on
+                // one of these hosts is never misclassified as an embed.
+                var EMBED_PATTERNS = [
+                    /youtube\.com\/embed\//i,
+                    /youtube-nocookie\.com\/embed\//i,
+                    /player\.vimeo\.com\/video\//i,
+                    /dailymotion\.com\/embed\/video\//i,
+                    /player\.twitch\.tv\//i,
+                    /clips\.twitch\.tv\/embed/i,
+                    /facebook\.com\/plugins\/video\.php/i,
+                    /facebook\.com\/video\/embed/i,
+                    /streamable\.com\/[oe]\//i,
+                    /rumble\.com\/embed\//i
+                ];
+
+                function isEmbedUrl(url) {
+                    if (!url) return false;
+                    for (var i = 0; i < EMBED_PATTERNS.length; i++) {
+                        if (EMBED_PATTERNS[i].test(url)) return true;
+                    }
+                    return false;
+                }
+
+                function classifyUrl(url) {
+                    if (!url) return 'unknown';
+                    if (url.startsWith('blob:')) return 'blob';
+                    if (isEmbedUrl(url)) return 'embed';
+                    if (url.indexOf('.m3u8') !== -1) return 'hls';
+                    if (url.indexOf('.mpd') !== -1) return 'dash';
+                    if (/^https?:\/\//i.test(url)) return 'direct';
+                    return 'unknown';
+                }
+
+                function scanAnchorsOnce() {
+                    if (anchorQualities !== null) return anchorQualities;
+                    anchorQualities = {};
+                    var anchors = document.querySelectorAll('a[href]');
+                    for (var j = 0; j < anchors.length; j++) {
+                        var href = anchors[j].href || '';
+                        if (/\.(mp4|webm|m4v|ogv|mkv)(\?|${'$'})/i.test(href)) {
+                            var aLabel = anchors[j].getAttribute('data-res')
+                                || anchors[j].getAttribute('label')
+                                || anchors[j].textContent.trim().substring(0, 30)
+                                || 'Download ' + (j + 1);
+                            anchorQualities[aLabel] = href;
+                        }
+                    }
+                    return anchorQualities;
+                }
+
+                function buildQualities(video) {
+                    var qualities = {};
+                    var sources = video.querySelectorAll('source');
+                    for (var i = 0; i < sources.length; i++) {
+                        var s = sources[i];
+                        var sUrl = s.src || s.getAttribute('src') || '';
+                        if (!sUrl) continue;
+                        var label = s.getAttribute('label')
+                            || s.getAttribute('title')
+                            || s.getAttribute('data-res')
+                            || s.getAttribute('res')
+                            || s.getAttribute('size')
+                            || (video.videoHeight > 0 ? video.videoHeight + 'p' : null)
+                            || ('Source ' + (i + 1));
+                        qualities[label] = sUrl;
+                    }
+                    var anchorLinks = scanAnchorsOnce();
+                    for (var key in anchorLinks) {
+                        if (anchorLinks.hasOwnProperty(key)) {
+                            qualities[key] = anchorLinks[key];
+                        }
+                    }
+                    return qualities;
+                }
+
+                function reportVideo(video) {
+                    var url = video.currentSrc || video.src || '';
+                    if (!url) return;
+                    video._vdLast = url;
+                    var streamType = classifyUrl(url);
+                    var qualities = buildQualities(video);
+                    if (Object.keys(qualities).length === 0) {
+                        qualities['Default'] = url;
+                    }
+                    var resolution = (video.videoHeight > 0) ? video.videoHeight + 'p' : '';
+                    if (window.VideoSniffer) {
+                        window.VideoSniffer.onVideoDetected(
+                            url,
+                            JSON.stringify(qualities),
+                            resolution,
+                            streamType
+                        );
+                    }
+                    // A real video was found — stop the periodic fallback scan to avoid
+                    // further CPU/battery use. The MutationObserver stays active to
+                    // catch source swaps on the same page.
+                    if (window._vdIntervalId) {
+                        clearInterval(window._vdIntervalId);
+                        window._vdIntervalId = null;
+                    }
+                }
+
+                // Report an embedded player (cross-origin iframe we cannot see into, e.g.
+                // YouTube/Vimeo/Dailymotion). The download URL is the embed src itself, which
+                // yt-dlp can resolve directly. streamType 'embed' routes the download to yt-dlp.
+                function reportEmbed(src) {
+                    if (!src) return;
+                    var qualities = {};
+                    qualities['Default'] = src;
+                    if (window.VideoSniffer) {
+                        window.VideoSniffer.onVideoDetected(
+                            src,
+                            JSON.stringify(qualities),
+                            '',
+                            'embed'
+                        );
+                    }
+                    // Note: we do NOT clear the periodic scan here. An embed is a fallback; if a
+                    // real <video> shows up later (e.g. a same-origin player finishes loading)
+                    // it can still supersede this detection with proper quality options.
+                }
+
+                // Collect all <video> elements from the top document and any SAME-ORIGIN iframes
+                // (recursively, depth-capped). Cross-origin iframe access throws a SecurityError
+                // which we swallow; those are handled separately via reportEmbed().
+                function collectVideos(doc, depth, out) {
+                    if (!doc || depth > 3) return;
+                    var vids = doc.querySelectorAll('video');
+                    for (var i = 0; i < vids.length; i++) {
+                        out.push(vids[i]);
+                    }
+                    var frames = doc.querySelectorAll('iframe');
+                    for (var j = 0; j < frames.length; j++) {
+                        var childDoc = null;
+                        try {
+                            childDoc = frames[j].contentDocument
+                                || (frames[j].contentWindow && frames[j].contentWindow.document);
+                        } catch (e) {
+                            childDoc = null; // cross-origin — inaccessible, handled by embed scan
+                        }
+                        if (childDoc) {
+                            collectVideos(childDoc, depth + 1, out);
+                        }
+                    }
+                }
+
+                // Find the first cross-origin embedded-player iframe on the page.
+                function findEmbedIframe() {
+                    var frames = document.querySelectorAll('iframe');
+                    for (var i = 0; i < frames.length; i++) {
+                        var src = frames[i].src || frames[i].getAttribute('src') || '';
+                        if (isEmbedUrl(src)) return src;
+                    }
+                    return '';
+                }
+
+                function scanAllVideos() {
+                    // 1) Real <video> elements always win (top document + same-origin iframes).
+                    //    We still wire listeners on every <video> (even srcless placeholders) so a
+                    //    late src assignment is caught, but we only treat the page as "has a real
+                    //    video" — and thus suppress the embed fallback — when at least one element
+                    //    actually has a usable src. Otherwise a srcless placeholder <video> (common
+                    //    on embed/hybrid pages) would hide the YouTube/Vimeo download FAB.
+                    var videos = [];
+                    collectVideos(document, 0, videos);
+                    var hasUsableVideo = false;
+                    for (var i = 0; i < videos.length; i++) {
+                        var v = videos[i];
+                        if (!v._vdSet) {
+                            v._vdSet = true;
+                            v.addEventListener('loadedmetadata', function() { reportVideo(this); });
+                            v.addEventListener('playing', function() { reportVideo(this); });
+                            v.addEventListener('play', function() { reportVideo(this); });
+                            v.addEventListener('loadeddata', function() { reportVideo(this); });
+                            v.addEventListener('canplay', function() { reportVideo(this); });
+                            if (v.readyState >= 1 && (v.currentSrc || v.src)) {
+                                reportVideo(v);
+                            }
+                        }
+                        var cur = v.currentSrc || v.src;
+                        if (cur) {
+                            hasUsableVideo = true;
+                            if (cur !== v._vdLast) {
+                                reportVideo(v);
+                            }
+                        }
+                    }
+                    // A usable real video takes priority over embed detection.
+                    if (hasUsableVideo) return;
+
+                    // 2) No accessible real <video> with a source — fall back to detecting a known
+                    //    embedded player by its cross-origin iframe src (YouTube/Vimeo/Dailymotion).
+                    var embedSrc = findEmbedIframe();
+                    if (embedSrc && embedSrc !== window._vdLastEmbed) {
+                        window._vdLastEmbed = embedSrc;
+                        reportEmbed(embedSrc);
+                    }
+                }
+
+                // SPA route change support
+                var navHandler = function() {
+                    anchorQualities = null;
+                    setTimeout(scanAllVideos, 300);
+                };
+                window._vdNav = navHandler;
+                window.addEventListener('popstate', navHandler);
+                window.addEventListener('hashchange', navHandler);
+
+                scanAllVideos();
+
+                // Watch for new/changed video elements — includes src attribute changes.
+                // Observe document.body rather than document.documentElement: the head is
+                // never going to contain <video> elements and observing it only generates
+                // useless mutation callbacks (extra CPU/battery on every DOM change).
+                var debounceTimer = null;
+                var observer = new MutationObserver(function() {
+                    clearTimeout(debounceTimer);
+                    debounceTimer = setTimeout(scanAllVideos, 500);
+                });
+                var observeTarget = document.body || document.documentElement;
+                observer.observe(observeTarget, {
+                    childList: true,
+                    subtree: true,
+                    attributes: true,
+                    attributeFilter: ['src']
+                });
+                window._vdObs = observer;
+
+                // Periodic fallback scan — catches lazy-loaded or preload=none players.
+                // Bounded to a finite number of iterations (10 scans = ~20s from page load)
+                // so the interval does not run forever on every open tab, draining CPU/battery.
+                // The interval is also cleared as soon as a video is detected (see reportVideo).
+                var _vdRemainingScans = 10;
+                var _vdIntervalId = setInterval(function() {
+                    scanAllVideos();
+                    _vdRemainingScans--;
+                    if (_vdRemainingScans <= 0) {
+                        clearInterval(_vdIntervalId);
+                    }
+                }, 2000);
+                window._vdIntervalId = _vdIntervalId;
+            })();
+        """.trimIndent()
+        view.evaluateJavascript(videoScript, null)
+    }
+
 
     private fun showVideoDownloadSheet() {
         val videoUrl = detectedVideoUrl ?: return
@@ -307,23 +601,52 @@ class WebPageTab(
         val radioGroup = sheetView.findViewById<RadioGroup>(R.id.radioGroupQualities)
         var selectedDownloadUrl = videoUrl
 
+        // yt-dlp format picker (only used/visible for adaptive/embed streams).
+        val containerFormatPicker = sheetView.findViewById<android.view.View>(R.id.containerFormatPicker)
+        val radioGroupFormats = sheetView.findViewById<RadioGroup>(R.id.radioGroupFormats)
+        var selectedFormat = DownloadFormat.DEFAULT
+
         val colorValue = android.util.TypedValue()
         sheetView.context.theme.resolveAttribute(com.google.android.material.R.attr.colorOnSurface, colorValue, true)
         val textColor = colorValue.data
 
         val tvAdaptiveMessage = sheetView.findViewById<TextView>(R.id.tvAdaptiveStreamMessage)
         val btnDownload = sheetView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btnVideoDownload)
-        val isAdaptiveOnly = detectedStreamType in listOf("blob", "hls", "dash")
+        val isAdaptiveOnly = detectedStreamType in listOf("blob", "hls", "dash", "embed")
 
         if (isAdaptiveOnly && (qualities == null || qualities.all { classifyUrl(it.value) != "direct" })) {
+            // ENABLE yt-dlp download for adaptive streams
             tvAdaptiveMessage.visibility = View.VISIBLE
-            tvAdaptiveMessage.text = activity.getString(R.string.video_adaptive_stream_message)
-            btnDownload.isEnabled = false
-            btnDownload.text = activity.getString(R.string.video_cannot_download)
-            btnDownload.icon = null
+            tvAdaptiveMessage.text = activity.getString(R.string.video_adaptive_stream_message_ytdlp)
+            
+            // ENABLE button instead of disabling (yt-dlp will handle this)
+            btnDownload.isEnabled = true
+            btnDownload.text = activity.getString(R.string.action_download)
+            btnDownload.icon = ContextCompat.getDrawable(activity, R.drawable.ic_download_outline)
+            
             containerQualityPicker.visibility = View.GONE
+
+            // Offer a yt-dlp format/quality picker (Best / 1080p / 720p / 480p / Audio-only).
+            containerFormatPicker.visibility = View.VISIBLE
+            radioGroupFormats.removeAllViews()
+            DownloadFormat.values().forEachIndexed { index, fmt ->
+                val rb = RadioButton(activity).apply {
+                    id = View.generateViewId()
+                    tag = fmt
+                    text = activity.getString(labelResFor(fmt))
+                    isChecked = index == 0
+                    setTextColor(textColor)
+                }
+                radioGroupFormats.addView(rb)
+            }
+            selectedFormat = DownloadFormat.DEFAULT
+            radioGroupFormats.setOnCheckedChangeListener { group, checkedId ->
+                val checked = group.findViewById<RadioButton>(checkedId)
+                (checked?.tag as? DownloadFormat)?.let { selectedFormat = it }
+            }
         } else {
             tvAdaptiveMessage.visibility = View.GONE
+            containerFormatPicker.visibility = View.GONE
             btnDownload.isEnabled = true
             btnDownload.text = activity.getString(R.string.action_download)
             btnDownload.icon = ContextCompat.getDrawable(activity, R.drawable.ic_download_outline)
@@ -375,7 +698,47 @@ class WebPageTab(
 
         sheetView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btnVideoDownload)
             .setOnClickListener {
-                startDownload(selectedDownloadUrl)
+                // Route based on the SELECTED URL classification, not page-level flag
+                // This allows users to pick direct MP4s even when adaptive streams are also available
+                val selectedUrlType = classifyUrl(selectedDownloadUrl)
+                
+                when (selectedUrlType) {
+                    "embed" -> {
+                        // Embedded player (YouTube/Vimeo/Dailymotion) detected via a cross-origin
+                        // iframe src. yt-dlp resolves the embed URL directly, so pass it as-is
+                        // (NOT webView.url, which would be the wrapping host page).
+                        showYtDlpWarningAndDownload(selectedDownloadUrl, "$pageTitle.$inferredExtension", selectedFormat)
+                    }
+                    "blob", "hls", "dash" -> {
+                        // Adaptive stream - use yt-dlp
+                        // For blob streams, yt-dlp needs the page URL, not the blob URL
+                        // For hls/dash, pass the actual manifest URL
+                        val urlForDownload = if (selectedUrlType == "blob") {
+                            webView?.url
+                        } else {
+                            selectedDownloadUrl
+                        }
+                        
+                        // Guard against null/blank page URL
+                        if (urlForDownload.isNullOrBlank()) {
+                            com.google.android.material.snackbar.Snackbar.make(
+                                activity.findViewById<android.view.View>(android.R.id.content),
+                                R.string.invalid_url,
+                                com.google.android.material.snackbar.Snackbar.LENGTH_LONG
+                            ).show()
+                        } else {
+                            showYtDlpWarningAndDownload(urlForDownload, "$pageTitle.$inferredExtension", selectedFormat)
+                        }
+                    }
+                    "direct" -> {
+                        // Direct URL - use standard download handler
+                        startDownload(selectedDownloadUrl)
+                    }
+                    else -> {
+                        // Unknown type - try standard download as fallback
+                        startDownload(selectedDownloadUrl)
+                    }
+                }
                 dialog.dismiss()
                 hideDownloadFab()
             }
@@ -383,13 +746,78 @@ class WebPageTab(
         dialog.show()
     }
 
+    private fun showYtDlpWarningAndDownload(url: String, filename: String, format: DownloadFormat) {
+        // Show warning dialog first
+        androidx.appcompat.app.AlertDialog.Builder(activity)
+            .setTitle(R.string.warning_ytdlp_title)
+            .setMessage(R.string.warning_ytdlp_message)
+            .setPositiveButton(R.string.action_continue) { _, _ ->
+                startYtDlpDownload(url, filename, format)
+            }
+            .setNegativeButton(R.string.action_cancel, null)
+            .show()
+    }
+
+    /**
+     * Map a [DownloadFormat] to its user-facing label string resource. Kept in the UI layer so the
+     * [DownloadFormat] enum itself stays free of Android (`R`) dependencies and remains unit-testable.
+     */
+    @androidx.annotation.StringRes
+    private fun labelResFor(format: DownloadFormat): Int = when (format) {
+        DownloadFormat.BEST -> R.string.video_format_best
+        DownloadFormat.P1080 -> R.string.video_format_1080p
+        DownloadFormat.P720 -> R.string.video_format_720p
+        DownloadFormat.P480 -> R.string.video_format_480p
+        DownloadFormat.AUDIO_MP3 -> R.string.video_format_audio_mp3
+    }
+
+    private fun startYtDlpDownload(url: String, filename: String, format: DownloadFormat) {
+        // Use the helper method from YtDlpDownloadService
+        com.xhub.browser.download.YtDlpDownloadService.startDownload(
+            context = activity,
+            url = url,
+            filename = filename,
+            pageTitle = titleInfo.getTitle(),
+            format = format
+        )
+        
+        // Show feedback
+        com.google.android.material.snackbar.Snackbar.make(
+            activity.findViewById(android.R.id.content),
+            R.string.video_download_started,
+            com.google.android.material.snackbar.Snackbar.LENGTH_LONG
+        ).show()
+    }
+
     private fun classifyUrl(url: String): String {
         return when {
             url.startsWith("blob:") -> "blob"
+            isEmbedUrl(url) -> "embed"
             url.contains(".m3u8") -> "hls"
             url.contains(".mpd") -> "dash"
             else -> "direct"
         }
+    }
+
+    /**
+     * Narrow, path-scoped recognition of known embedded-player URLs (YouTube/Vimeo/Dailymotion).
+     * Mirrors the JS EMBED_PATTERNS and acts as a Kotlin-side backstop so a selected embed URL
+     * routes to yt-dlp rather than the standard (HTML-page) download handler. We match the embed
+     * PATH, not just the host, so a real <video> src hosted on these domains is never caught.
+     */
+    private fun isEmbedUrl(url: String): Boolean {
+        val lower = url.lowercase()
+        return lower.contains("youtube.com/embed/")
+            || lower.contains("youtube-nocookie.com/embed/")
+            || lower.contains("player.vimeo.com/video/")
+            || lower.contains("dailymotion.com/embed/video/")
+            || lower.contains("player.twitch.tv/")
+            || lower.contains("clips.twitch.tv/embed")
+            || lower.contains("facebook.com/plugins/video.php")
+            || lower.contains("facebook.com/video/embed")
+            || lower.contains("streamable.com/o/")
+            || lower.contains("streamable.com/e/")
+            || lower.contains("rumble.com/embed/")
     }
 
     private fun startDownload(url: String) {
@@ -423,7 +851,31 @@ class WebPageTab(
 
     private fun hideDownloadFab() {
         val fab = activity.findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(R.id.fabDownloadVideo)
-        fab?.visibility = View.GONE
+        fab?.let {
+            // Nothing to do if it's already hidden — also avoids animating from a hidden state.
+            if (it.visibility != View.VISIBLE) {
+                it.visibility = View.GONE
+                return
+            }
+            it.animate().cancel()
+            it.animate()
+                .alpha(0f)
+                .scaleX(FAB_ENTRANCE_START_SCALE)
+                .scaleY(FAB_ENTRANCE_START_SCALE)
+                .setDuration(FAB_EXIT_DURATION_MS)
+                .setInterpolator(android.view.animation.AccelerateInterpolator())
+                .setListener(object : android.animation.AnimatorListenerAdapter() {
+                    override fun onAnimationEnd(animation: android.animation.Animator) {
+                        it.visibility = View.GONE
+                        // Reset transient animation properties so a future show() starts clean
+                        // even if its own entrance animation is skipped for any reason.
+                        it.alpha = 1f
+                        it.scaleX = 1f
+                        it.scaleY = 1f
+                    }
+                })
+                .start()
+        }
     }
 
     private val webBrowser: WebBrowser
@@ -715,6 +1167,18 @@ class WebPageTab(
                 }
             }
 
+            activity.getString(R.string.pref_key_video_detection_enabled) -> {
+                // Add or remove the VideoSniffer JS interface on the live WebView so that
+                // toggling the preference takes effect without requiring a tab restart.
+                if (userPreferences.videoDetectionEnabled) {
+                    webView?.addJavascriptInterface(VideoJavascriptInterface(this), "VideoSniffer")
+                    Timber.d("VideoSniffer JS interface registered (preference enabled)")
+                } else {
+                    webView?.removeJavascriptInterface("VideoSniffer")
+                    Timber.d("VideoSniffer JS interface removed (preference disabled)")
+                }
+            }
+
             // TODO: Handle other settings, or we could just call initializePreferences()
         }
     }
@@ -838,7 +1302,12 @@ class WebPageTab(
         }
     }
 
-    fun currentSslState(): SslState = webPageClient.sslState
+    /**
+     * SSL state of the loaded page, or [SslState.None] if the WebView client has not been created
+     * yet (frozen/session-restored tabs defer [createWebView] until they become foreground).
+     */
+    fun currentSslState(): SslState =
+        if (::webPageClient.isInitialized) webPageClient.sslState else SslState.None
 
     /**
      * This method loads the homepage for the browser. Either it loads the URL stored as the
@@ -860,14 +1329,6 @@ class WebPageTab(
     fun loadBookmarkPage() {
         iTargetUrl = Uri.parse(Uris.FulgurisBookmarks)
         initializeContent(bookmarkPageInitializer)
-    }
-
-    /**
-     * This function loads the download page via the [DownloadPageInitializer].
-     */
-    fun loadDownloadsPage() {
-        iTargetUrl = Uri.parse(Uris.FulgurisDownloads)
-        initializeContent(downloadPageInitializer)
     }
 
     /**
@@ -896,8 +1357,11 @@ class WebPageTab(
     @SuppressLint("NewApi", "SetJavaScriptEnabled")
     fun initializePreferences() {
         val settings = webView?.settings ?: return
-
-        webPageClient.updatePreferences()
+        // Frozen tabs have no WebView yet; fully-created tabs always initialize webPageClient
+        // in createWebView(). Guard so a race mid-create cannot throw UninitializedPropertyAccessException.
+        if (::webPageClient.isInitialized) {
+            webPageClient.updatePreferences()
+        }
 
 
         val modifiesHeaders = userPreferences.doNotTrackEnabled
@@ -965,7 +1429,10 @@ class WebPageTab(
 
         settings.blockNetworkImage = !userPreferences.loadImages
         // Modifying headers causes SEGFAULTS, so disallow multi window if headers are enabled.
-        settings.setSupportMultipleWindows(userPreferences.popupsEnabled && !modifiesHeaders)
+        // We always set multiple windows to true here so that onCreateWindow is always invoked;
+        // this allows us to intercept popup/new-window requests and route them back to the same tab
+        // when popups/new-windows are disabled, preventing blank screens on target="_blank" links.
+        settings.setSupportMultipleWindows(!modifiesHeaders)
 
         settings.loadWithOverviewMode = userPreferences.overviewModeEnabled
 
@@ -1194,34 +1661,6 @@ class WebPageTab(
         webView?.setLayerType(layerType.value, paint)
     }
 
-    /**
-     * This method forces the layer type to hardware, which
-     * enables hardware rendering on the WebView instance
-     * of the current [WebPageTab].
-     */
-    private fun setHardwareRendering() {
-        //webView?.setLayerType(View.LAYER_TYPE_SOFTWARE, paint)
-        webView?.setLayerType(View.LAYER_TYPE_SOFTWARE, paint)
-    }
-
-    /**
-     * This method sets the layer type to none, which
-     * means that either the GPU and CPU can both compose
-     * the layers when necessary.
-     */
-    private fun setNormalRendering() {
-        webView?.setLayerType(View.LAYER_TYPE_NONE, paint)
-    }
-
-    /**
-     * This method forces the layer type to software, which
-     * disables hardware rendering on the WebView instance
-     * of the current [WebPageTab] and makes the CPU render
-     * the view.
-     */
-    fun setSoftwareRendering() {
-        webView?.setLayerType(View.LAYER_TYPE_SOFTWARE, paint)
-    }
 
     /**
      * Sets the current rendering color of the WebView instance
@@ -1468,10 +1907,38 @@ class WebPageTab(
         userPreferences.preferences.unregisterOnSharedPreferenceChangeListener(this)
         defaultDomainSettings.preferences.unregisterOnSharedPreferenceChangeListener(this)
         destroyDownloadListener()
+        // Cancel any in-flight background work owned by the client (e.g. userscript downloads)
+        // so it cannot leak this Activity after the tab is gone.
+        //
+        // Guard against the lateinit not yet being assigned: if a tab is swipe-closed before
+        // createWebView() finished (webPageClient is assigned there), touching it would throw
+        // UninitializedPropertyAccessException and crash the app. See crash logs.
+        if (::webPageClient.isInitialized) {
+            webPageClient.destroy()
+        }
         // Cancel any pending capture tasks before destroying WebView
         cancelPendingCapture()
         // Purge this tab's thumbnail from memory and disk so closed tabs never leave orphan files
         evictThumbnail()
+        // Tear down the video sniffer's MutationObserver and bounded interval so they do not
+        // keep firing JS callbacks on a tab that is going away.
+        webView?.evaluateJavascript(
+            """
+            (function() {
+                try {
+                    if (window._vdObs && typeof window._vdObs.disconnect === 'function') {
+                        window._vdObs.disconnect();
+                        window._vdObs = null;
+                    }
+                    if (window._vdIntervalId) {
+                        clearInterval(window._vdIntervalId);
+                        window._vdIntervalId = null;
+                    }
+                } catch (e) { /* ignore — WebView is tearing down */ }
+            })();
+            """.trimIndent(),
+            null
+        )
         // No need to do anything for the touch listeners they are owned by the WebView anyway
         webView?.autoDestruction()
         webView = null
@@ -1482,6 +1949,7 @@ class WebPageTab(
      * in its history to the previous page.
      */
     fun goBack() {
+        isShowingDirectAd = false
         webView?.goBack()
     }
 
@@ -1490,6 +1958,7 @@ class WebPageTab(
      * in its history to the next page.
      */
     fun goForward() {
+        isShowingDirectAd = false
         webView?.goForward()
     }
 
@@ -1500,6 +1969,7 @@ class WebPageTab(
      * @param steps Number of steps to navigate (negative for back, positive for forward)
      */
     fun goBackOrForward(steps: Int) {
+        isShowingDirectAd = false
         webView?.goBackOrForward(steps)
     }
 
@@ -1538,12 +2008,6 @@ class WebPageTab(
                     dialogBuilder.showLongPressedDialogForBookmarkUrl(activity, webBrowser, url)
                 } else if (newUrl != null) {
                     dialogBuilder.showLongPressedDialogForBookmarkUrl(activity, webBrowser, newUrl)
-                }
-            } else if (currentUrl.isDownloadsUrl()) {
-                if (url != null) {
-                    dialogBuilder.showLongPressedDialogForDownloadUrl(activity, webBrowser, url)
-                } else if (newUrl != null) {
-                    dialogBuilder.showLongPressedDialogForDownloadUrl(activity, webBrowser, newUrl)
                 }
             }
         } else {
@@ -1604,7 +2068,10 @@ class WebPageTab(
      * @param onLoadComplete optional callback to execute after the page finishes loading or is cancelled.
      * Will be executed once and then cleared automatically.
      */
-    fun loadUrl(aUrl: String, onLoadComplete: (() -> Unit)? = null) {
+    fun loadUrl(aUrl: String, isAd: Boolean = false, onLoadComplete: (() -> Unit)? = null) {
+        if (!isAd) {
+            isShowingDirectAd = false
+        }
 
         iTargetUrl = Uri.parse(aUrl)
 
@@ -2116,6 +2583,11 @@ class WebPageTab(
          * 800ms gives enough time for the WebView to produce a visually complete frame.
          */
         private const val CAPTURE_DELAY_MS = 800L
+
+        /** Entrance/exit animation tuning for the video-download FAB. */
+        private const val FAB_ENTRANCE_DURATION_MS = 220L
+        private const val FAB_EXIT_DURATION_MS = 150L
+        private const val FAB_ENTRANCE_START_SCALE = 0.85f
 
         private val API = Build.VERSION.SDK_INT
         private val SCROLL_UP_THRESHOLD = com.xhub.browser.utils.Utils.dpToPx(10f)
