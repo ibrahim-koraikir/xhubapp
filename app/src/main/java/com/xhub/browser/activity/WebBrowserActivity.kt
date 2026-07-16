@@ -515,8 +515,11 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
                         isShowingDirectAd = true
                     }
                 },
-                showPreloadedTab = { tab ->
-                    tabsManager.registerPreloadedTab(tab, true)
+                loadInCurrentTab = { url ->
+                    tabsManager.currentTab?.apply {
+                        isShowingDirectAd = true
+                        loadUrl(url, isAd = true)
+                    }
                 }
             )
             adConfigRepo.refreshAsync(lifecycleScope)
