@@ -144,8 +144,6 @@ import com.xhub.browser.shortcuts.ShortcutItem
 import com.xhub.browser.shortcuts.ShortcutTileAdapter
 import com.xhub.browser.ads.AdConfigRepository
 import com.xhub.browser.ads.DirectLinkAdManager
-import com.xhub.browser.ads.InterstitialAdConfig
-import com.xhub.browser.ads.InterstitialAdManager
 import kotlin.math.abs
 import kotlin.system.exitProcess
 import kotlin.time.TimeSource
@@ -529,16 +527,6 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
             tabsManager.doOnceAfterInitialization {
                 directLinkAdManager.maybeShowLaunchAd()
             }
-
-            // ExoClick interstitial (download flavor only, alongside direct-link ads)
-            interstitialAdManager = InterstitialAdManager(
-                activity = this,
-                rootView = iBinding.coordinatorLayout,
-                config = InterstitialAdConfig()
-            )
-            tabsManager.doOnceAfterInitialization {
-                interstitialAdManager?.showAfterDelay(2_000L)
-            }
         }
 
         // Observe video-download progress and drive the in-app progress card. This is what makes
@@ -861,7 +849,6 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
 
     private lateinit var adConfigRepo: AdConfigRepository
     private lateinit var directLinkAdManager: DirectLinkAdManager
-    private var interstitialAdManager: InterstitialAdManager? = null
 
     /**
      * Called by [WebPageClient] on every in-page user-gesture main-frame navigation.
@@ -4771,7 +4758,6 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
 
     override fun onPause() {
         super.onPause()
-        interstitialAdManager?.onPause()
         Timber.d("onPause")
 
         // Capture preview of current tab before it goes into the background
@@ -4789,7 +4775,6 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
     }
 
     override fun onBackPressed() {
-        if (interstitialAdManager?.onBackPressed() == true) return
         doBackAction()
     }
 
@@ -4935,7 +4920,6 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
         homeStatAnimators.clear()
 
         //
-        interstitialAdManager?.onDestroy()
         super.onDestroy()
     }
 
@@ -4955,7 +4939,6 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
     override fun onResume() {
         updateConfigurationSharedPreferences()
         super.onResume()
-        interstitialAdManager?.onResume()
         // Snap views to their correct final state (no animation) to recover from any
         // mid-transition broken state that may have occurred when the user left this activity.
         snapHomeScreenOverlayState()
