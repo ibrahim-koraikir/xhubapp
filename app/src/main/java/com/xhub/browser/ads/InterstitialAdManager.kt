@@ -1,9 +1,5 @@
 package com.xhub.browser.ads
 
-import android.app.Activity
-import android.content.Context
-import android.graphics.Color
-import android.graphics.drawable.GradientDrawable
 import android.os.Handler
 import android.os.Looper
 import android.view.Gravity
@@ -13,6 +9,7 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.widget.FrameLayout
 import android.widget.ImageButton
+import android.app.Activity
 import androidx.coordinatorlayout.widget.CoordinatorLayout
 import timber.log.Timber
 
@@ -62,25 +59,6 @@ class InterstitialAdManager(
                 builtInZoomControls = false
                 setSupportZoom(false)
             }
-            webViewClient = object : android.webkit.WebViewClient() {
-                override fun shouldOverrideUrlLoading(
-                    view: android.webkit.WebView?,
-                    request: android.webkit.WebResourceRequest?
-                ): Boolean {
-                    request?.url?.let { url ->
-                        if (url.toString() != "about:blank") {
-                            dismiss()
-                            try {
-                                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, url)
-                                activity.startActivity(intent)
-                            } catch (e: Exception) {
-                                Timber.w(e, "ExoClick: failed to open ad link")
-                            }
-                        }
-                    }
-                    return true
-                }
-            }
             loadDataWithBaseURL(
                 "https://exoclick.com",
                 buildAdHtml(),
@@ -94,20 +72,14 @@ class InterstitialAdManager(
 
         val btn = ImageButton(activity).apply {
             layoutParams = FrameLayout.LayoutParams(
-                48.dpToPx(activity), 48.dpToPx(activity)
+                120, 120
             ).apply {
                 gravity = Gravity.TOP or Gravity.END
-                topMargin = 16.dpToPx(activity)
-                marginEnd = 16.dpToPx(activity)
+                topMargin = 48
+                rightMargin = 24
             }
             setImageResource(android.R.drawable.ic_menu_close_clear_cancel)
-            setColorFilter(Color.WHITE)
-            val bg = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setSize(48.dpToPx(activity), 48.dpToPx(activity))
-                setColor(Color.parseColor("#80000000"))
-            }
-            setBackgroundDrawable(bg)
+            setBackgroundResource(android.R.drawable.ic_menu_close_clear_cancel)
             visibility = View.GONE
             setOnClickListener { dismiss() }
         }
@@ -131,10 +103,10 @@ class InterstitialAdManager(
     }
 
     fun dismiss() {
-        cancelPendingCallbacks()
         if (!isShowing) return
         isShowing = false
 
+        cancelPendingCallbacks()
         overlayView?.let { rootView.removeView(it) }
         adWebView?.destroy()
         adWebView = null
@@ -152,6 +124,7 @@ class InterstitialAdManager(
     }
 
     fun onDestroy() {
+        cancelPendingCallbacks()
         dismiss()
     }
 
@@ -169,11 +142,6 @@ class InterstitialAdManager(
         showRunnable?.let { handler.removeCallbacks(it) }
         showRunnable = null
         handler.removeCallbacksAndMessages(null)
-    }
-
-    companion object {
-        private fun Int.dpToPx(context: Context): Int =
-            (this * context.resources.displayMetrics.density).toInt()
     }
 
     private fun buildAdHtml(): String = """
