@@ -3,7 +3,8 @@
     android:id="@+id/suggestions_recycler_view"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="?android:attr/colorBackground"
-    android:elevation="8dp"
+    android:background="@drawable/bg_search_overlay"
+    android:elevation="12dp"
     android:clipToPadding="false"
+    android:paddingVertical="8dp"
     android:scrollbars="vertical" />

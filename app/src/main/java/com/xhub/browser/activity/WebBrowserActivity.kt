@@ -1986,8 +1986,7 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
         }
 
         override fun onPreFocus() {
-            val fragment = SearchOverlayFragment()
-            fragment.show(supportFragmentManager, "search_overlay")
+            // Inline search suggestions and keyboard focus handled directly by address bar
         }
     }
 
@@ -5423,10 +5422,11 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
             }
             url?.let {
                 getUrl.setText(it)
-                searchTheWeb(it)
+                getUrl.clearFocus()
                 inputMethodManager.hideSoftInputFromWindow(getUrl.windowToken, 0)
-                tabsManager.currentTab?.requestFocus()
                 suggestionsPopup?.dismiss()
+                searchTheWeb(it)
+                tabsManager.currentTab?.requestFocus()
             }
         }
     }
