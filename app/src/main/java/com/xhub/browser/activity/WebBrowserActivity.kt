@@ -489,18 +489,16 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
         // Hook in buttons with onClick handler
         iBindingToolbarContent.buttonReload.setOnClickListener(this)
 
-        // COMMENT 4: show the interstitial after tabs finish initializing (mirrors checkForUpdates),
-        // Direct-link ads (download flavor only): open as normal tabs, never full-screen WebView.
-        if (BuildConfig.ADS_ENABLED) {
+        // COMMENT 4: Direct-link ads are disabled — the adblocker handles all ad URLs.
+        // The DirectLinkAdManager initialization remains in case it's re-enabled later.
+        if (false) {
             val directAdsPrefs = getSharedPreferences("direct_ads", android.content.Context.MODE_PRIVATE)
             adConfigRepo = AdConfigRepository(directAdsPrefs)
             directLinkAdManager = DirectLinkAdManager(
                 repo = adConfigRepo,
                 prefs = directAdsPrefs,
                 openAdTab = { url, show ->
-                    tabsManager.newTab(UrlInitializer(url), show)?.apply {
-                        isShowingDirectAd = true
-                    }
+                    tabsManager.newTab(UrlInitializer(url), show)
                 },
                 createPreloadedTab = { url ->
                     WebPageTab(
@@ -511,15 +509,10 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
                         incognitoPageInitializer,
                         bookmarkPageInitializer,
                         historyPageInitializer
-                    ).apply {
-                        isShowingDirectAd = true
-                    }
+                    )
                 },
                 loadInCurrentTab = { url ->
-                    tabsManager.currentTab?.apply {
-                        isShowingDirectAd = true
-                        loadUrl(url, isAd = true)
-                    }
+                    tabsManager.currentTab?.loadUrl(url, isAd = true)
                 }
             )
             adConfigRepo.refreshAsync(lifecycleScope)
@@ -856,11 +849,10 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
      * Always returns false so the user's link still loads (ads never intercept).
      */
     override fun onUserGestureNavigation(url: String): Boolean {
-        return if (::directLinkAdManager.isInitialized) {
-            directLinkAdManager.onUserGestureNavigation(url)
-        } else {
-            false
+        if (::directLinkAdManager.isInitialized) {
+            return directLinkAdManager.onUserGestureNavigation(url)
         }
+        return false
     }
 
 
@@ -5097,10 +5089,8 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
      * Apply given color and derivative to our toolbar, its components and status bar too.
      */
     private fun applyToolbarColor(color: Int) {
-        // FORCE dark toolbar background to match C o                                                                                                                                                                                                                                                                               ud met design - ignore website colors
-        val effectiveColor = MaterialColors.getColor(this, com.google.android.material.R.attr.colorSurface, android.graphics.Color.BLACK)
-        
-        //Workout a foreground color that  q    qqqwill be working with our background color
+        val effectiveColor = color
+
         currentToolBarTextColor = foregroundColorFromBackgroundColor(effectiveColor)
         // Change search view text color
         searchView.setTextColor(Color.WHITE)
@@ -5119,9 +5109,6 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
         iBindingToolbarContent.buttonReader.setColorFilter(Color.WHITE)
         iBindingToolbarContent.buttonNewTab?.setColorFilter(Color.WHITE)
 
-
-        // Needed to delay that as otherwise disabled alpha state didn't get applied
-        mainHandler.postDelayed({ updateNavigationButtons() }, 500)
 
         // Change reload icon color
         //setMenuItemColor(R.id.action_reload, currentToolBarTextColor)
@@ -5199,35 +5186,9 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
         // Then the color of the status bar itself
         setStatusBarColor(effectiveColor, currentToolBarTextColor == Color.BLACK)
 
-        // Remove that if ever we re-enable color animation below
         currentUiColor = effectiveColor
         // Needed for current tab color update in desktop style tabs
         tabsView?.tabChanged(tabsManager.indexOfCurrentTab())
-
-        /*
-        // Define our color animation
-        val animation = object : Animation() {
-            override fun applyTransformation(interpolatedTime: Float, t: Transformation) {
-                val animatedColor = DrawableUtils.mixColor(interpolatedTime, currentUiColor, color)
-                if (shouldShowTabsInDrawer) {
-                    backgroundDrawable.color = animatedColor
-                    mainHandler.post { window.setBackgroundDrawable(backgroundDrawable) }
-                } else {
-                    tabBackground?.tint(animatedColor)
-                }
-                currentUiColor = animatedColor
-                toolbar_layout.setBackgroundColor(animatedColor)
-                searchBackground?.background?.tint(
-                        // Set search background a little lighter
-                        // SL: See also Utils.mixTwoColors, why do we have those two functions?
-                        getSearchBarColor(animatedColor)
-                )
-            }
-        }
-        animation.duration = 300
-        toolbar_layout.startAnimation(animation)
-
-         */
 
     }
 

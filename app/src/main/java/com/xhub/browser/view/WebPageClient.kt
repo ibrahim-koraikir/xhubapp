@@ -24,6 +24,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch as coroutineLaunch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import com.xhub.browser.html.homepage.HomePageFactory
 import com.xhub.browser.js.InvertPage
@@ -142,13 +143,15 @@ class WebPageClient(
     /**
      * Get all requests for the current page
      */
-    fun getPageRequests(): List<PageRequest> = pageRequests.toList()
+    fun getPageRequests(): List<PageRequest> = synchronized(pageRequests) { pageRequests.toList() }
 
     /**
      * Clear tracked requests
      */
     fun clearPageRequests() {
-        pageRequests.clear()
+        synchronized(pageRequests) {
+            pageRequests.clear()
+        }
     }
 
 //    private var elementHide = userPreferences.elementHide
@@ -219,18 +222,7 @@ class WebPageClient(
         Timber.v("$ihs : shouldInterceptRequest - ${if (request.isForMainFrame) "Main frame" else "Resource"} - ${request.url}")
 
         // First, check if ad blocker blocks this request (returns dummy response if blocked, null if not).
-        // shouldBlock is a fast synchronous call over in-memory filter data, safe to invoke directly
-        // on this WebView IO thread without a coroutine bridge. Until the blocklists are loaded it
-        // fails open (returns null), so no request is ever stalled here.
-        val response = if (webPageTab.isShowingDirectAd) {
-            Timber.d("$ihs : Bypassing adblocker for direct ad tab")
-            null
-        } else {
-            if (request.isForMainFrame && !adBlock.isReady()) {
-                Timber.w("$ihs : Ad-block lists not yet ready — main-frame request failing open: ${request.url}")
-            }
-            adBlock.shouldBlock(request, currentUrl)
-        }
+        val response = runBlocking { adBlock.shouldBlock(request, currentUrl) }
         val wasBlocked = response != null
 
         val url = request.url.toString()
@@ -500,7 +492,7 @@ class WebPageClient(
         webPageTab.clearVideoDetectedState()
 
         if (url.isSpecialUrl() || android.webkit.URLUtil.isAboutUrl(url) || url.isBookmarkUrl() || url.isHistoryUrl()) {
-            webPageTab.isShowingDirectAd = false
+            webPageTab.resetDirectAdState()
         }
 
         // Cancel any pending preview captures from previous navigation
@@ -882,9 +874,37 @@ class WebPageClient(
         val uri = Uri.parse(url)
         val headers = webPageTab.requestHeaders
 
-        // Do NOT block main frame navigation here with runBlocking — it freezes the UI thread.
-        // shouldInterceptRequest (off UI thread) will handle blocking the main document.
-        // Main-frame blocking here is removed to avoid UI freeze while waiting for blocklists to load.
+        // Forward main frame user navigations to directLinkAdManager
+        if (request.isForMainFrame && !webPageTab.isShowingDirectAd) {
+            if (webBrowser.onUserGestureNavigation(url)) {
+                return true
+            }
+        }
+
+        // Check if ad blocker blocks this main frame navigation early
+        if (request.isForMainFrame) {
+            val response = runBlocking {
+                Timber.d("$ihs : Checking adblock for URL: $url (current page: $currentUrl)")
+                val r = adBlock.shouldBlock(request, currentUrl)
+                Timber.d("$ihs : Adblock result for $url: ${if (r != null) "BLOCKED" else "ALLOWED"}")
+                r
+            }
+            if (response != null) {
+                Timber.i("$ihs : Blocked main frame navigation to ${request.url} via shouldOverrideUrlLoading")
+
+                // Track this request as blocked
+                synchronized(pageRequests) {
+                    pageRequests.add(PageRequest(url, true))
+                }
+
+                // Cancel navigation
+                view.stopLoading()
+                if (activity is WebBrowserActivity) {
+                    activity.closeCurrentTabIfEmpty()
+                }
+                return true
+            }
+        }
 
         // If this is an about page, immediately load, we don't need to leave the app
         // If we are in incognito, immediately load, we don't want the url to leave the app
@@ -896,19 +916,6 @@ class WebPageClient(
         if (url.endsWith(".user.js") && userPreferences.extensionsEnabled && request.isForMainFrame) {
             handleUserScriptInstallation(url)
             return true
-        }
-
-        // Direct-link ad click-counter: notify the activity only on genuine user-tap
-        // main-frame navigations (hasGesture() requires API 24, which matches our WebResourceRequest
-        // usage throughout; incognito tabs are excluded at the manager level too).
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N
-            && request.hasGesture()
-            && request.isForMainFrame
-            && !webPageTab.isIncognito
-        ) {
-            if (webBrowser.onUserGestureNavigation(url)) {
-                return true
-            }
         }
 
         // Regardless of app launch we do not cancel URL loading
@@ -1329,8 +1336,11 @@ class WebPageClient(
         Timber.d("$ihs : doUpdateVisitedHistory: $isReload - $url - ${view.url}")
         super.doUpdateVisitedHistory(view, url, isReload)
 
-        // We used that
-        //onPageFinishedDone = false
+        // Notify the activity to update back/forward button states.
+        // post() ensures the WebView has settled and canGoBack()/canGoForward()
+        // return accurate values — onTabChangedUrl alone is insufficient for
+        // sites like YouTube that manipulate history asynchronously.
+        view.post { webBrowser.onTabChangedUrl(webPageTab) }
 
         updateUrlIfNeeded(url)
     }

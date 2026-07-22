@@ -54,6 +54,14 @@ class DirectLinkAdManager(
     /** Background WebPageTab pre-loading the next ad (never in TabsManager's tab list). */
     private var preloadedAdTab: WebPageTab? = null
 
+    /**
+     * The original ad URL that was passed to the pre-load tab.
+     * Used to detect whether the background WebView has actually started resolving
+     * the redirect chain. If [webView.url] still equals this value when the trigger
+     * fires, the redirects haven't started yet and we use it as-is.
+     */
+    private var preloadingUrl: String? = null
+
     // ---------------------------------------------------------------
     // Public API
     // ---------------------------------------------------------------
@@ -67,15 +75,14 @@ class DirectLinkAdManager(
             Timber.d("DirectAd: pre-load already in progress — skipping")
             return
         }
-        val url = repo.randomAdUrl() ?: run {
-            Timber.w("DirectAd: no cached ad URLs to preload")
-            return
-        }
+        val url = repo.randomAdUrl()
+        preloadingUrl = url
         try {
             preloadedAdTab = createPreloadedTab(url)
             Timber.i("DirectAd: pre-loading background tab -> $url")
         } catch (e: Exception) {
             Timber.e(e, "DirectAd: failed to create preload tab")
+            preloadingUrl = null
         }
     }
 
@@ -95,10 +102,7 @@ class DirectLinkAdManager(
         prefs.edit().putBoolean(KEY_LAUNCH_DONE, true).apply()
 
         handler.postDelayed({
-            val url = repo.randomAdUrl() ?: run {
-                Timber.w("DirectAd: no cached URLs — skipping launch ad")
-                return@postDelayed
-            }
+            val url = repo.randomAdUrl()
             try {
                 openAdTab(url, false)
                 Timber.i("DirectAd: opened launch background tab -> $url")
@@ -121,8 +125,7 @@ class DirectLinkAdManager(
      * Count every user-gesture navigation. When the tap threshold is hit:
      * - If the background pre-load has finished, extract its resolved URL and load it in
      *   the current tab (same-tab, near-instant: redirect chain already done in background).
-     * - If the pre-load isn't finished yet, fall back to loading the raw ad URL directly
-     *   (still benefits from the adblocker bypass; just won't skip the redirect chain).
+     * - If the pre-load isn't finished yet, fall back to loading the raw ad URL directly.
      *
      * Returns **true** when an ad fires (intercepts the original navigation);
      * returns **false** otherwise so the original navigation continues normally.
@@ -146,22 +149,23 @@ class DirectLinkAdManager(
             .apply()
 
         val bgTab = preloadedAdTab
+        val initialUrl = preloadingUrl
         preloadedAdTab = null
+        preloadingUrl = null
 
-        val resolvedUrl: String? = if (bgTab != null) {
+        val resolvedUrl: String = if (bgTab != null) {
             // Prefer the URL the background WebView has already navigated to (redirect resolved).
-            val wvUrl = bgTab.webView?.url?.takeIf { it.isNotBlank() && it != "about:blank" }
+            // Only accept if it differs from the original preload URL — same URL means
+            // the redirect chain hasn't started resolving yet, so use initialUrl as-is.
+            val wvUrl = bgTab.webView?.url?.takeIf {
+                it.isNotBlank() && it != "about:blank" && it != initialUrl
+            }
             // Clean up the background tab — it was never in the tab list.
             try { bgTab.destroy() } catch (e: Exception) { Timber.w(e, "DirectAd: bgTab destroy") }
-            // Fall back to the original ad URL if WebView hasn't navigated yet.
-            wvUrl ?: repo.randomAdUrl()
+            // Prefer resolved URL → fallback to original preload URL → fallback to fresh random URL
+            wvUrl ?: initialUrl ?: repo.randomAdUrl()
         } else {
-            repo.randomAdUrl()
-        }
-
-        if (resolvedUrl == null) {
-            Timber.w("DirectAd: no ad URL available — skipping")
-            return false
+            initialUrl ?: repo.randomAdUrl()
         }
 
         try {
