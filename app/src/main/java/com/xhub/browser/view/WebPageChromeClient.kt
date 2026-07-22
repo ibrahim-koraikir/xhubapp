@@ -1,4 +1,4 @@
-﻿package com.xhub.browser.view
+package com.xhub.browser.view
 
 import android.Manifest
 import android.annotation.TargetApi
@@ -17,7 +17,9 @@ import android.webkit.JsResult
 import android.webkit.PermissionRequest
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceRequest
 import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.graphics.drawable.toBitmap
 import androidx.core.text.parseAsHtml
@@ -73,6 +75,10 @@ class WebPageChromeClient(
 
         webBrowser.onProgressChanged(webPageTab, newProgress)
 
+        if (newProgress == 100) {
+            webPageTab.injectVideoSniffer()
+        }
+
         // We don't need to run that when color mode is disabled
         if (userPreferences.colorModeEnabled) {
             if (newProgress > 10 && webPageTab.shouldFetchMetaTags)
@@ -107,9 +113,15 @@ class WebPageChromeClient(
             return
         }
 
+        // COMMENT 1: cacheFaviconForUrl emits onError if either of the disk writes fails.
+        // Bare .subscribe() would throw OnErrorNotImplementedException and crash the app — caching
+        // is a best-effort optimization, so log and swallow the failure instead.
         faviconModel.cacheFaviconForUrl(icon, url)
             .subscribeOn(diskScheduler)
-            .subscribe()
+            .subscribe(
+                { /* onComplete — nothing to do */ },
+                { err -> Timber.w(err, "Failed to cache favicon for %s", url) }
+            )
     }
 
     /**
@@ -378,12 +390,29 @@ class WebPageChromeClient(
 
 
     override fun onCreateWindow(view: WebView, isDialog: Boolean, isUserGesture: Boolean, resultMsg: Message): Boolean {
-        Timber.d("onCreateWindow")
-        // TODO: redo that
-        webBrowser.onCreateWindow(resultMsg)
-        //TODO: surely that can't be right,
-        return true
-        //return false
+        Timber.d("onCreateWindow - popupsEnabled: ${userPreferences.popupsEnabled}")
+        if (userPreferences.popupsEnabled) {
+            // Return whatever the browser reports: false means no tab was created (e.g. the max
+            // tab limit was hit) and the transport WebView was never set. In that case we MUST
+            // return false so Chromium cancels the popup cleanly — returning true here would make
+            // it fall back to hosting the popup in this same (parent) WebView and crash with
+            // "Parent WebView cannot host its own popup window". The try/catch is defense in depth
+            // so an exception can never escape into Chromium's native message loop.
+            // Policy: [com.xhub.browser.browser.PopupWindowPolicy.acceptPopupWhenEnabled].
+            return try {
+                com.xhub.browser.browser.PopupWindowPolicy.acceptPopupWhenEnabled(
+                    newTabCreated = webBrowser.onCreateWindow(resultMsg)
+                )
+            } catch (e: Exception) {
+                Timber.w(e, "onCreateWindow failed — declining popup")
+                false
+            }
+        } else {
+            // "Allow sites to open new windows" is OFF (Popups Blocked).
+            // Return false so Chromium cancels the popup — blocking third-party popups/direct-link ads!
+            Timber.i("onCreateWindow: popups disabled — declining third-party popup/direct ad")
+            return com.xhub.browser.browser.PopupWindowPolicy.acceptSameTabRedirect(false)
+        }
     }
 
     override fun onCloseWindow(window: WebView) {
