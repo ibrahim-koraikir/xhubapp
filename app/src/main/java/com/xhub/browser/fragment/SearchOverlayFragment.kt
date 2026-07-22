@@ -1,4 +1,4 @@
-﻿package com.xhub.browser.fragment
+package com.xhub.browser.fragment
 
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -6,6 +6,8 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.GridLayout
 import android.widget.TextView
+import androidx.activity.result.ActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
@@ -27,6 +29,22 @@ class SearchOverlayFragment : BottomSheetDialogFragment() {
     @Inject lateinit var historyRepository: HistoryRepository
     private val disposables = CompositeDisposable()
     private lateinit var recentSearchAdapter: RecentSearchAdapter
+
+    // Launcher for the system voice-recognition activity. Replaces the deprecated
+    // activity?.startActivityForResult(intent, 10101) delegation to WebBrowserActivity: the spoken
+    // query is now handled here in the fragment's own result callback, then the overlay dismisses
+    // itself. This removes the fragile shared-request-code coupling with WebBrowserActivity.
+    private val voiceSearchLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        result: ActivityResult ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            val matches = result.data?.getStringArrayListExtra(android.speech.RecognizerIntent.EXTRA_RESULTS)
+            val topResult = matches?.firstOrNull()
+            if (!topResult.isNullOrEmpty()) {
+                (activity as? WebBrowserActivity)?.searchTheWeb(topResult)
+            }
+        }
+        dismiss()
+    }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
         return inflater.inflate(R.layout.search_overlay, container, false)
@@ -76,8 +94,7 @@ class SearchOverlayFragment : BottomSheetDialogFragment() {
                 putExtra(android.speech.RecognizerIntent.EXTRA_PROMPT, getString(R.string.search_hint))
             }
             try {
-                activity?.startActivityForResult(intent, 10101) // Uses the same request code as WebBrowserActivity
-                dismiss()
+                voiceSearchLauncher.launch(intent)
             } catch (e: Exception) {
                 // Ignore if voice recognition is not available
             }
@@ -109,10 +126,12 @@ class SearchOverlayFragment : BottomSheetDialogFragment() {
 
     private fun setupSiteSuggestions(grid: GridLayout) {
         val sites = listOf(
-            SiteSuggestion("G",  "Google",     "#4285f4", "https://www.google.com"),
-            SiteSuggestion("Y",  "YouTube",    "#ff0000", "https://www.youtube.com"),
-            SiteSuggestion("X",  "X (Twitter)","#1a1a1a", "https://www.x.com"),
-            SiteSuggestion("W",  "Wikipedia",  "#3366cc", "https://www.wikipedia.org")
+            SiteSuggestion("G",  "Google",     "#4285F4", "https://www.google.com"),
+            SiteSuggestion("Y",  "YouTube",    "#FF0000", "https://www.youtube.com"),
+            SiteSuggestion("X",  "X (Twitter)","#1A1A1A", "https://www.x.com"),
+            SiteSuggestion("R",  "Reddit",     "#FF4500", "https://www.reddit.com"),
+            SiteSuggestion("W",  "Wikipedia",  "#3366CC", "https://www.wikipedia.org"),
+            SiteSuggestion("A",  "Amazon",     "#FF9900", "https://www.amazon.com")
         )
 
         sites.forEach { site ->

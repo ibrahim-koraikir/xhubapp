@@ -4,12 +4,15 @@
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:gravity="center"
-    android:padding="8dp">
+    android:padding="6dp"
+    android:layout_margin="4dp"
+    android:clickable="true"
+    android:focusable="true">
 
     <FrameLayout
         android:id="@+id/site_icon_container"
-        android:layout_width="56dp"
-        android:layout_height="56dp"
+        android:layout_width="52dp"
+        android:layout_height="52dp"
         android:background="@drawable/bg_site_card">
 
         <TextView
@@ -19,8 +22,9 @@
             android:layout_gravity="center"
             android:gravity="center"
             android:textColor="@color/white"
-            android:textSize="20sp"
-            android:textStyle="bold" />
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:fontFamily="sans-serif-medium" />
 
     </FrameLayout>
 
@@ -28,9 +32,10 @@
         android:id="@+id/site_name"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
-        android:textColor="?attr/appColorSubtleForeground"
-        android:textSize="11sp"
+        android:layout_marginTop="5dp"
+        android:textColor="@color/white"
+        android:textSize="12sp"
+        android:fontFamily="sans-serif-medium"
         android:maxLines="1"
         android:ellipsize="end" />
 
