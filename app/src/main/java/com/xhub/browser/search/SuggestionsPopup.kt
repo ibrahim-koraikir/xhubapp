@@ -15,7 +15,10 @@ import com.xhub.browser.R
 class SuggestionsPopup(
     private val context: Context,
     private val adapter: SuggestionsAdapter,
-    private val anchorView: View
+    private val anchorView: View,
+    /** true = toolbar is at the BOTTOM of the screen, popup goes ABOVE it.
+     *  false = toolbar is at the TOP of the screen, popup drops DOWN below it. */
+    private val toolbarAtBottom: Boolean = true
 ) {
     private val popupWindow: PopupWindow
     private val recyclerView: RecyclerView
@@ -51,27 +54,39 @@ class SuggestionsPopup(
             val loc = IntArray(2)
             anchorView.getLocationOnScreen(loc)
             val screenHeight = anchorView.resources.displayMetrics.heightPixels
-            val yFromBottom = screenHeight - loc[1]
 
-            // Calculate height based on item count (max 5 items, each ~56dp + padding)
+            // Calculate popup height based on number of items (each ~56dp, max 5 visible)
             val density = context.resources.displayMetrics.density
             val itemHeight = (56 * density).toInt()
             val maxItemsHeight = (adapter.itemCount.coerceAtMost(5) * itemHeight) + (16 * density).toInt()
             val maxHeight = (screenHeight * 0.45).toInt().coerceAtMost(maxItemsHeight)
-
             popupWindow.height = maxHeight
 
-            if (!popupWindow.isShowing) {
-                try {
-                    popupWindow.showAtLocation(anchorView, Gravity.BOTTOM, 0, yFromBottom)
-                } catch (e: Exception) {
-                    // Ignored if window token is invalid
+            if (toolbarAtBottom) {
+                // Toolbar at BOTTOM → popup appears ABOVE toolbar
+                // yFromBottom = distance from screen bottom to the TOP of the toolbar
+                val yFromBottom = screenHeight - loc[1]
+                if (!popupWindow.isShowing) {
+                    try {
+                        popupWindow.showAtLocation(anchorView, Gravity.BOTTOM, 0, yFromBottom)
+                    } catch (e: Exception) { /* window not attached */ }
+                } else {
+                    try {
+                        popupWindow.update(0, yFromBottom, ViewGroup.LayoutParams.MATCH_PARENT, maxHeight)
+                    } catch (e: Exception) { /* ignored */ }
                 }
             } else {
-                try {
-                    popupWindow.update(0, yFromBottom, ViewGroup.LayoutParams.MATCH_PARENT, maxHeight)
-                } catch (e: Exception) {
-                    // Ignored
+                // Toolbar at TOP → popup drops DOWN below toolbar bottom edge
+                // yFromTop = bottom edge of the toolbar (loc[1] + toolbar height)
+                val yFromTop = loc[1] + anchorView.height
+                if (!popupWindow.isShowing) {
+                    try {
+                        popupWindow.showAtLocation(anchorView, Gravity.TOP, 0, yFromTop)
+                    } catch (e: Exception) { /* window not attached */ }
+                } else {
+                    try {
+                        popupWindow.update(0, yFromTop, ViewGroup.LayoutParams.MATCH_PARENT, maxHeight)
+                    } catch (e: Exception) { /* ignored */ }
                 }
             }
         }
@@ -81,9 +96,7 @@ class SuggestionsPopup(
         if (popupWindow.isShowing) {
             try {
                 popupWindow.dismiss()
-            } catch (e: Exception) {
-                // Ignored
-            }
+            } catch (e: Exception) { /* ignored */ }
         }
     }
 

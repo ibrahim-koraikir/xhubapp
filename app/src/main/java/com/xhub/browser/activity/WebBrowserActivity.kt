@@ -5378,7 +5378,7 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
     private fun initializeSearchSuggestions(getUrl: AutoCompleteTextView) {
         val adapter = SuggestionsAdapter(this, isIncognito())
         suggestionsAdapter = adapter
-        suggestionsPopup = SuggestionsPopup(this, adapter, iBinding.toolbarInclude.toolbarLayout)
+        suggestionsPopup = SuggestionsPopup(this, adapter, iBinding.toolbarInclude.toolbarLayout, configPrefs.toolbarsBottom)
 
         adapter.onSuggestionInsertClick = {
             if (it is SearchSuggestion) {
