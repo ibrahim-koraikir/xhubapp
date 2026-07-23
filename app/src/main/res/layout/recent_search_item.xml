@@ -1,39 +1,49 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Comet-style recent search row: clock icon + title + insert arrow -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:gravity="center_vertical"
-    android:paddingVertical="12dp"
-    android:paddingHorizontal="14dp"
-    android:layout_marginBottom="6dp"
-    android:background="@drawable/bg_home_action_glass"
+    android:paddingStart="20dp"
+    android:paddingEnd="16dp"
+    android:paddingTop="14dp"
+    android:paddingBottom="14dp"
     android:clickable="true"
-    android:focusable="true">
+    android:focusable="true"
+    android:background="?attr/selectableItemBackground">
 
+    <!-- Clock icon -->
     <ImageView
         android:layout_width="20dp"
         android:layout_height="20dp"
         android:src="@drawable/ic_history"
-        app:tint="#FF007A" />
+        app:tint="#555568" />
 
+    <!-- Title -->
     <TextView
         android:id="@+id/recent_text"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:layout_marginStart="12dp"
-        android:textColor="@color/white"
+        android:layout_marginStart="14dp"
+        android:textColor="#DDDDDD"
         android:textSize="15sp"
-        android:fontFamily="sans-serif-medium"
+        android:fontFamily="sans-serif"
         android:ellipsize="end"
         android:singleLine="true" />
 
+    <!-- Insert arrow -->
     <ImageView
-        android:layout_width="16dp"
-        android:layout_height="16dp"
-        android:src="@drawable/ic_action_forward"
-        app:tint="?attr/appColorSubtleForeground" />
+        android:id="@+id/recent_insert"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
+        android:padding="4dp"
+        android:src="@drawable/ic_insert"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:clickable="true"
+        android:focusable="true"
+        app:tint="#555568" />
 
 </LinearLayout>

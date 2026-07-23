@@ -1,19 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Comet-style large colored circle site shortcut -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:gravity="center"
-    android:padding="6dp"
-    android:layout_margin="4dp"
+    android:padding="8dp"
     android:clickable="true"
     android:focusable="true">
 
+    <!-- Colored circle -->
     <FrameLayout
         android:id="@+id/site_icon_container"
-        android:layout_width="52dp"
-        android:layout_height="52dp"
-        android:background="@drawable/bg_site_card">
+        android:layout_width="60dp"
+        android:layout_height="60dp">
 
         <TextView
             android:id="@+id/site_logo"
@@ -22,20 +22,22 @@
             android:layout_gravity="center"
             android:gravity="center"
             android:textColor="@color/white"
-            android:textSize="18sp"
+            android:textSize="22sp"
             android:textStyle="bold"
             android:fontFamily="sans-serif-medium" />
 
     </FrameLayout>
 
+    <!-- Site name label -->
     <TextView
         android:id="@+id/site_name"
-        android:layout_width="wrap_content"
+        android:layout_width="64dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="5dp"
-        android:textColor="@color/white"
-        android:textSize="12sp"
-        android:fontFamily="sans-serif-medium"
+        android:layout_marginTop="6dp"
+        android:textColor="#AAAAAA"
+        android:textSize="11sp"
+        android:fontFamily="sans-serif"
+        android:gravity="center"
         android:maxLines="1"
         android:ellipsize="end" />
 

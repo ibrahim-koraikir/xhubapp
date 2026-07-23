@@ -1,126 +1,160 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Full-screen Comet-style dark search overlay -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@drawable/bg_search_overlay"
-    android:paddingTop="12dp">
+    android:background="#0D0D0D"
+    android:paddingTop="8dp">
 
-    <!-- Handle -->
+    <!-- Drag handle -->
     <View
-        android:id="@+id/drag_handle"
-        android:layout_width="48dp"
-        android:layout_height="5dp"
+        android:layout_width="40dp"
+        android:layout_height="4dp"
         android:layout_gravity="center_horizontal"
-        android:background="@drawable/bg_handle"
-        android:alpha="0.8" />
+        android:layout_marginBottom="8dp"
+        android:background="#3D3D3D"
+        android:backgroundTint="#3D3D3D" />
 
+    <!-- Scrollable content area -->
     <androidx.core.widget.NestedScrollView
+        android:id="@+id/scroll_content"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1">
+        android:layout_weight="1"
+        android:overScrollMode="never">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:paddingHorizontal="20dp"
-            android:paddingTop="20dp"
-            android:paddingBottom="16dp">
+            android:orientation="vertical">
 
-            <!-- Quick Site Suggestions Header -->
+            <!-- ===== LIVE SUGGESTIONS (shown while typing) ===== -->
             <LinearLayout
+                android:id="@+id/suggestions_section"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:layout_marginBottom="14dp">
-
-                <ImageView
-                    android:layout_width="18dp"
-                    android:layout_height="18dp"
-                    android:src="@drawable/ic_web"
-                    app:tint="#FF007A" />
+                android:orientation="vertical"
+                android:visibility="gone">
 
                 <TextView
-                    android:id="@+id/site_title"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:text="@string/search_overlay_site_suggestions"
-                    android:textColor="@color/white"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:fontFamily="sans-serif-medium" />
-            </LinearLayout>
+                    android:text="Suggestions"
+                    android:textColor="#888888"
+                    android:textSize="13sp"
+                    android:fontFamily="sans-serif-medium"
+                    android:paddingStart="20dp"
+                    android:paddingTop="14dp"
+                    android:paddingBottom="8dp" />
 
-            <GridLayout
-                android:id="@+id/suggestions_grid"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:columnCount="3"
-                android:layout_marginBottom="28dp">
-            </GridLayout>
-
-            <!-- Recent Searches Header -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:layout_marginBottom="12dp">
-
-                <ImageView
-                    android:layout_width="18dp"
-                    android:layout_height="18dp"
-                    android:src="@drawable/ic_history"
-                    app:tint="#FF007A" />
-
-                <TextView
-                    android:id="@+id/recent_title"
-                    android:layout_width="0dp"
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/live_suggestions_list"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_marginStart="8dp"
-                    android:text="@string/search_overlay_recent_searches"
-                    android:textColor="@color/white"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:fontFamily="sans-serif-medium" />
+                    android:nestedScrollingEnabled="false" />
+
             </LinearLayout>
 
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/recent_list"
+            <!-- ===== DEFAULT STATE (site suggestions + recent searches) ===== -->
+            <LinearLayout
+                android:id="@+id/default_section"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp" />
+                android:orientation="vertical">
+
+                <!-- Site Suggestions Header -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Site suggestions"
+                    android:textColor="#FFFFFF"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:fontFamily="sans-serif-medium"
+                    android:paddingStart="20dp"
+                    android:paddingTop="16dp"
+                    android:paddingBottom="14dp" />
+
+                <!-- Site Shortcut Circles (horizontal scroll) -->
+                <HorizontalScrollView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:scrollbars="none"
+                    android:layout_marginBottom="24dp">
+
+                    <LinearLayout
+                        android:id="@+id/sites_row"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:paddingStart="16dp"
+                        android:paddingEnd="16dp" />
+
+                </HorizontalScrollView>
+
+                <!-- Divider -->
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginStart="20dp"
+                    android:layout_marginEnd="20dp"
+                    android:layout_marginBottom="16dp"
+                    android:background="#1E1E1E" />
+
+                <!-- Recent Searches Header -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Recent searches"
+                    android:textColor="#FFFFFF"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:fontFamily="sans-serif-medium"
+                    android:paddingStart="20dp"
+                    android:paddingBottom="4dp" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/recent_list"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:nestedScrollingEnabled="false"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="16dp" />
+
+            </LinearLayout>
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 
-    <!-- Expanded Search Bar Bar -->
+    <!-- ===== BOTTOM SEARCH BAR ===== -->
     <LinearLayout
-        android:id="@+id/bottom_search_bar_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:paddingHorizontal="16dp"
-        android:paddingBottom="12dp">
+        android:orientation="vertical"
+        android:background="#0D0D0D"
+        android:paddingStart="14dp"
+        android:paddingEnd="14dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="16dp">
+
+        <!-- Top border line -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginBottom="10dp"
+            android:background="#1E1E1E" />
 
         <LinearLayout
             android:id="@+id/search_bar_expanded"
             android:layout_width="match_parent"
-            android:layout_height="48dp"
+            android:layout_height="52dp"
             android:background="@drawable/bg_search_bar_expanded"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:paddingHorizontal="12dp">
-
-            <ImageView
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:src="@drawable/ic_comet_logo"
-                app:tint="#FF007A" />
+            android:paddingStart="14dp"
+            android:paddingEnd="6dp">
 
             <EditText
                 android:id="@+id/search_input_expanded"
@@ -128,39 +162,37 @@
                 android:layout_height="match_parent"
                 android:layout_weight="1"
                 android:background="@null"
-                android:hint="@string/search_overlay_hint"
-                android:textColor="@color/white"
-                android:textColorHint="?attr/appColorSubtleForeground"
+                android:hint="Search Google or type a URL"
+                android:textColor="#FFFFFF"
+                android:textColorHint="#666666"
                 android:textSize="15sp"
-                android:fontFamily="sans-serif-medium"
-                android:paddingStart="10dp"
-                android:paddingEnd="6dp"
+                android:fontFamily="sans-serif"
                 android:singleLine="true"
                 android:imeOptions="actionGo"
                 android:inputType="textUri" />
 
+            <!-- Mic button -->
             <ImageButton
                 android:id="@+id/mic_btn_expanded"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/home_voice_search_desc"
-                app:tooltipText="@string/home_voice_search_desc"
                 android:src="@drawable/ic_mic"
-                android:padding="6dp"
+                android:padding="8dp"
                 android:scaleType="fitCenter"
-                app:tint="#FF007A" />
+                app:tint="#00BCD4" />
 
+            <!-- Send arrow — cyan circle -->
             <ImageButton
                 android:id="@+id/wave_btn_expanded"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
                 android:layout_marginStart="4dp"
-                android:background="@drawable/bg_home_action_glass"
+                android:background="@drawable/bg_send_btn"
                 android:contentDescription="@string/search_action"
-                app:tooltipText="@string/search_action"
                 android:src="@drawable/ic_action_forward"
-                android:padding="8dp"
+                android:padding="10dp"
                 android:scaleType="fitCenter"
                 app:tint="@color/white" />
 

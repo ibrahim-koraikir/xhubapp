@@ -1963,7 +1963,13 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
         }
 
         override fun onPreFocus() {
-            // Inline search suggestions and keyboard focus handled directly by address bar
+            // Show the beautiful Comet-style search overlay on tap
+            if (!isFinishing && !supportFragmentManager.isStateSaved) {
+                val existingFragment = supportFragmentManager.findFragmentByTag("SearchOverlay")
+                if (existingFragment == null) {
+                    SearchOverlayFragment().show(supportFragmentManager, "SearchOverlay")
+                }
+            }
         }
     }
 
