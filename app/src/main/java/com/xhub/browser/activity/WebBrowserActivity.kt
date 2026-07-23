@@ -1570,8 +1570,8 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
                         iv?.setImageResource(R.drawable.ic_mic) // Change back to mic or audio icon
                     }
 
-                    if (hasText && hasFocus()) {
-                        suggestionsAdapter?.filter?.filter(s)
+                    if (hasFocus()) {
+                        suggestionsAdapter?.filter?.filter(s ?: "")
                         suggestionsPopup?.show()
                     } else {
                         suggestionsPopup?.dismiss()
@@ -1973,6 +1973,8 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
                     // Select all text so that user conveniently start typing or copy current URL
                     (v as SearchView).selectAll()
                     iBindingToolbarContent.addressBarInclude.searchSslStatus.visibility = GONE
+                    suggestionsAdapter?.filter?.filter(searchView.text ?: "")
+                    suggestionsPopup?.show()
                 }
             }
 

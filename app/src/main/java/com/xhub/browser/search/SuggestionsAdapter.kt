@@ -1,4 +1,4 @@
-﻿package com.xhub.browser.search
+package com.xhub.browser.search
 
 import com.xhub.browser.R
 import com.xhub.browser.database.Bookmark
@@ -143,7 +143,7 @@ class SuggestionsAdapter(
             val useDark = (iContext.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
             
             holder.disposables.add(
-                faviconModel.realFaviconForUrl(webPage.url, useDark)
+                faviconModel.realFaviconForUrl(webPage.url, useDark, isIncognito)
                     .subscribeOn(databaseScheduler)
                     .observeOn(mainScheduler)
                     .subscribe(
@@ -201,23 +201,40 @@ class SuggestionsAdapter(
     private fun Observable<CharSequence>.results(): Flowable<List<WebPage>> = this
         .toFlowable(BackpressureStrategy.LATEST)
         .map { it.toString().lowercase(Locale.getDefault()).trim() }
-        .filter(String::isNotEmpty)
         .share()
         .compose { upstream ->
             val searchEntries = upstream
-                .flatMapSingle(suggestionsRepository::resultsForSearch)
+                .flatMapSingle { query ->
+                    if (query.isBlank() || query.startsWith("xhub://") || query.startsWith("about:")) {
+                        Single.just(emptyList<SearchSuggestion>())
+                    } else {
+                        suggestionsRepository.resultsForSearch(query)
+                    }
+                }
                 .subscribeOn(networkScheduler)
                 .startWith(emptyList<List<SearchSuggestion>>())
                 .share()
 
             val bookmarksEntries = upstream
-                .flatMapSingle(::getBookmarksForQuery)
+                .flatMapSingle { query ->
+                    if (query.isBlank() || query.startsWith("xhub://") || query.startsWith("about:")) {
+                        Single.just(allBookmarks.take(3))
+                    } else {
+                        getBookmarksForQuery(query)
+                    }
+                }
                 .subscribeOn(databaseScheduler)
                 .startWith(emptyList<List<Bookmark.Entry>>())
                 .share()
 
             val historyEntries = upstream
-                .flatMapSingle(historyRepository::findHistoryEntriesContaining)
+                .flatMapSingle { query ->
+                    if (query.isBlank() || query.startsWith("xhub://") || query.startsWith("about:")) {
+                        historyRepository.lastHundredVisitedHistoryEntries().map { it.take(5) }
+                    } else {
+                        historyRepository.findHistoryEntriesContaining(query)
+                    }
+                }
                 .subscribeOn(databaseScheduler)
                 .startWith(emptyList<HistoryEntry>())
                 .share()
@@ -257,13 +274,9 @@ class SuggestionsAdapter(
         fun input(): Observable<CharSequence> = publishSubject.hide()
 
         override fun performFiltering(constraint: CharSequence?): FilterResults {
-            Timber.v("performFiltering")
-            if (constraint?.isBlank() != false) {
-                return FilterResults()
-            }
-
-            Timber.v("Constraint: $constraint")
-            publishSubject.onNext(constraint.trim())
+            Timber.v("performFiltering: $constraint")
+            val cleanQuery = constraint?.toString()?.trim() ?: ""
+            publishSubject.onNext(cleanQuery)
             return FilterResults().apply { count = 1 }
         }
 

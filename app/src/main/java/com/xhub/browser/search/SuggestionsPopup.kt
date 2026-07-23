@@ -1,8 +1,9 @@
-﻿package com.xhub.browser.search
+package com.xhub.browser.search
 
 import android.content.Context
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
+import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -10,7 +11,6 @@ import android.widget.PopupWindow
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.xhub.browser.R
-import com.xhub.browser.database.WebPage
 
 class SuggestionsPopup(
     private val context: Context,
@@ -33,8 +33,18 @@ class SuggestionsPopup(
     }
 
     fun show() {
-        if (!popupWindow.isShowing) {
-            popupWindow.showAsDropDown(anchorView)
+        if (anchorView.isAttachedToWindow) {
+            anchorView.post {
+                val loc = IntArray(2)
+                anchorView.getLocationOnScreen(loc)
+                val screenHeight = anchorView.resources.displayMetrics.heightPixels
+                val yFromBottom = screenHeight - loc[1]
+                if (!popupWindow.isShowing) {
+                    popupWindow.showAtLocation(anchorView, Gravity.BOTTOM, 0, yFromBottom)
+                } else {
+                    popupWindow.update(0, yFromBottom, popupWindow.width, popupWindow.height)
+                }
+            }
         }
     }
 
