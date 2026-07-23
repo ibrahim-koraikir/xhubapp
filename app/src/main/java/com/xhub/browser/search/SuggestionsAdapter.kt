@@ -175,15 +175,19 @@ class SuggestionsAdapter(
 
     override fun getFilter(): Filter = searchFilter
 
+    var onListUpdated: (() -> Unit)? = null
+
     private fun publishResults(list: List<WebPage>?) {
         if (list == null) {
             filteredList = emptyList()
             notifyDataSetChanged()
+            onListUpdated?.invoke()
             return
         }
         if (list != filteredList) {
             filteredList = list
             notifyDataSetChanged()
+            onListUpdated?.invoke()
         }
     }
 

@@ -3,58 +3,62 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:clickable="false"
+    android:clickable="true"
+    android:focusable="true"
+    android:background="?attr/selectableItemBackground"
     android:gravity="center_vertical"
     android:orientation="horizontal"
-    android:paddingStart="@dimen/material_grid_margin"
-    android:paddingTop="6dp"
-    android:paddingEnd="@dimen/material_grid_margin"
-    android:paddingBottom="6dp"
-    android:weightSum="1">
+    android:paddingStart="16dp"
+    android:paddingTop="10dp"
+    android:paddingEnd="16dp"
+    android:paddingBottom="10dp">
 
     <com.xhub.browser.view.ImageView
         android:id="@+id/suggestionIcon"
-        android:layout_width="@dimen/material_grid_small_icon"
-        android:layout_height="@dimen/material_grid_small_icon"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
         android:scaleType="centerInside"
-        android:contentDescription="@null" />
+        android:contentDescription="@null"
+        app:tint="#B0B0CC" />
 
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:orientation="vertical"
-        android:paddingStart="@dimen/material_grid_margin"
-        android:paddingEnd="@dimen/material_grid_margin">
+        android:paddingStart="14dp"
+        android:paddingEnd="14dp">
 
         <TextView
             android:id="@+id/title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
             android:ellipsize="end"
             android:maxLines="1"
-            android:textColor="?attr/autoCompleteTitleColor"
-            android:textSize="16sp" />
+            android:textColor="#FFFFFF"
+            android:textSize="15sp"
+            android:fontFamily="sans-serif-medium" />
 
         <TextView
             android:id="@+id/url"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
             android:ellipsize="end"
             android:maxLines="1"
-            android:textColor="?attr/autoCompleteUrlColor"
-            android:textSize="13sp" />
+            android:textColor="#9090AB"
+            android:textSize="12sp"
+            android:layout_marginTop="2dp" />
     </LinearLayout>
 
     <com.xhub.browser.view.ImageView
         android:id="@+id/complete_search"
-        android:layout_width="@dimen/material_grid_touch_small"
-        android:layout_height="@dimen/material_grid_touch_small"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:padding="6dp"
         android:background="?attr/selectableItemBackgroundBorderless"
         android:contentDescription="@string/search_insert_suggestion"
-        android:scaleType="center"
-        app:srcCompat="@drawable/ic_insert" />
+        android:scaleType="centerInside"
+        app:srcCompat="@drawable/ic_insert"
+        app:tint="#70708C" />
 
 </LinearLayout>

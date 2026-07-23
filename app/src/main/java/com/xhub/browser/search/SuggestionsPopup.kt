@@ -26,23 +26,52 @@ class SuggestionsPopup(
         recyclerView.layoutManager = LinearLayoutManager(context)
         recyclerView.adapter = adapter
 
-        popupWindow = PopupWindow(view, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, true)
+        popupWindow = PopupWindow(view, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, false)
         popupWindow.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
         popupWindow.isOutsideTouchable = true
         popupWindow.isFocusable = false // Don't steal focus from the address bar
+
+        adapter.onListUpdated = {
+            if (adapter.itemCount > 0) {
+                show()
+            } else {
+                dismiss()
+            }
+        }
     }
 
     fun show() {
-        if (anchorView.isAttachedToWindow) {
-            anchorView.post {
-                val loc = IntArray(2)
-                anchorView.getLocationOnScreen(loc)
-                val screenHeight = anchorView.resources.displayMetrics.heightPixels
-                val yFromBottom = screenHeight - loc[1]
-                if (!popupWindow.isShowing) {
+        if (!anchorView.isAttachedToWindow) return
+        if (adapter.itemCount == 0) {
+            dismiss()
+            return
+        }
+
+        anchorView.post {
+            val loc = IntArray(2)
+            anchorView.getLocationOnScreen(loc)
+            val screenHeight = anchorView.resources.displayMetrics.heightPixels
+            val yFromBottom = screenHeight - loc[1]
+
+            // Calculate height based on item count (max 5 items, each ~56dp + padding)
+            val density = context.resources.displayMetrics.density
+            val itemHeight = (56 * density).toInt()
+            val maxItemsHeight = (adapter.itemCount.coerceAtMost(5) * itemHeight) + (16 * density).toInt()
+            val maxHeight = (screenHeight * 0.45).toInt().coerceAtMost(maxItemsHeight)
+
+            popupWindow.height = maxHeight
+
+            if (!popupWindow.isShowing) {
+                try {
                     popupWindow.showAtLocation(anchorView, Gravity.BOTTOM, 0, yFromBottom)
-                } else {
-                    popupWindow.update(0, yFromBottom, popupWindow.width, popupWindow.height)
+                } catch (e: Exception) {
+                    // Ignored if window token is invalid
+                }
+            } else {
+                try {
+                    popupWindow.update(0, yFromBottom, ViewGroup.LayoutParams.MATCH_PARENT, maxHeight)
+                } catch (e: Exception) {
+                    // Ignored
                 }
             }
         }
@@ -50,7 +79,11 @@ class SuggestionsPopup(
 
     fun dismiss() {
         if (popupWindow.isShowing) {
-            popupWindow.dismiss()
+            try {
+                popupWindow.dismiss()
+            } catch (e: Exception) {
+                // Ignored
+            }
         }
     }
 
