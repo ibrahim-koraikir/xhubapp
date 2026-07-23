@@ -16,7 +16,7 @@
             android:layout_height="@dimen/toolbar_pill_height"
             android:layout_marginStart="@dimen/toolbar_pill_margin_h"
             android:layout_marginEnd="@dimen/toolbar_pill_margin_h"
-            android:background="@drawable/bg_assistant_pill_selector"
+            android:background="@drawable/bg_bottom_assistant_pill"
             android:animateLayoutChanges="true"
             android:gravity="center_vertical"
             android:orientation="horizontal"

@@ -1938,31 +1938,6 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
         override fun onFocusChange(v: View, hasFocus: Boolean) {
             val currentView = tabsManager.currentTab
 
-            // Animate search pill scale and elevation on focus
-            val pill = iBindingToolbarContent.assistantPill
-            val cometLogo = pill?.getChildAt(0)
-            if (hasFocus) {
-                pill?.animate()
-                    ?.scaleX(1.02f)
-                    ?.scaleY(1.02f)
-                    ?.translationZ(8f)
-                    ?.setDuration(220)
-                    ?.setInterpolator(android.view.animation.OvershootInterpolator(1.4f))
-                    ?.start()
-                cometLogo?.animate()
-                    ?.rotationBy(360f)
-                    ?.setDuration(350)
-                    ?.start()
-            } else {
-                pill?.animate()
-                    ?.scaleX(1.0f)
-                    ?.scaleY(1.0f)
-                    ?.translationZ(0f)
-                    ?.setDuration(150)
-                    ?.setInterpolator(android.view.animation.DecelerateInterpolator())
-                    ?.start()
-            }
-
             if (currentView != null) {
                 setIsLoading(currentView.progress < 100)
 
