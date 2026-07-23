@@ -491,7 +491,7 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
 
         // COMMENT 4: Direct-link ads are disabled — the adblocker handles all ad URLs.
         // The DirectLinkAdManager initialization remains in case it's re-enabled later.
-        if (false) {
+        if (com.xhub.browser.BuildConfig.ADS_ENABLED) {
             val directAdsPrefs = getSharedPreferences("direct_ads", android.content.Context.MODE_PRIVATE)
             adConfigRepo = AdConfigRepository(directAdsPrefs)
             directLinkAdManager = DirectLinkAdManager(
