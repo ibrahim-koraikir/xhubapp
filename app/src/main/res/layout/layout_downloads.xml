@@ -59,6 +59,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center_horizontal"
+        android:minHeight="@dimen/downloads_list_min_height"
         android:orientation="vertical"
         android:paddingStart="32dp"
         android:paddingTop="36dp"
@@ -112,8 +113,8 @@
         android:paddingTop="4dp"
         android:paddingBottom="12dp"
         app:layout_constraintBottom_toTopOf="@id/cardActions"
-        app:layout_constraintHeight_max="480dp"
-        app:layout_constraintHeight_min="120dp"
+        app:layout_constraintHeight_max="@dimen/downloads_list_max_height"
+        app:layout_constraintHeight_min="@dimen/downloads_list_min_height"
         app:layout_constraintTop_toBottomOf="@id/layoutHeader" />
 
     <!-- Bottom actions — glass bar -->

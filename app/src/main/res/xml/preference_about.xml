@@ -228,7 +228,7 @@
 
             <intent
                 a:action="android.intent.action.VIEW"
-                a:data="https://github.com/REPLACE_WITH_YOUR_GITHUB_USERNAME/xhub/blob/main/LICENSE-CPAL-1.0">
+                a:data="@string/url_app_home_page">
                 <extra
                     a:name="PACKAGE"
                     a:value="@string/application_id" />

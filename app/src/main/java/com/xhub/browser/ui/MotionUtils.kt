@@ -1,6 +1,5 @@
 package com.xhub.browser.ui
 
-import android.accessibilityservice.AccessibilityServiceInfo
 import android.app.ActivityManager
 import android.content.Context
 import android.provider.Settings
@@ -12,7 +11,7 @@ import android.view.accessibility.AccessibilityManager
  *
  * Honors:
  *  - Developer "Animator duration scale" == 0 (animations disabled)
- *  - Explore-by-touch / audible-feedback accessibility services
+ *  - TalkBack / explore-by-touch (detected via isTouchExplorationEnabled)
  *  - Low-RAM devices (for heavy effects only — see [heavyEffectsEnabled])
  *
  * No motion code should run animations without first checking this gate.
@@ -22,7 +21,11 @@ object MotionUtils {
     /**
      * True when ANY animation may run. Cheap effects (entrance fade, ripple, streak pulse)
      * check this. Returns false if the user has disabled animations at the OS level or has
-     * an audible-feedback accessibility service enabled (explore-by-touch etc.).
+     * touch exploration (TalkBack / explore-by-touch) enabled — motion during TalkBack can
+     * be disorienting.
+     *
+     * Uses [AccessibilityManager.isTouchExplorationEnabled] instead of the previous
+     * FEEDBACK_AUDIBLE service-list check, which did not reliably detect TalkBack.
      */
     fun animationsEnabled(context: Context): Boolean {
         // OS-level animation kill-switch: "Animator duration scale" == 0 in Developer Options.
@@ -37,15 +40,12 @@ object MotionUtils {
         }
         if (scale == 0f) return false
 
-        // Honor audible-feedback accessibility services (e.g. TalkBack explore-by-touch),
-        // where motion can be disorienting.
+        // Honor touch-exploration accessibility mode (TalkBack, Switch Access, etc.) where
+        // motion can be disorienting. isTouchExplorationEnabled is the correct API for this.
         val am = context.getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager
             ?: return true
         if (!am.isEnabled) return true
-        val touchExploreOn = am.getEnabledAccessibilityServiceList(
-            AccessibilityServiceInfo.FEEDBACK_AUDIBLE
-        ).isNotEmpty()
-        return !touchExploreOn
+        return !am.isTouchExplorationEnabled
     }
 
     /**

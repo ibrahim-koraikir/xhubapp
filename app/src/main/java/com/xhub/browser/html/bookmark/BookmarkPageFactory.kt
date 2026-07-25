@@ -197,9 +197,15 @@ class BookmarkPageFactory @Inject constructor(
             val faviconFile = FaviconModel.getFaviconCacheFile(application, bookmarkUri,false)
             if (!faviconFile.exists()) {
                 val defaultFavicon = faviconModel.createDefaultBitmapForTitle(entry.title)
+                // COMMENT 1: provide an error consumer — cacheFaviconForUrl now emits onError on
+                // write failure, and bare .subscribe() would throw OnErrorNotImplementedException.
+                // Caching is best-effort; log and swallow.
                 faviconModel.cacheFaviconForUrl(defaultFavicon, entry.url)
                     .subscribeOn(diskScheduler)
-                    .subscribe()
+                    .subscribe(
+                        { /* onComplete — nothing to do */ },
+                        { err -> android.util.Log.w("BookmarkPageFactory", "Failed to cache favicon for ${entry.url}", err) }
+                    )
             }
 
             faviconFile

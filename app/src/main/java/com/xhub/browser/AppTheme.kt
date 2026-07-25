@@ -11,5 +11,5 @@ enum class AppTheme(override val value: Int) :
     LIGHT(1),
     WHITE(2),
     DARK(3),
-    BLACK(3),
+    BLACK(4),
 }

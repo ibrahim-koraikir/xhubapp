@@ -4,19 +4,25 @@ import android.animation.ObjectAnimator
 import android.content.Context
 import android.view.View
 import android.view.animation.DecelerateInterpolator
+import androidx.core.view.doOnNextLayout
 import androidx.core.widget.NestedScrollView
 import androidx.recyclerview.widget.RecyclerView
+import com.xhub.browser.R
 
 /**
  * Drives all home-screen motion. Attached once to the home overlay by WebBrowserActivity
  * after the RecyclerView adapter is set.
  *
  * Effects (all gated on [MotionUtils]):
- *  - Parallax: background ImageView translates at 0.5x scroll, clamped ±12dp each direction
- *    (net 24dp travel) so the starfield edges are never exposed.
- *  - Entrance: the first screenful of tiles fade+scale in with a 50ms stagger on first bind.
- *
- * Streak pulse is exposed via [pulseStreakChip]; the caller invokes it when the count changes.
+ *  - Parallax: background View translates upward at 0.5x scroll, clamped to 12dp so the
+ *    starfield edge is never exposed. The background has a matching -12dp top/bottom bleed
+ *    (set in layout_home_screen.xml) to absorb the full translation range. The starfield
+ *    translates at 0.7x the background for a 3-D depth cue.
+ *  - Entrance: the first screenful of tiles fade+scale in with a 50ms stagger. The animation
+ *    fires only when at least one real shortcut tile is attached — it is explicitly suppressed
+ *    for [ShortcutItem.Empty] so the one-shot flag is not spent on the empty placeholder.
+ *    After the first real shortcut list arrives, the host must call [onShortcutsUpdated] so
+ *    the entrance can re-arm and fire on the next layout pass.
  *
  * Performance discipline:
  *  - No new threads; no WebView hooks. Observes existing scroll/bind events only.
@@ -33,32 +39,69 @@ class HomeMotionController(
     private var entrancePlayed = false
     private val density = context.resources.displayMetrics.density
 
-    /** Call exactly once after the RecyclerView has its adapter. Idempotent on entrance. */
+    private var waitingForLayout = false
+
+    /** Call exactly once after the RecyclerView has its adapter. */
     fun attach() {
         wireParallax()
+    }
+
+    /** Call when the shortcuts list has been updated. Idempotent on entrance. */
+    fun onShortcutsUpdated() {
         wireEntrance()
     }
 
     private fun wireParallax() {
         if (!MotionUtils.heavyEffectsEnabled(context)) return
-        // 12dp each direction (net 24dp travel), in pixels.
+        // 12dp upward clamp (px). The background view has a matching -12dp vertical bleed in
+        // the layout so the translation never uncovers the window background beneath it.
+        // Note: scrollY is always non-negative, so translation is always non-positive (upward).
         val clampPx = 12f * density
+        val starfieldView = (scrollView.parent as? View)?.findViewById<View>(R.id.homeStarfield)
         scrollView.setOnScrollChangeListener { _, _, scrollY, _, _ ->
-            // 0.5x parallax, clamped to protect the background image edges.
-            val translation = (-scrollY * 0.5f).coerceIn(-clampPx, clampPx)
+            // 0.5x parallax, clamped upward to protect the background edge.
+            val translation = (-scrollY * 0.5f).coerceIn(-clampPx, 0f)
             backgroundView.translationY = translation
+            // Stars translate at 0.7x of the background for a premium 3D depth effect.
+            starfieldView?.translationY = translation * 0.7f
         }
     }
 
     private fun wireEntrance() {
         if (!MotionUtils.animationsEnabled(context)) return
         if (recyclerView.adapter == null) return
-        // Animate on the next layout pass (children are bound by then).
-        recyclerView.post { playEntrance() }
+        if (entrancePlayed) return
+        if (waitingForLayout) return
+
+        val adapter = recyclerView.adapter as? com.xhub.browser.shortcuts.ShortcutTileAdapter
+        if (adapter != null && adapter.itemCount == 1 && adapter.getItemViewType(0) == com.xhub.browser.shortcuts.ShortcutTileAdapter.VIEW_TYPE_EMPTY) {
+            // Guard: do not wire or play entrance animation for empty state placeholder
+            return
+        }
+
+        waitingForLayout = true
+        // Wait until the next layout pass AND at least one child is attached. Using
+        // doOnNextLayout instead of post() guarantees children have been measured and
+        // attached by the time the block runs, preventing the entrance from latching
+        // with zero children (which would set entrancePlayed = true prematurely).
+        recyclerView.doOnNextLayout {
+            waitingForLayout = false
+            playEntrance()
+        }
     }
 
     private fun playEntrance() {
         if (entrancePlayed) return
+
+        // Guard: only play (and latch entrancePlayed) when at least one tile exists.
+        if (recyclerView.childCount == 0) return
+
+        val adapter = recyclerView.adapter as? com.xhub.browser.shortcuts.ShortcutTileAdapter
+        if (adapter != null && adapter.itemCount == 1 && adapter.getItemViewType(0) == com.xhub.browser.shortcuts.ShortcutTileAdapter.VIEW_TYPE_EMPTY) {
+            // Guard: double check we are not playing on empty state placeholder
+            return
+        }
+
         entrancePlayed = true
 
         // Cap at the first screenful (~8 tiles). Headers/spacers/empties are skipped implicitly
@@ -89,28 +132,17 @@ class HomeMotionController(
         }
     }
 
-    /**
-     * One-shot scale pulse on the streak chip. Call when the streak count increments.
-     * No idle looping. Snaps (no-op) when animations are disabled.
-     */
-    fun pulseStreakChip(chip: View) {
-        if (!MotionUtils.animationsEnabled(context)) return
-        listOf(View.SCALE_X, View.SCALE_Y).forEach { property ->
-            ObjectAnimator.ofFloat(chip, property, 1f, PULSE_PEAK, 1f).apply {
-                duration = PULSE_DURATION_MS
-                interpolator = DECELERATE
-            }.start()
-        }
+    /** Reset the entrance animation state so it plays again on the next pass. */
+    fun resetEntrance() {
+        entrancePlayed = false
     }
 
     private companion object {
-        const val MAX_ENTRANCE_TILES = 8
+        const val MAX_ENTRANCE_TILES = 24
         const val ENTRANCE_SCALE_START = 0.92f
         const val ENTRANCE_SLIDE_DP = 8f
         const val ENTRANCE_DURATION_MS = 180L
         const val ENTRANCE_STAGGER_MS = 50L
-        const val PULSE_PEAK = 1.15f
-        const val PULSE_DURATION_MS = 400L
         val DECELERATE = DecelerateInterpolator()
     }
 }

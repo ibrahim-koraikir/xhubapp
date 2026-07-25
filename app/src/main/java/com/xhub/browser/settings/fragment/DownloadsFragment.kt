@@ -3,6 +3,7 @@
 import android.app.DownloadManager
 import android.content.BroadcastReceiver
 import android.content.ClipboardManager
+import android.content.ContentResolver
 import android.content.Context
 import android.content.Context.CLIPBOARD_SERVICE
 import android.content.Intent
@@ -29,7 +30,9 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.core.net.toUri
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -39,6 +42,11 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import dagger.hilt.android.AndroidEntryPoint
 import com.xhub.browser.R
 import com.xhub.browser.activity.WebBrowserActivity
+import com.xhub.browser.database.downloads.DownloadEntry
+import com.xhub.browser.database.downloads.DownloadsRepository
+import com.xhub.browser.download.DownloadProgress
+import com.xhub.browser.download.DownloadProgressBus
+import com.xhub.browser.download.YtDlpDownloadService
 import com.xhub.browser.extensions.copyToClipboard
 import com.xhub.browser.extensions.toast
 import com.xhub.browser.utils.Utils
@@ -52,6 +60,15 @@ import timber.log.Timber
 import java.io.File
 import javax.inject.Inject
 
+/**
+ * Where a [DownloadItem] originates from. SYSTEM items are backed by the Android
+ * [DownloadManager] and keyed by its numeric id. YTDLP items are yt-dlp video downloads that
+ * were published to MediaStore and stored only in the app's own DownloadsRepository — they have
+ * no DownloadManager id, so all open/share/remove operations go through a separate code path
+ * keyed by their [DownloadItem.location] (a content:// URI or a file path).
+ */
+enum class DownloadSource { SYSTEM, YTDLP }
+
 data class DownloadItem(
     val id: Long,
     val title: String,
@@ -62,24 +79,177 @@ data class DownloadItem(
     val totalSize: Long,
     val lastModified: Long,
     val mimeType: String?,
-    val isOrphaned: Boolean
+    val isOrphaned: Boolean,
+    val source: DownloadSource = DownloadSource.SYSTEM,
+    /** content:// URI or file path for YTDLP items; null for SYSTEM items. */
+    val location: String? = null,
+    /**
+     * Live progress for an in-flight yt-dlp download, sourced from [DownloadProgressBus]. Non-null
+     * only for active (RUNNING) yt-dlp downloads that are not yet in the repository. When set, the
+     * card renders an inline progress bar + speed/ETA + a cancel button keyed by [activeUrl].
+     */
+    val progress: DownloadProgress? = null,
+    /** The original source URL of an active yt-dlp download, used to issue a cancel request. */
+    val activeUrl: String? = null
+) {
+    /** True when this item is an in-flight yt-dlp download actively downloading. */
+    val isActive: Boolean get() = progress != null && progress.state == DownloadProgress.State.RUNNING
+
+    /** True when this item is an in-flight yt-dlp download that the user has paused. */
+    val isPaused: Boolean get() = progress != null && progress.state == DownloadProgress.State.PAUSED
+
+    /** True when this item is in-flight (running or paused) \u2014 renders the progress card. */
+    val isInFlight: Boolean get() = isActive || isPaused
+
+    /**
+     * Stable identity for diffing and thumbnail caching across both sources. Active downloads are
+     * keyed by their source URL (they have no location/id yet) so the same card updates in place
+     * as progress ticks in.
+     */
+    val stableKey: String get() = when {
+        activeUrl != null -> "active:$activeUrl"
+        source == DownloadSource.YTDLP -> "ytdlp:$location"
+        else -> "sys:$id"
+    }
+}
+
+/**
+ * MediaStore metadata for a content:// yt-dlp download. Returned by the content-info resolver
+ * lambda passed to [mapYtDlpEntry]. A null result means the MediaStore row is gone (orphaned).
+ *
+ * @param displayName the on-disk file name (DISPLAY_NAME); null falls back to the stored title.
+ * @param sizeBytes the file size in bytes (SIZE).
+ * @param dateModifiedSeconds last-modified time in **seconds** (DATE_MODIFIED), as MediaStore stores it.
+ * @param mimeType the MIME type (MIME_TYPE); null triggers extension-based inference.
+ */
+data class YtDlpContentInfo(
+    val displayName: String?,
+    val sizeBytes: Long,
+    val dateModifiedSeconds: Long,
+    val mimeType: String?
 )
 
-// Thread-safe static LruCache for download thumbnails
-private val thumbnailCache = object : android.util.LruCache<Long, Bitmap>(15 * 1024 * 1024) { // 15MB
-    override fun sizeOf(key: Long, value: Bitmap): Int {
+/**
+ * Local-file metadata for a file-path yt-dlp download. Returned by the file-info resolver
+ * lambda passed to [mapYtDlpEntry]. A null result means the file no longer exists (orphaned).
+ *
+ * @param name the file name.
+ * @param sizeBytes the file length in bytes.
+ * @param lastModifiedMillis last-modified time in **milliseconds**.
+ */
+data class YtDlpFileInfo(
+    val name: String,
+    val sizeBytes: Long,
+    val lastModifiedMillis: Long
+)
+
+/**
+ * Pure, dependency-injected mapping of a single yt-dlp [DownloadEntry] location into a
+ * [DownloadItem], extracted from [DownloadsFragment.loadDownloads] so it can be unit-tested
+ * without Android's DownloadManager/ContentResolver/File. Behavior is identical to the inlined
+ * version it replaced.
+ *
+ * Filtering: returns null for any location that is neither a `content://` URI nor an absolute
+ * (`/`-prefixed) file path. Legacy system downloads are also written to the repo with an
+ * http(s) url, and those must NOT be surfaced here (DownloadManager already owns them).
+ *
+ * Orphan detection: if the injected resolver returns null (content row missing / file gone),
+ * the item is marked [DownloadItem.isOrphaned] but still returned so the user can remove it.
+ *
+ * MIME inference: when the resolved MIME type is null/absent, it is inferred from the display
+ * name's extension via [mimeFromExtension]; a null inference is left as null.
+ *
+ * @param entry the repository entry; [DownloadEntry.url] is the location, [DownloadEntry.title]
+ *   is the fallback display name.
+ * @param nowMillis current time, used as the fallback last-modified for content:// entries
+ *   when the resolver succeeds but MediaStore reports no date.
+ * @param queryContentInfo resolves MediaStore metadata for a content:// location, or null if gone.
+ * @param queryFileInfo resolves file metadata for a path location, or null if the file is gone.
+ * @param mimeFromExtension maps a lowercase file extension to a MIME type, or null if unknown.
+ * @return the mapped [DownloadItem], or null if the location is not a yt-dlp location.
+ */
+internal fun mapYtDlpEntry(
+    entry: DownloadEntry,
+    nowMillis: Long,
+    queryContentInfo: (String) -> YtDlpContentInfo?,
+    queryFileInfo: (String) -> YtDlpFileInfo?,
+    mimeFromExtension: (String) -> String?
+): DownloadItem? {
+    val loc = entry.url
+    if (!loc.startsWith("content://") && !loc.startsWith("/")) return null
+
+    var displayName = entry.title
+    var sizeBytes = 0L
+    var modified = nowMillis
+    var mimeType: String? = null
+    var orphaned = false
+
+    if (loc.startsWith("content://")) {
+        val info = queryContentInfo(loc)
+        if (info == null) {
+            orphaned = true
+        } else {
+            displayName = info.displayName ?: entry.title
+            sizeBytes = info.sizeBytes
+            modified = info.dateModifiedSeconds * 1000L
+            mimeType = info.mimeType
+        }
+    } else {
+        val info = queryFileInfo(loc)
+        if (info == null) {
+            orphaned = true
+        } else {
+            displayName = info.name
+            sizeBytes = info.sizeBytes
+            modified = info.lastModifiedMillis
+        }
+    }
+
+    if (mimeType == null) {
+        val ext = displayName.substringAfterLast('.', "").lowercase()
+        mimeType = mimeFromExtension(ext)
+    }
+
+    return DownloadItem(
+        id = loc.hashCode().toLong(),
+        title = displayName,
+        status = DownloadManager.STATUS_SUCCESSFUL,
+        localUri = loc,
+        uri = null,
+        bytesDownloaded = sizeBytes,
+        totalSize = sizeBytes,
+        lastModified = modified,
+        mimeType = mimeType,
+        isOrphaned = orphaned,
+        source = DownloadSource.YTDLP,
+        location = loc
+    )
+}
+
+// Thread-safe static LruCache for download thumbnails, keyed by DownloadItem.stableKey so it
+// works for both DownloadManager (numeric id) and yt-dlp (content:// / path) items.
+private val thumbnailCache = object : android.util.LruCache<String, Bitmap>(15 * 1024 * 1024) { // 15MB
+    override fun sizeOf(key: String, value: Bitmap): Int {
         return value.byteCount
     }
 }
 
-private suspend fun getMediaThumbnail(context: Context, localUri: String?): Bitmap? = withContext(Dispatchers.IO) {
-    if (localUri == null) return@withContext null
+/**
+ * Extract a video frame thumbnail. Handles both content:// URIs (MediaStore-published yt-dlp
+ * videos and Android 10+ system downloads) and plain file paths — the previous file-path-only
+ * implementation returned null for content:// URIs, which is why yt-dlp videos showed no preview.
+ */
+private suspend fun getMediaThumbnail(context: Context, location: String?): Bitmap? = withContext(Dispatchers.IO) {
+    if (location == null) return@withContext null
     try {
-        val fileUri = Uri.parse(localUri)
-        val file = File(fileUri.path ?: return@withContext null)
-        if (!file.exists()) return@withContext null
         val retriever = MediaMetadataRetriever()
-        retriever.setDataSource(file.absolutePath)
+        if (location.startsWith("content://")) {
+            retriever.setDataSource(context, Uri.parse(location))
+        } else {
+            val file = File(Uri.parse(location).path ?: return@withContext null)
+            if (!file.exists()) return@withContext null
+            retriever.setDataSource(file.absolutePath)
+        }
         val bitmap = retriever.getFrameAtTime(1000000, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
         retriever.release()
         bitmap
@@ -88,19 +258,34 @@ private suspend fun getMediaThumbnail(context: Context, localUri: String?): Bitm
     }
 }
 
-private suspend fun getImageThumbnail(context: Context, localUri: String?): Bitmap? = withContext(Dispatchers.IO) {
-    if (localUri == null) return@withContext null
+/**
+ * Decode a downscaled image thumbnail. Handles content:// URIs via the ContentResolver stream
+ * (BitmapFactory.decodeFile cannot read content:// paths) and plain file paths via decodeFile.
+ */
+private suspend fun getImageThumbnail(context: Context, location: String?): Bitmap? = withContext(Dispatchers.IO) {
+    if (location == null) return@withContext null
     try {
-        val fileUri = Uri.parse(localUri)
-        val file = File(fileUri.path ?: return@withContext null)
-        if (!file.exists()) return@withContext null
-        val options = BitmapFactory.Options().apply {
-            inJustDecodeBounds = true
+        if (location.startsWith("content://")) {
+            val uri = Uri.parse(location)
+            val boundsOptions = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            context.contentResolver.openInputStream(uri)?.use {
+                BitmapFactory.decodeStream(it, null, boundsOptions)
+            }
+            val options = BitmapFactory.Options().apply {
+                inSampleSize = calculateInSampleSize(boundsOptions, 240, 180)
+            }
+            context.contentResolver.openInputStream(uri)?.use {
+                BitmapFactory.decodeStream(it, null, options)
+            }
+        } else {
+            val file = File(Uri.parse(location).path ?: return@withContext null)
+            if (!file.exists()) return@withContext null
+            val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeFile(file.absolutePath, options)
+            options.inSampleSize = calculateInSampleSize(options, 240, 180)
+            options.inJustDecodeBounds = false
+            BitmapFactory.decodeFile(file.absolutePath, options)
         }
-        BitmapFactory.decodeFile(file.absolutePath, options)
-        options.inSampleSize = calculateInSampleSize(options, 240, 180)
-        options.inJustDecodeBounds = false
-        BitmapFactory.decodeFile(file.absolutePath, options)
     } catch (e: Exception) {
         null
     }
@@ -125,6 +310,9 @@ class DownloadsFragment : Fragment() {
     @Inject
     lateinit var downloadManager: DownloadManager
 
+    @Inject
+    lateinit var downloadsRepository: DownloadsRepository
+
     private val handler = Handler(Looper.getMainLooper())
 
     private lateinit var rvDownloads: RecyclerView
@@ -136,6 +324,15 @@ class DownloadsFragment : Fragment() {
 
     private lateinit var adapter: DownloadAdapter
     private var progressUpdateJob: Job? = null
+
+    /**
+     * Latest snapshot of active (RUNNING) yt-dlp downloads from [DownloadProgressBus], keyed by
+     * source URL. Merged into the list as live cards at the top on every [loadDownloads] pass and
+     * whenever the bus emits. Terminal states (COMPLETE/ERROR/CANCELLED) are dropped here so the
+     * card falls back to the repository-backed row once the download finishes.
+     */
+    @Volatile
+    private var activeProgress: Map<String, DownloadProgress> = emptyMap()
 
     // ContentObserver to detect changes in DownloadManager database
     private val downloadObserver = object : ContentObserver(handler) {
@@ -175,9 +372,13 @@ class DownloadsFragment : Fragment() {
         btnDeleteAll = view.findViewById(R.id.btnDeleteAll)
 
         rvDownloads.layoutManager = LinearLayoutManager(requireContext())
-        adapter = DownloadAdapter(requireContext(), { item ->
-            showDownloadOptionsDialog(item.id, item.title)
-        }, viewLifecycleOwner.lifecycleScope)
+        adapter = DownloadAdapter(
+            requireContext(),
+            onOptionsClick = { item -> showDownloadOptionsDialog(item) },
+            onCancelClick = { item -> cancelActiveDownload(item) },
+            onPauseResumeClick = { item -> pauseOrResumeActiveDownload(item) },
+            scope = viewLifecycleOwner.lifecycleScope
+        )
         rvDownloads.adapter = adapter
 
         // Setup swipe-to-delete
@@ -191,7 +392,7 @@ class DownloadsFragment : Fragment() {
             override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
                 val position = viewHolder.bindingAdapterPosition
                 val item = adapter.currentList[position]
-                showDownloadOptionsDialog(item.id, item.title)
+                showDownloadOptionsDialog(item)
                 adapter.notifyItemChanged(position)
             }
         }
@@ -202,6 +403,20 @@ class DownloadsFragment : Fragment() {
         btnClean.setOnClickListener { showCleanDownloadsDialog() }
         btnRemoveAll.setOnClickListener { showRemoveAllDownloadsDialog() }
         btnDeleteAll.setOnClickListener { showDeleteAllDownloadsDialog() }
+
+        // Collect live yt-dlp download progress and merge in-flight downloads as cards at the top
+        // of the list. repeatOnLifecycle keeps this lifecycle-safe: collection stops when the
+        // fragment view is not started and resumes (re-reading the latest StateFlow value) after.
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                DownloadProgressBus.downloads.collect { map ->
+                    activeProgress = map.filterValues {
+                        it.state == DownloadProgress.State.RUNNING || it.state == DownloadProgress.State.PAUSED
+                    }
+                    if (isAdded) loadDownloads()
+                }
+            }
+        }
 
         loadDownloads()
     }
@@ -242,6 +457,9 @@ class DownloadsFragment : Fragment() {
     }
 
     private fun loadDownloads() {
+        // Capture the ContentResolver up front (on the main thread) so the IO block never calls
+        // requireContext(), which would throw IllegalStateException if the fragment detaches mid-load.
+        val contentResolver = requireContext().contentResolver
         viewLifecycleOwner.lifecycleScope.launch {
             val items = withContext(Dispatchers.IO) {
                 val list = mutableListOf<DownloadItem>()
@@ -294,15 +512,148 @@ class DownloadsFragment : Fragment() {
                         } while (it.moveToNext())
                     }
                 }
+
+                // Merge yt-dlp video downloads from the app's own repository. These are published
+                // to MediaStore and stored with url = content:// URI (Android 10+) or a file path
+                // (pre-Q). DownloadManager never received them, so they only live in the repo and
+                // would otherwise never appear in this list. Legacy system downloads are also
+                // written to the repo with an http(s) url, so we only take entries whose url is a
+                // content:// or absolute-path location to avoid duplicating DownloadManager items.
+                val ytdlpEntries = try {
+                    downloadsRepository.getAllDownloads().blockingGet()
+                } catch (e: Exception) {
+                    Timber.e(e, "Failed to load yt-dlp downloads from repository")
+                    emptyList()
+                }
+                // The three side-effecting dependencies (MediaStore query, File probing, MIME
+                // lookup) are injected into the pure mapYtDlpEntry() so the mapping stays unit-
+                // testable. Behavior is identical to the previous inlined version.
+                val queryContentInfo: (String) -> YtDlpContentInfo? = { loc ->
+                    try {
+                        contentResolver.query(
+                            Uri.parse(loc),
+                            arrayOf(
+                                android.provider.MediaStore.Downloads.DISPLAY_NAME,
+                                android.provider.MediaStore.Downloads.SIZE,
+                                android.provider.MediaStore.Downloads.DATE_MODIFIED,
+                                android.provider.MediaStore.Downloads.MIME_TYPE
+                            ),
+                            null, null, null
+                        )?.use { c ->
+                            if (c.moveToFirst()) {
+                                YtDlpContentInfo(
+                                    displayName = c.getString(c.getColumnIndexOrThrow(android.provider.MediaStore.Downloads.DISPLAY_NAME)),
+                                    sizeBytes = c.getLong(c.getColumnIndexOrThrow(android.provider.MediaStore.Downloads.SIZE)),
+                                    dateModifiedSeconds = c.getLong(c.getColumnIndexOrThrow(android.provider.MediaStore.Downloads.DATE_MODIFIED)),
+                                    mimeType = c.getString(c.getColumnIndexOrThrow(android.provider.MediaStore.Downloads.MIME_TYPE))
+                                )
+                            } else {
+                                null
+                            }
+                        }
+                    } catch (e: Exception) {
+                        null
+                    }
+                }
+                val queryFileInfo: (String) -> YtDlpFileInfo? = { loc ->
+                    val file = File(loc)
+                    if (file.exists()) {
+                        YtDlpFileInfo(file.name, file.length(), file.lastModified())
+                    } else {
+                        null
+                    }
+                }
+                val mimeFromExtension: (String) -> String? = { ext ->
+                    android.webkit.MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext)
+                }
+                val now = System.currentTimeMillis()
+                for (entry in ytdlpEntries) {
+                    mapYtDlpEntry(entry, now, queryContentInfo, queryFileInfo, mimeFromExtension)
+                        ?.let { list.add(it) }
+                }
+
                 list.sortByDescending { it.lastModified }
-                list
+
+                // Merge in-flight yt-dlp downloads as live cards at the very top. These are not yet
+                // in the repository (they only get persisted on completion), so they'd otherwise be
+                // invisible until finished. Snapshot activeProgress here (read on the main thread
+                // before the IO block would be racy, but the reference read is atomic and the map
+                // is immutable once assigned, so reading it here is safe).
+                val active = activeProgress
+                val activeItems = active.values.map { p ->
+                    DownloadItem(
+                        id = p.url.hashCode().toLong(),
+                        title = p.filename,
+                        status = if (p.state == DownloadProgress.State.PAUSED)
+                            DownloadManager.STATUS_PAUSED else DownloadManager.STATUS_RUNNING,
+                        localUri = null,
+                        uri = p.url,
+                        bytesDownloaded = 0L,
+                        totalSize = 0L,
+                        lastModified = Long.MAX_VALUE, // pin to top
+                        mimeType = null,
+                        isOrphaned = false,
+                        source = DownloadSource.YTDLP,
+                        location = null,
+                        progress = p,
+                        activeUrl = p.url
+                    )
+                }
+                (activeItems + list)
             }
 
             adapter.submitList(items) {
                 if (isAdded) {
                     updateUI(items)
+                    // Live-update the home hero "Downloads" chip when items are added/removed from
+                    // the downloads page while the home overlay is behind it. This is the single
+                    // funnel that all add/remove/clean/delete operations in this fragment route
+                    // through, so it keeps the count fresh. refreshHomeStatsIfVisible() is a cheap
+                    // no-op when the home overlay is not currently visible.
+                    (activity as? WebBrowserActivity)?.refreshHomeStatsIfVisible()
                 }
             }
+        }
+    }
+
+    /**
+     * Cancel an in-flight yt-dlp download by asking [YtDlpDownloadService] to destroy its process.
+     * The service emits a CANCELLED state to [DownloadProgressBus], which drops it from
+     * [activeProgress] on the next collect so the card disappears from the list.
+     */
+    private fun cancelActiveDownload(item: DownloadItem) {
+        val url = item.activeUrl ?: return
+        val intent = Intent(requireContext(), YtDlpDownloadService::class.java).apply {
+            action = YtDlpDownloadService.ACTION_CANCEL_DOWNLOAD
+            putExtra(YtDlpDownloadService.EXTRA_URL, url)
+        }
+        try {
+            requireContext().startService(intent)
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to request download cancellation")
+        }
+    }
+
+    /**
+     * Toggle pause/resume for an in-flight yt-dlp download by asking [YtDlpDownloadService] to
+     * destroy (pause) or relaunch (resume) its process. The service emits the new state to
+     * [DownloadProgressBus], which re-renders the card on the next collect.
+     */
+    private fun pauseOrResumeActiveDownload(item: DownloadItem) {
+        val url = item.activeUrl ?: return
+        val serviceAction = if (item.isPaused) {
+            YtDlpDownloadService.ACTION_RESUME_DOWNLOAD
+        } else {
+            YtDlpDownloadService.ACTION_PAUSE_DOWNLOAD
+        }
+        val intent = Intent(requireContext(), YtDlpDownloadService::class.java).apply {
+            action = serviceAction
+            putExtra(YtDlpDownloadService.EXTRA_URL, url)
+        }
+        try {
+            requireContext().startService(intent)
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to request download pause/resume")
         }
     }
 
@@ -343,16 +694,181 @@ class DownloadsFragment : Fragment() {
         btnRemoveAll.isEnabled = items.isNotEmpty()
         btnDeleteAll.isEnabled = items.isNotEmpty()
 
-        val hasActive = items.any {
-            it.status == DownloadManager.STATUS_RUNNING ||
-            it.status == DownloadManager.STATUS_PENDING
+        // Only start the 1s DownloadManager polling loop for *system* downloads that are still
+        // running/pending. yt-dlp active cards (item.isActive) are already refreshed by the
+        // DownloadProgressBus collector, so polling for them would double the reload rate.
+        val hasActiveSystemDownload = items.any {
+            it.progress == null &&
+            (it.status == DownloadManager.STATUS_RUNNING || it.status == DownloadManager.STATUS_PENDING)
         }
-        if (hasActive) {
+        if (hasActiveSystemDownload) {
             startProgressUpdates()
         }
     }
 
-    private fun showDownloadOptionsDialog(downloadId: Long, title: String) {
+    /**
+     * Entry point for the per-item options dialog. Routes SYSTEM items to the DownloadManager-backed
+     * dialog and YTDLP items to a content-URI/FileProvider-backed dialog (Open / Share / Delete).
+     */
+    private fun showDownloadOptionsDialog(item: DownloadItem) {
+        if (item.source == DownloadSource.YTDLP) {
+            showYtDlpOptionsDialog(item)
+        } else {
+            showSystemDownloadOptionsDialog(item.id, item.title)
+        }
+    }
+
+    /**
+     * Options dialog for yt-dlp video downloads (Open / Share / Delete), mirroring the success
+     * notification's ACTION_VIEW logic: content:// URIs are viewed directly, file paths go through
+     * the app FileProvider. Removal deletes both the file and the DownloadsRepository entry.
+     */
+    private fun showYtDlpOptionsDialog(item: DownloadItem) {
+        val location = item.location ?: return
+        val options = mutableListOf<com.xhub.browser.dialog.DialogItem>()
+
+        if (!item.isOrphaned) {
+            options.add(com.xhub.browser.dialog.DialogItem(title = R.string.open_download) {
+                openYtDlpDownload(item)
+            })
+            options.add(com.xhub.browser.dialog.DialogItem(title = R.string.share_file) {
+                shareYtDlpDownload(item)
+            })
+            options.add(com.xhub.browser.dialog.DialogItem(title = R.string.remove_and_delete_file) {
+                confirmDeleteYtDlpDownload(item)
+            })
+        } else {
+            options.add(com.xhub.browser.dialog.DialogItem(title = R.string.remove_from_list) {
+                removeYtDlpFromList(location)
+            })
+        }
+
+        com.xhub.browser.dialog.BrowserDialog.show(
+            requireContext(),
+            R.drawable.ic_download_outline,
+            null,
+            false,
+            com.xhub.browser.dialog.DialogTab(
+                show = true,
+                icon = 0,
+                text = item.title,
+                items = options.toTypedArray()
+            )
+        )
+    }
+
+    /** Resolve a usable MIME type for a yt-dlp item, falling back to the filename extension. */
+    private fun ytDlpMimeType(name: String, mimeType: String?): String {
+        if (!mimeType.isNullOrEmpty()) return mimeType
+        val ext = name.substringAfterLast('.', "").lowercase()
+        return android.webkit.MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext) ?: "*/*"
+    }
+
+    /** Resolve the viewable/shareable Uri for a yt-dlp location (content:// direct, path via FileProvider). */
+    private fun ytDlpUri(location: String): Uri = if (location.startsWith("content://")) {
+        Uri.parse(location)
+    } else {
+        androidx.core.content.FileProvider.getUriForFile(
+            requireContext(),
+            "${requireContext().packageName}.fileprovider",
+            File(location)
+        )
+    }
+
+    private fun openYtDlpDownload(item: DownloadItem) {
+        val location = item.location ?: return
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(ytDlpUri(location), ytDlpMimeType(item.title, item.mimeType))
+            flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK
+        }
+        try {
+            startActivity(intent)
+        } catch (e: Exception) {
+            activity?.toast(R.string.error_cant_open_file)
+        }
+    }
+
+    private fun shareYtDlpDownload(item: DownloadItem) {
+        val location = item.location ?: return
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = ytDlpMimeType(item.title, item.mimeType)
+            putExtra(Intent.EXTRA_STREAM, ytDlpUri(location))
+            flags = Intent.FLAG_GRANT_READ_URI_PERMISSION
+        }
+        try {
+            startActivity(Intent.createChooser(shareIntent, getString(R.string.action_share)))
+        } catch (e: Exception) {}
+    }
+
+    private fun confirmDeleteYtDlpDownload(item: DownloadItem) {
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.dialog_title_remove_and_delete)
+            .setMessage(getString(R.string.dialog_message_remove_and_delete, item.title))
+            .setPositiveButton(R.string.action_delete) { _, _ ->
+                deleteYtDlpDownload(item)
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun deleteYtDlpDownload(item: DownloadItem) {
+        val location = item.location ?: return
+        try {
+            if (location.startsWith("content://")) {
+                requireContext().contentResolver.delete(Uri.parse(location), null, null)
+            } else {
+                File(location).delete()
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to delete yt-dlp download file")
+        }
+        removeYtDlpFromList(location)
+    }
+
+    private fun removeYtDlpFromList(location: String) {
+        downloadsRepository.deleteDownload(location)
+            .subscribeOn(io.reactivex.schedulers.Schedulers.io())
+            .observeOn(io.reactivex.android.schedulers.AndroidSchedulers.mainThread())
+            .subscribe({ if (isAdded) loadDownloads() }, { Timber.e(it, "Failed to remove yt-dlp download from list") })
+    }
+
+    /** True if a repository entry is a yt-dlp download (content:// URI or absolute file path). */
+    private fun DownloadEntry.isYtDlpLocation(): Boolean =
+        url.startsWith("content://") || url.startsWith("/")
+
+    /**
+     * True if a yt-dlp location no longer has a backing file: the MediaStore row is gone
+     * (content://) or the file no longer exists (path). A query failure is treated as orphaned so
+     * a broken entry can always be cleaned out.
+     */
+    private fun isYtDlpLocationOrphaned(location: String, resolver: ContentResolver): Boolean = try {
+        if (location.startsWith("content://")) {
+            resolver.query(
+                Uri.parse(location),
+                arrayOf(android.provider.MediaStore.Downloads._ID),
+                null, null, null
+            )?.use { !it.moveToFirst() } ?: true
+        } else {
+            !File(location).exists()
+        }
+    } catch (e: Exception) {
+        true
+    }
+
+    /** Delete the backing file for a yt-dlp location (content:// via ContentResolver, path via File). */
+    private fun deleteYtDlpFile(location: String, resolver: ContentResolver) {
+        try {
+            if (location.startsWith("content://")) {
+                resolver.delete(Uri.parse(location), null, null)
+            } else {
+                File(location).delete()
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to delete yt-dlp download file during bulk operation")
+        }
+    }
+
+    private fun showSystemDownloadOptionsDialog(downloadId: Long, title: String) {
         val query = DownloadManager.Query().setFilterById(downloadId)
         val cursor = downloadManager.query(query)
 
@@ -816,6 +1332,16 @@ class DownloadsFragment : Fragment() {
                 }
             }
 
+            // yt-dlp: remove all repo entries from the list, keeping the files on disk
+            // (deleteDownload only drops the DB row, mirroring "remove and keep file").
+            try {
+                downloadsRepository.getAllDownloads().blockingGet()
+                    .filter { it.isYtDlpLocation() }
+                    .forEach { downloadsRepository.deleteDownload(it.url).blockingGet() }
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to remove yt-dlp downloads from list")
+            }
+
             withContext(Dispatchers.Main) {
                 if (skippedCount > 0) {
                     requireContext().toast(R.string.downloads_could_not_remove)
@@ -864,6 +1390,8 @@ class DownloadsFragment : Fragment() {
     }
 
     private fun cleanDownloads() {
+        // Capture up front (main thread) so the IO block never touches requireContext().
+        val contentResolver = requireContext().contentResolver
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
             val query = DownloadManager.Query()
             val cursor = downloadManager.query(query)
@@ -894,6 +1422,16 @@ class DownloadsFragment : Fragment() {
                 } catch (e: Exception) {}
             }
 
+            // yt-dlp: drop repo entries whose backing file / MediaStore row no longer exists.
+            // Valid files are left untouched — this mirrors the orphaned/failed cleanup above.
+            try {
+                downloadsRepository.getAllDownloads().blockingGet()
+                    .filter { it.isYtDlpLocation() && isYtDlpLocationOrphaned(it.url, contentResolver) }
+                    .forEach { downloadsRepository.deleteDownload(it.url).blockingGet() }
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to clean orphaned yt-dlp downloads")
+            }
+
             withContext(Dispatchers.Main) {
                 loadDownloads()
             }
@@ -913,6 +1451,8 @@ class DownloadsFragment : Fragment() {
     }
 
     private fun deleteAllDownloads() {
+        // Capture up front (main thread) so the IO block never touches requireContext().
+        val contentResolver = requireContext().contentResolver
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
             val query = DownloadManager.Query()
             val cursor = downloadManager.query(query)
@@ -932,6 +1472,19 @@ class DownloadsFragment : Fragment() {
                 } catch (e: Exception) {}
             }
 
+            // yt-dlp: delete the backing file (content:// via ContentResolver, path via File) then
+            // drop the repo entry, mirroring DownloadManager.remove() which also deletes the file.
+            try {
+                downloadsRepository.getAllDownloads().blockingGet()
+                    .filter { it.isYtDlpLocation() }
+                    .forEach {
+                        deleteYtDlpFile(it.url, contentResolver)
+                        downloadsRepository.deleteDownload(it.url).blockingGet()
+                    }
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to delete yt-dlp downloads")
+            }
+
             withContext(Dispatchers.Main) {
                 loadDownloads()
             }
@@ -942,6 +1495,8 @@ class DownloadsFragment : Fragment() {
 private class DownloadAdapter(
     private val context: Context,
     private val onOptionsClick: (DownloadItem) -> Unit,
+    private val onCancelClick: (DownloadItem) -> Unit,
+    private val onPauseResumeClick: (DownloadItem) -> Unit,
     private val scope: kotlinx.coroutines.CoroutineScope
 ) : ListAdapter<DownloadItem, DownloadAdapter.ViewHolder>(DiffCallback) {
 
@@ -956,6 +1511,10 @@ private class DownloadAdapter(
         val meta: TextView = view.findViewById(R.id.tvDownloadMeta)
         val statusPill: TextView = view.findViewById(R.id.tvStatus)
         val optionsBtn: View = view.findViewById(R.id.btnDownloadOptions)
+        val cancelBtn: ImageView = view.findViewById(R.id.btnCancelDownload)
+        val pauseResumeBtn: ImageView = view.findViewById(R.id.btnPauseResumeDownload)
+        val progressBar: com.google.android.material.progressindicator.LinearProgressIndicator =
+            view.findViewById(R.id.progressDownload)
         var thumbnailJob: Job? = null
     }
 
@@ -968,6 +1527,21 @@ private class DownloadAdapter(
         val item = getItem(position)
         holder.title.text = item.title
 
+        // ── In-flight (running OR paused) yt-dlp download: inline progress bar + speed/ETA +
+        // pause/resume + cancel. Both running and paused states render the progress card so the
+        // user can toggle or cancel; bindActiveDownload branches on p.state internally.
+        if (item.isInFlight) {
+            val p = item.progress!!
+            bindActiveDownload(holder, item, p)
+            return
+        }
+
+        // Non-active items: hide the active-only affordances.
+        holder.progressBar.visibility = View.GONE
+        holder.cancelBtn.visibility = View.GONE
+        holder.pauseResumeBtn.visibility = View.GONE
+        holder.optionsBtn.visibility = View.VISIBLE
+
         val sizeStr = Formatter.formatFileSize(context, item.totalSize)
         val dateStr = DateUtils.formatDateTime(
             context,
@@ -977,41 +1551,45 @@ private class DownloadAdapter(
         holder.meta.text = "$sizeStr • $dateStr"
 
         holder.statusPill.visibility = View.VISIBLE
+        // Soft brand-aligned pill colors (mutate so each card keeps its own tint)
+        fun tintPill(color: Int) {
+            holder.statusPill.background = holder.statusPill.background?.mutate()?.also { it.setTint(color) }
+        }
         when {
             item.isOrphaned -> {
                 holder.statusPill.text = context.getString(R.string.download_status_orphaned)
-                holder.statusPill.background.setTint(Color.GRAY)
+                tintPill(0xFF8E8E93.toInt())
                 holder.activeAccent.visibility = View.GONE
             }
             item.status == DownloadManager.STATUS_SUCCESSFUL -> {
-                holder.statusPill.text = "Complete"
-                holder.statusPill.background.setTint(context.getColor(android.R.color.holo_green_dark))
+                holder.statusPill.text = context.getString(R.string.download_status_complete)
+                tintPill(0xFF34C759.toInt())
                 holder.activeAccent.visibility = View.GONE
             }
             item.status == DownloadManager.STATUS_RUNNING -> {
                 val progress = if (item.totalSize > 0) (item.bytesDownloaded * 100 / item.totalSize).toInt() else 0
-                holder.statusPill.text = "Downloading $progress%"
-                holder.statusPill.background.setTint(context.getColor(android.R.color.holo_blue_dark))
+                holder.statusPill.text = context.getString(R.string.download_status_downloading_percent, progress)
+                tintPill(0xFF0A84FF.toInt())
                 holder.activeAccent.visibility = View.VISIBLE
             }
             item.status == DownloadManager.STATUS_FAILED -> {
-                holder.statusPill.text = "Failed"
-                holder.statusPill.background.setTint(context.getColor(android.R.color.holo_red_dark))
+                holder.statusPill.text = context.getString(R.string.download_status_failed, item.status)
+                tintPill(0xFFFF453A.toInt())
                 holder.activeAccent.visibility = View.GONE
             }
             item.status == DownloadManager.STATUS_PAUSED -> {
                 holder.statusPill.text = context.getString(R.string.download_status_paused)
-                holder.statusPill.background.setTint(context.getColor(android.R.color.holo_orange_dark))
+                tintPill(0xFFFF9F0A.toInt())
                 holder.activeAccent.visibility = View.GONE
             }
             item.status == DownloadManager.STATUS_PENDING -> {
                 holder.statusPill.text = context.getString(R.string.download_status_pending)
-                holder.statusPill.background.setTint(Color.DKGRAY)
+                tintPill(0xFF8E8E93.toInt())
                 holder.activeAccent.visibility = View.VISIBLE
             }
             else -> {
                 holder.statusPill.text = context.getString(R.string.download_status_unknown)
-                holder.statusPill.background.setTint(Color.GRAY)
+                tintPill(0xFF8E8E93.toInt())
                 holder.activeAccent.visibility = View.GONE
             }
         }
@@ -1033,10 +1611,11 @@ private class DownloadAdapter(
 
         val isVideo = item.mimeType?.startsWith("video/") == true
         val isImage = item.mimeType?.startsWith("image/") == true
+        val thumbLocation = item.location ?: item.localUri
 
-        if ((isVideo || isImage) && item.localUri != null && !item.isOrphaned) {
+        if ((isVideo || isImage) && thumbLocation != null && !item.isOrphaned) {
             holder.thumbnailJob = scope.launch {
-                val cached = thumbnailCache.get(item.id)
+                val cached = thumbnailCache.get(item.stableKey)
                 if (cached != null) {
                     holder.containerFileIcon.visibility = View.GONE
                     holder.thumbnail.visibility = View.VISIBLE
@@ -1044,12 +1623,12 @@ private class DownloadAdapter(
                     if (isVideo) holder.playOverlay.visibility = View.VISIBLE
                 } else {
                     val bitmap = if (isVideo) {
-                        getMediaThumbnail(context, item.localUri)
+                        getMediaThumbnail(context, thumbLocation)
                     } else {
-                        getImageThumbnail(context, item.localUri)
+                        getImageThumbnail(context, thumbLocation)
                     }
                     if (bitmap != null) {
-                        thumbnailCache.put(item.id, bitmap)
+                        thumbnailCache.put(item.stableKey, bitmap)
                         if (isActive) {
                             holder.containerFileIcon.visibility = View.GONE
                             holder.thumbnail.visibility = View.VISIBLE
@@ -1065,8 +1644,97 @@ private class DownloadAdapter(
         holder.optionsBtn.setOnClickListener { onOptionsClick(item) }
     }
 
+    /**
+     * Bind an in-flight yt-dlp download (running OR paused): neon accent, download icon, an inline
+     * progress bar and a meta line, plus pause/resume and cancel buttons. Thumbnails/options are
+     * hidden because the file doesn't exist on disk yet. Branches on [p].state:
+     *  - RUNNING: blue "Downloading…" pill, animated bar, "45% • 2.5 MB/s • ETA 00:30" meta,
+     *    Pause icon.
+     *  - PAUSED: orange "Paused" pill, frozen bar at last percent, "Paused • 45%" meta, Resume icon.
+     */
+    private fun bindActiveDownload(holder: ViewHolder, item: DownloadItem, p: DownloadProgress) {
+        // Cancel any pending thumbnail load from a recycled row and show the download icon.
+        holder.thumbnailJob?.cancel()
+        holder.thumbnail.setImageBitmap(null)
+        holder.thumbnail.visibility = View.GONE
+        holder.playOverlay.visibility = View.GONE
+        holder.containerFileIcon.visibility = View.VISIBLE
+        holder.fileIcon.setImageResource(R.drawable.ic_download_outline)
+
+        val isPaused = p.state == DownloadProgress.State.PAUSED
+
+        holder.activeAccent.visibility = View.VISIBLE
+        holder.optionsBtn.visibility = View.GONE
+        holder.cancelBtn.visibility = View.VISIBLE
+        holder.cancelBtn.setOnClickListener { onCancelClick(item) }
+
+        // Pause/Resume toggle: icon + content description reflect the current state, tap sends the
+        // opposite action to the service.
+        holder.pauseResumeBtn.visibility = View.VISIBLE
+        if (isPaused) {
+            holder.pauseResumeBtn.setImageResource(R.drawable.ic_play_arrow)
+            holder.pauseResumeBtn.contentDescription = context.getString(R.string.resume_download)
+        } else {
+            holder.pauseResumeBtn.setImageResource(R.drawable.ic_pause)
+            holder.pauseResumeBtn.contentDescription = context.getString(R.string.pause_download)
+        }
+        holder.pauseResumeBtn.setOnClickListener { onPauseResumeClick(item) }
+
+        // Status pill — soft brand colors (mutate drawable so rebinds don't bleed tints).
+        holder.statusPill.visibility = View.VISIBLE
+        val pillBg = holder.statusPill.background?.mutate()
+        if (isPaused) {
+            holder.statusPill.text = context.getString(R.string.download_status_paused)
+            pillBg?.setTint(0xFFFF9F0A.toInt())
+        } else {
+            holder.statusPill.text = if (p.percent >= 0) {
+                context.getString(R.string.download_status_downloading_percent, p.percent)
+            } else {
+                context.getString(R.string.download_status_downloading)
+            }
+            pillBg?.setTint(0xFF0A84FF.toInt())
+        }
+        holder.statusPill.background = pillBg
+
+        // Progress bar: indeterminate until yt-dlp reports a real percent. When paused, freeze the
+        // bar at the last known percent (never indeterminate) so it reads as "stopped here".
+        holder.progressBar.visibility = View.VISIBLE
+        if (p.percent < 0 && !isPaused) {
+            holder.progressBar.isIndeterminate = true
+        } else {
+            holder.progressBar.isIndeterminate = false
+            holder.progressBar.setProgressCompat(p.percent.coerceIn(0, 100), !isPaused)
+        }
+
+        // Meta line. Paused: "Paused • 45%". Running: "45% • 2.5 MB/s • ETA 00:30" omitting unknowns.
+        if (isPaused) {
+            holder.meta.text = context.getString(
+                R.string.download_progress_paused, p.percent.coerceAtLeast(0)
+            )
+        } else {
+            val parts = mutableListOf<String>()
+            if (p.percent >= 0) parts.add("${p.percent}%")
+            if (p.speedBytesPerSec >= 0) {
+                val speedStr = Formatter.formatShortFileSize(context, p.speedBytesPerSec)
+                parts.add(context.getString(R.string.download_progress_speed, speedStr))
+            }
+            YtDlpDownloadService.formatEta(p.etaSeconds)?.let {
+                parts.add(context.getString(R.string.download_progress_eta, it))
+            }
+            holder.meta.text = if (parts.isEmpty()) {
+                context.getString(R.string.download_progress_starting)
+            } else {
+                parts.joinToString(" • ")
+            }
+        }
+
+        // In-flight cards are not tappable for options (no file yet); tapping does nothing.
+        holder.card.setOnClickListener(null)
+        holder.card.isClickable = false
+    }
+
     object DiffCallback : DiffUtil.ItemCallback<DownloadItem>() {
-        override fun areItemsTheSame(oldItem: DownloadItem, newItem: DownloadItem): Boolean = oldItem.id == newItem.id
+        override fun areItemsTheSame(oldItem: DownloadItem, newItem: DownloadItem): Boolean = oldItem.stableKey == newItem.stableKey
         override fun areContentsTheSame(oldItem: DownloadItem, newItem: DownloadItem): Boolean = oldItem == newItem
     }
 }

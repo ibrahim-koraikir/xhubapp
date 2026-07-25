@@ -142,12 +142,17 @@ class AboutSettingsFragment : AbstractSettingsFragment() {
             }
         )
 
-        // Don't check for updates here - wait until onResume when fragment is actually shown
+        // Dynamically override preference intent URLs from RemoteAppConfig (with fallback to defaults)
+        val context = requireContext()
+        findPreference<Preference>(SETTINGS_VERSION)?.intent?.data = Uri.parse(com.xhub.browser.config.RemoteAppConfig.getHomePageUrl(context))
+        findPreference<Preference>(getString(R.string.pref_title_terms_and_conditions))?.intent?.data = Uri.parse(com.xhub.browser.config.RemoteAppConfig.getTermsUrl(context))
+        findPreference<Preference>(getString(R.string.pref_title_privacy_policy))?.intent?.data = Uri.parse(com.xhub.browser.config.RemoteAppConfig.getPrivacyPolicyUrl(context))
+        findPreference<Preference>(getString(R.string.pref_title_discord))?.intent?.data = Uri.parse(com.xhub.browser.config.RemoteAppConfig.getDiscordUrl(context))
 
         // Add body to our email link to provide info about device and software
         findPreference<Preference>(getString(R.string.pref_key_contact_us))?.apply {
-            var uri = intent?.data.toString()
-            uri += "&body=" + Uri.encode("\n\n\n----------------------------------------\n$versionString\n$androidInfo\n$webViewSummary\n$deviceInfo", Charsets.UTF_8.toString())
+            val contactUrl = com.xhub.browser.config.RemoteAppConfig.getContactUsUrl(context)
+            val uri = "$contactUrl?body=" + Uri.encode("\n\n\n----------------------------------------\n$versionString\n$androidInfo\n$webViewSummary\n$deviceInfo", Charsets.UTF_8.toString())
             intent?.data = Uri.parse(uri)
         }
 

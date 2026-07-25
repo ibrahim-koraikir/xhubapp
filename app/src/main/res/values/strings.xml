@@ -186,6 +186,12 @@
     <string name="video_download_filename_label">File</string>
     <string name="video_quality_auto">Auto</string>
     <string name="video_select_quality">Select quality</string>
+    <string name="video_select_format">Select format</string>
+    <string name="video_format_best">Best quality</string>
+    <string name="video_format_1080p">1080p</string>
+    <string name="video_format_720p">720p</string>
+    <string name="video_format_480p">480p</string>
+    <string name="video_format_audio_mp3">Audio only (MP3)</string>
     <string name="incognito_cookies">Enable cookies in stealth mode</string>
     <string name="incognito_cookies_pie">Stealth mode runs in a separate process that is reset after each session. Stealth cookie preferences are now controlled by the regular cookie preferences.</string>
     <string name="pref_category_title_contact_us">Contact us</string>
@@ -812,6 +818,8 @@
     <string name="intro_description_ready">Long-press home shortcuts for more actions. Find downloads from the menu when you need them.</string>
     <string name="intro_action_skip">Skip</string>
     <string name="intro_action_next">Next</string>
+    <!-- Accessibility: spoken by TalkBack when the onboarding page changes. %1$d = current page, %2$d = total pages. -->
+    <string name="intro_page_indicator">Page %1$d of %2$d</string>
     <string name="intro_action_done">Get started</string>
     <string name="intro_description_ad_blocker">Enable our powerful ad blocker to browse faster, safer, and with fewer distractions. You can always change this later in settings.</string>
 

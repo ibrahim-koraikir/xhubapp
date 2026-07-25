@@ -89,10 +89,7 @@ class UserRulesDatabase @Inject constructor(
     }
 
     override fun removeAllRules() {
-        database.run {
-            delete(TABLE_RULES, null, null)
-            close()
-        }
+        database.delete(TABLE_RULES, null, null)
     }
 
     override fun removeRule(rule: UnifiedFilterResponse) {
@@ -142,10 +139,11 @@ class UserRulesDatabase @Inject constructor(
             null
         )
         val rules = mutableListOf<UnifiedFilterResponse>()
-        while (cursor.moveToNext()) {
-            getFilterResponse(cursor)?.let { rules.add(it) }
+        cursor.use {
+            while (it.moveToNext()) {
+                getFilterResponse(it)?.let { rule -> rules.add(rule) }
+            }
         }
-        cursor.close()
         return rules
     }
 

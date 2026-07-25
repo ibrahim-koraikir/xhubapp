@@ -73,10 +73,58 @@ class ResponsiveSettingsFragment : PreferenceHeaderFragmentCompat() {
         if (caller.id == R.id.preferences_detail) {
             Timber.d("onPreferenceStartFragment: caller is detail")
             // Opens an preference in detail pane.
-            val frag = childFragmentManager.fragmentFactory.instantiate(
-                requireContext().classLoader,
-                pref.fragment!!
-            )
+            
+            // Guard against null fragment target
+            val fragmentClassName = pref.fragment
+            if (fragmentClassName == null) {
+                Timber.e("onPreferenceStartFragment: preference '${pref.key}' has no fragment target")
+                // Show user-friendly error instead of crashing
+                android.widget.Toast.makeText(
+                    requireContext(),
+                    getString(R.string.settings_error_fragment_missing, pref.title ?: pref.key ?: "Unknown"),
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+                return false
+            }
+            
+            // Try to instantiate fragment with error handling
+            val frag = try {
+                childFragmentManager.fragmentFactory.instantiate(
+                    requireContext().classLoader,
+                    fragmentClassName
+                )
+            } catch (e: androidx.fragment.app.Fragment.InstantiationException) {
+                // Inspect the cause to distinguish missing class from other failures
+                when (e.cause) {
+                    is ClassNotFoundException -> {
+                        Timber.e(e, "onPreferenceStartFragment: fragment class not found: $fragmentClassName")
+                        android.widget.Toast.makeText(
+                            requireContext(),
+                            getString(R.string.settings_error_fragment_not_found, fragmentClassName),
+                            android.widget.Toast.LENGTH_LONG
+                        ).show()
+                    }
+                    else -> {
+                        Timber.e(e, "onPreferenceStartFragment: failed to instantiate fragment: $fragmentClassName")
+                        android.widget.Toast.makeText(
+                            requireContext(),
+                            getString(R.string.settings_error_fragment_instantiation, fragmentClassName),
+                            android.widget.Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
+                return false
+            } catch (e: Exception) {
+                // Fallback for unexpected exceptions
+                Timber.e(e, "onPreferenceStartFragment: unexpected error instantiating fragment: $fragmentClassName")
+                android.widget.Toast.makeText(
+                    requireContext(),
+                    getString(R.string.settings_error_fragment_instantiation, fragmentClassName),
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+                return false
+            }
+            
             frag.arguments = pref.extras
 
             childFragmentManager.commit {
@@ -106,15 +154,60 @@ class ResponsiveSettingsFragment : PreferenceHeaderFragmentCompat() {
             }
             return
         }
-        val fragment = header.fragment?.let {
-            childFragmentManager.fragmentFactory.instantiate(
-                requireContext().classLoader,
-                it
-            )
+        
+        // Try to instantiate fragment with error handling
+        val fragment = try {
+            header.fragment?.let {
+                childFragmentManager.fragmentFactory.instantiate(
+                    requireContext().classLoader,
+                    it
+                )
+            }
+        } catch (e: androidx.fragment.app.Fragment.InstantiationException) {
+            // Inspect the cause to distinguish missing class from other failures
+            when (e.cause) {
+                is ClassNotFoundException -> {
+                    Timber.e(e, "openPreferenceHeader: fragment class not found: ${header.fragment}")
+                    android.widget.Toast.makeText(
+                        requireContext(),
+                        getString(R.string.settings_error_fragment_not_found, header.fragment ?: "Unknown"),
+                        android.widget.Toast.LENGTH_LONG
+                    ).show()
+                }
+                else -> {
+                    Timber.e(e, "openPreferenceHeader: failed to instantiate fragment: ${header.fragment}")
+                    android.widget.Toast.makeText(
+                        requireContext(),
+                        getString(R.string.settings_error_fragment_instantiation, header.fragment ?: "Unknown"),
+                        android.widget.Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+            return
+        } catch (e: Exception) {
+            // Fallback for unexpected exceptions
+            Timber.e(e, "openPreferenceHeader: unexpected error instantiating fragment: ${header.fragment}")
+            android.widget.Toast.makeText(
+                requireContext(),
+                getString(R.string.settings_error_fragment_instantiation, header.fragment ?: "Unknown"),
+                android.widget.Toast.LENGTH_LONG
+            ).show()
+            return
         }
 
         fragment?.apply {
             arguments = header.extras
+        }
+        
+        // Guard against null fragment result
+        if (fragment == null) {
+            Timber.e("openPreferenceHeader: fragment instantiation returned null for: ${header.fragment}")
+            android.widget.Toast.makeText(
+                requireContext(),
+                getString(R.string.settings_error_fragment_missing, header.title ?: header.key ?: "Unknown"),
+                android.widget.Toast.LENGTH_LONG
+            ).show()
+            return
         }
 
         // Clear back stack
@@ -134,7 +227,7 @@ class ResponsiveSettingsFragment : PreferenceHeaderFragmentCompat() {
                     R.anim.slide_in_from_left,
                     R.anim.slide_out_to_right)
             }
-            replace(R.id.preferences_detail, fragment!!)
+            replace(R.id.preferences_detail, fragment)
             slidingPaneLayout.openPane()
         }
     }

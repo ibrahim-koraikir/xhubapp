@@ -8,7 +8,6 @@ import com.xhub.browser.di.MainScheduler
 import com.xhub.browser.extensions.launch
 import com.xhub.browser.html.HtmlPageFactory
 import com.xhub.browser.html.bookmark.BookmarkPageFactory
-import com.xhub.browser.html.download.DownloadPageFactory
 import com.xhub.browser.html.history.HistoryPageFactory
 import com.xhub.browser.html.homepage.HomePageFactory
 import com.xhub.browser.html.incognito.IncognitoPageFactory
@@ -149,20 +148,6 @@ class BookmarkPageInitializer @Inject constructor(
 ) : HtmlPageFactoryInitializer(bookmarkPageFactory, diskScheduler, foregroundScheduler) {
     override fun url(): String {
         return Uris.FulgurisBookmarks
-    }
-}
-
-/**
- * An initializer that displays the download page.
- */
-@Reusable
-class DownloadPageInitializer @Inject constructor(
-    downloadPageFactory: DownloadPageFactory,
-    @DiskScheduler diskScheduler: Scheduler,
-    @MainScheduler foregroundScheduler: Scheduler
-) : HtmlPageFactoryInitializer(downloadPageFactory, diskScheduler, foregroundScheduler) {
-    override fun url(): String {
-        return Uris.FulgurisDownloads
     }
 }
 

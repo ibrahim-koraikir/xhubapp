@@ -1,4 +1,4 @@
-﻿/*
+/*
  * The contents of this file are subject to the Common Public Attribution License Version 1.0.
  * (the "License"); you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at:
@@ -52,7 +52,7 @@ abstract class RedirectSponsorshipSettingsFragment : AbstractSettingsFragment() 
         findPreference<Preference>("pref_key_contribute_share")?.onPreferenceClickListener =
             Preference.OnPreferenceClickListener {
                 requireActivity().shareUrl(
-                    getString(R.string.url_app_home_page),
+                    com.xhub.browser.config.RemoteAppConfig.getHomePageUrl(requireContext()),
                     getString(R.string.locale_app_name),
                     R.string.pref_title_contribute_share
                 )

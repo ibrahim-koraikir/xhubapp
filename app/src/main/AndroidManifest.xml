@@ -1,0 +1,451 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:installLocation="auto">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- Required for notifications on Android 13+ (API level 33+) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Required for yt-dlp download service -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="32" tools:ignore="ScopedStorage" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <!--
+    From Android 12 we need ACCESS_COARSE_LOCATION location too if asking for ACCESS_FINE_LOCATION
+    User can then decide if she wants to give us fine or approximate location.
+    See: https://developer.android.com/about/versions/12/migration
+    See: https://proandroiddev.com/android-12-privacy-changes-for-location-55ffd8c016fd
+    See: https://developer.android.com/training/location/permissions#approximate-request
+    -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="com.android.launcher.permission.INSTALL_SHORTCUT" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <!--
+    Required to let the user open and install APK files they have explicitly downloaded
+    and selected from the Downloads screen (DownloadsFragment).
+    SECURITY: This permission is ONLY triggered when the user manually opens a downloaded
+    APK from the Downloads list — see DownloadsFragment.openDownload()/requestInstallPermission().
+    It is never requested silently by websites, the WebView download handler, or any other path.
+    A malicious website cannot trigger an APK install via this app: downloads are written to the
+    DownloadManager and only the user can open them from DownloadsFragment.
+    NOTE: The in-app self-update feature is currently disabled (no XHub update server). If that
+    feature is restored, the same permission will be reused from the update-check flow.
+    -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.camera.autofocus"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.location.gps"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.location"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.touchscreen"
+        android:required="false" />
+
+    <!--
+    Input translation mode must be disabled to avoid issues on PC:
+    See: https://developer.android.com/guide/topics/large-screens/input-compatibility-large-screens#input_translation_mode
+    Though it seems it is not working as intended…
+    -->
+    <uses-feature
+        android:name="android.hardware.type.pc"
+        android:required="false" />
+
+    <queries>
+        <intent>
+            <!-- Needed to be able to launch third party applications -->
+            <action android:name="android.intent.action.MAIN" />
+        </intent>
+    </queries>
+
+    <application
+        android:name="com.xhub.browser.App"
+        android:allowBackup="false"
+        android:fullBackupContent="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:hardwareAccelerated="true"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:requestLegacyExternalStorage="false"
+        android:usesCleartextTraffic="true"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:extractNativeLibs="false"
+        android:theme="@style/Theme.App.Black"
+        >
+
+        <!--
+            Support super narrow Samsung cover display on early Z Fold models, see:
+            https://developer.samsung.com/sdp/blog/en/2019/01/31/how-to-update-your-apps-for-foldable-displays
+            https://developer.samsung.com/sdp/blog/en/2019/04/05/seven-mistakes-to-avoid-when-developing-for-the-galaxy-fold
+        -->
+        <meta-data android:name="android.max_aspect" android:value="3.0" />
+        <!--
+            Make sure you start fullscreen on Huawei/Honor foldable internal display, see:
+            https://developer.huawei.com/consumer/en/doc/90101
+        -->
+        <meta-data android:name="android.min_aspect" android:value="1.0" />
+
+        <!-- Splash screen activity not sure exactly if we need MAIN and DEFAULT intent TBH -->
+        <!-- Make it resizable for Multi-Window mode support, such as Samsung Dex
+        Needed to be in the root activity which is our splash screen apparently.
+        -->
+        <activity android:name="com.xhub.browser.activity.SplashActivity"
+            android:theme="@style/Theme.App.SplashScreen"
+            android:resizeableActivity="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.APP_BROWSER" />
+            </intent-filter>
+        </activity>
+
+        <!-- First-run product tour; also reopened from Settings → About → Introduction -->
+        <activity
+            android:name="com.xhub.browser.activity.OnboardingActivity"
+            android:exported="false"
+            android:label="@string/pref_title_introduction"
+            android:theme="@style/Theme.App.DayNight"
+            android:screenOrientation="portrait" />
+
+        <meta-data
+            android:name="android.webkit.WebView.MetricsOptOut"
+            android:value="true" />
+
+        <!-- No MAIN intent filter as this is launched through our splash screen -->
+        <activity
+            android:name="com.xhub.browser.activity.MainActivity"
+            android:alwaysRetainTaskState="true"
+            android:clearTaskOnLaunch="false"
+            android:colorMode="wideColorGamut"
+            android:resizeableActivity="true"
+            android:configChanges="locale|orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|keyboard"
+            android:launchMode="singleTask"
+            android:theme="@style/Theme.App.DayNight"
+            android:windowSoftInputMode="stateHidden|adjustResize"
+            android:exported="true">
+
+            <!--  Handle various mime types and allow being used as default viewer -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="http" />
+                <data android:scheme="https" />
+                <data android:scheme="inline" />
+                <data android:scheme="about" />
+                <data android:scheme="xhub" />
+
+                <data android:mimeType="text/html" />
+                <data android:mimeType="text/plain" />
+                <data android:mimeType="application/xhtml+xml" />
+                <data android:mimeType="application/vnd.wap.xhtml+xml" />
+                <data android:mimeType="application/x-webarchive-xml" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="android.intent.action.WEB_SEARCH" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="android.intent.action.PROCESS_TEXT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="info.guardianproject.panic.action.TRIGGER" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+
+            <!--
+            For XHub to show up in Android Sharesheet.
+            See: https://developer.android.com/training/sharing/receive
+            We will accept text to put it in the address bar.
+             -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+                <data android:mimeType="text/x-uri" />
+            </intent-filter>
+
+        </activity>
+
+        <!--
+        Incognito activity can now be used exactly like the main activity
+        -->
+        <!-- TODO: Launch this through splash screen too? -->
+        <activity
+            android:name="com.xhub.browser.activity.IncognitoActivity"
+            android:alwaysRetainTaskState="true"
+            android:colorMode="wideColorGamut"
+            android:resizeableActivity="true"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|keyboard"
+            android:launchMode="singleInstance"
+            android:parentActivityName="com.xhub.browser.activity.MainActivity"
+            android:process=":incognito"
+            android:theme="@style/Theme.App.DayNight"
+            android:windowSoftInputMode="stateHidden|adjustResize"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_incognito"
+            android:roundIcon="@mipmap/ic_launcher_incognito_round">
+
+            <!--
+            Incognito mode currently not going through splash screen
+            Therefore it must be shown in the launcher
+            -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.APP_BROWSER" />
+            </intent-filter>
+
+            <!--
+            Handle various mime types.
+
+            SECURITY: The BROWSABLE category and the http/https schemes are intentionally
+            omitted from this VIEW intent filter so that IncognitoActivity cannot be reached
+            as a default browser handler from external apps or link clicks. Those routes
+            still go through MainActivity (or the activity-alias). The IncognitoActivity
+            remains exported for explicit MAIN/launcher and SEND shares, but it will not
+            silently capture http/https links from other apps. This keeps the public
+            URL-handling surface limited to the non-incognito flow.
+            -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+
+                <data android:scheme="inline" />
+                <data android:scheme="about" />
+                <data android:scheme="xhub" />
+
+                <data android:mimeType="text/html" />
+                <data android:mimeType="text/plain" />
+                <data android:mimeType="application/xhtml+xml" />
+                <data android:mimeType="application/vnd.wap.xhtml+xml" />
+                <data android:mimeType="application/x-webarchive-xml" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="android.intent.action.WEB_SEARCH" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="android.intent.action.PROCESS_TEXT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="info.guardianproject.panic.action.TRIGGER" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+
+            <!--
+            For XHub to show up in Android Sharesheet.
+            See: https://developer.android.com/training/sharing/receive
+            We will accept text to put it in the address bar.
+             -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+                <data android:mimeType="text/x-uri" />
+            </intent-filter>
+
+        </activity>
+
+        <activity-alias
+            android:name="com.xhub.browser.alias.default.BrowserActivity"
+            android:targetActivity="com.xhub.browser.activity.MainActivity"
+            android:exported="true"
+            android:enabled="false">
+
+            <!--  Handle various URL scheme and allow being used as default browser -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="http" />
+                <data android:scheme="https" />
+                <data android:scheme="inline" />
+                <data android:scheme="about" />
+                <data android:scheme="xhub" />
+
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name="com.xhub.browser.alias.default.IncognitoActivity"
+            android:targetActivity="com.xhub.browser.activity.IncognitoActivity"
+            android:exported="true"
+            android:enabled="false">
+
+            <!--  Handle various URL scheme and allow being used as default browser -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="http" />
+                <data android:scheme="https" />
+                <data android:scheme="inline" />
+                <data android:scheme="about" />
+                <data android:scheme="xhub" />
+
+            </intent-filter>
+        </activity-alias>
+
+
+        <!-- Transparent activity for browser selection dialog -->
+        <activity
+            android:name="com.xhub.browser.activity.SelectBrowserActivity"
+            android:theme="@style/Theme.App.Transparent"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:launchMode="singleInstance">
+
+            <!-- Handle VIEW intents to show browser chooser -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="http" />
+                <data android:scheme="https" />
+            </intent-filter>
+        </activity>
+
+        <!--
+        Transparent activity for selecting OTHER browsers (excludes this app)
+        Used during onboarding to make sure links are opened in other browsers so as not to break our workflow.
+        -->
+        <activity
+            android:name="com.xhub.browser.activity.SelectOtherBrowserActivity"
+            android:theme="@style/Theme.App.Transparent"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:launchMode="singleInstance" />
+
+        <activity
+            android:name="com.xhub.browser.activity.SettingsActivity"
+            android:colorMode="wideColorGamut"
+            android:resizeableActivity="true"
+            android:label="@string/settings"
+            android:parentActivityName="com.xhub.browser.activity.MainActivity"
+            android:theme="@style/Theme.App.DayNight"
+            android:exported="true">
+            <intent-filter>
+                <!--
+                Enable settings access from the App info system settings page, through the gear icon usually.
+                That notably let user access settings even if the browser is crashing for instance.
+                        HONOR Magic V2: App info gear icon, top right corner next to app icon and name
+                        Samsung Galaxy Tab S8 Ultra: App info page bottom click on 'In-app notification settings'
+                 -->
+                <action android:name="android.intent.action.APPLICATION_PREFERENCES" />
+                <!-- Not sure what that does -->
+                <action android:name="android.intent.action.SETTINGS" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name="com.xhub.browser.activity.CodeEditorActivity"
+            android:label="@string/pref_title_source_code"
+            android:parentActivityName="com.xhub.browser.activity.SettingsActivity"
+            android:theme="@style/Theme.App.DayNight"
+            android:exported="false" />
+
+        <activity
+            android:name="com.xhub.browser.activity.ManageShortcutsActivity"
+            android:label="Manage Shortcuts"
+            android:theme="@style/Theme.App.Black"
+            android:exported="false" />
+        <activity
+            android:name="com.xhub.browser.activity.ReadingActivity"
+            android:colorMode="wideColorGamut"
+            android:resizeableActivity="true"
+            android:label="@string/reading_mode"
+            android:theme="@style/Theme.App.DayNight"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.READING" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/filepaths" />
+        </provider>
+
+        <!-- yt-dlp Download Service
+             Uses dataSync foreground service type as user-initiated downloads fall under
+             the data synchronization category per Android guidelines.
+             Note: On Android 14+ (API 34+), dataSync services have time limits when the app
+             is in the background. For very long downloads, the system may stop the service.
+             Users should keep the app visible or downloads may be interrupted.
+        -->
+        <service
+            android:name=".download.YtDlpDownloadService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync"
+            android:enabled="true" />
+
+        <!-- Firebase configuration removed - see FIREBASE_REMOVAL.md -->
+
+        <!-- We won't need this for now. We experimented with that as we were trying to open file explorer to a directory. -->
+        <!--
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.provider"
+            android:exported="true"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/provider_paths" />
+        </provider>
+        -->
+
+    </application>
+
+</manifest>

@@ -112,8 +112,8 @@ class DisplaySettingsFragment : AbstractSettingsFragment() {
         super.onResume()
 
         // Reopen theme picker dialog after activity recreation
-        if (userPreferences.openThemePicker) {
-            userPreferences.openThemePicker = false
+        if (openThemePickerAfterRecreate) {
+            openThemePickerAfterRecreate = false
             // Post to ensure view is fully initialized
             view?.post {
                 findPreference<Preference>(getString(R.string.pref_key_theme))?.performClick()
@@ -276,7 +276,7 @@ class DisplaySettingsFragment : AbstractSettingsFragment() {
                     userPreferences.useTheme = it
                     summaryUpdater.updateSummary(it.toDisplayString())
                     // Set flag to reopen dialog after activity recreation
-                    userPreferences.openThemePicker = true
+                    openThemePickerAfterRecreate = true
                     // Dismiss dialog otherwise we get an ugly glitch
                     dialog.dismiss()
                     // Apply theme immediately by recreating activity
@@ -285,11 +285,11 @@ class DisplaySettingsFragment : AbstractSettingsFragment() {
             }
             setPositiveButton(resources.getString(R.string.action_ok)) { _, _ ->
                 // User confirmed - clear flag
-                userPreferences.openThemePicker = false
+                openThemePickerAfterRecreate = false
             }
             setOnCancelListener {
                 // User cancelled - clear flag
-                userPreferences.openThemePicker = false
+                openThemePickerAfterRecreate = false
             }
         }.launch()
 
@@ -367,6 +367,12 @@ class DisplaySettingsFragment : AbstractSettingsFragment() {
 
         private const val XX_LARGE = 30.0f
         private const val X_SMALL = 10.0f
+
+        // In-memory flag to reopen theme picker after activity recreate().
+        // SharedPreferences is not used here intentionally — we only need this
+        // to survive in-process recreate(), not OS process death. Using prefs
+        // would leak: a stale true would reopen the dialog on next cold start.
+        private var openThemePickerAfterRecreate = false
 
         // I guess those are percent
         const val MAX_BROWSER_TEXT_SIZE = 200

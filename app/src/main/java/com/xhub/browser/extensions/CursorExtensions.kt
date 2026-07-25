@@ -33,9 +33,10 @@ inline fun <T> Cursor.useMap(block: (Cursor) -> T): List<T> {
  * cursor.
  */
 inline fun <T> Cursor.firstOrNullMap(block: (Cursor) -> T): T? {
-    return if (moveToFirst()) {
-        return block(this)
-    } else {
-        null
+    use {
+        if (moveToFirst()) {
+            return block(this)
+        }
     }
+    return null
 }

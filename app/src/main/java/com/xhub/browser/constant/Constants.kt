@@ -29,7 +29,6 @@ object Hosts {
     const val Incognito = "incognito"
     const val Bookmarks = "bookmarks"
     const val History = "history"
-    const val Downloads = "downloads"
     const val Noop = "noop"
     const val Blank = "blank"
 }
@@ -39,7 +38,6 @@ object Uris {
     const val FulgurisStart = "${Schemes.Fulguris}://${Hosts.Start}"
     const val FulgurisIncognito = "${Schemes.Fulguris}://${Hosts.Incognito}"
     const val FulgurisBookmarks = "${Schemes.Fulguris}://${Hosts.Bookmarks}"
-    const val FulgurisDownloads = "${Schemes.Fulguris}://${Hosts.Downloads}"
     const val FulgurisHistory = "${Schemes.Fulguris}://${Hosts.History}"
     const val FulgurisNoop = "${Schemes.Fulguris}://${Hosts.Noop}"
     // Custom local page schemes

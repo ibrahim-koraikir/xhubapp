@@ -1,4 +1,4 @@
-﻿/*
+/*
  * The contents of this file are subject to the Common Public Attribution License Version 1.0.
  * (the "License"); you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at:
@@ -81,7 +81,8 @@ class DomainPreferences constructor(
     // Remember order matters, do this first
     init {
         // Make sure default domain settings exists
-        if (!exists("")) {
+        // Pass context explicitly so we don't require the global `app` during construction
+        if (!exists("", context)) {
             Timber.d("Create default domain settings")
             // Create an empty preferences file for the default domain
             context.getSharedPreferences(name(""), MODE_PRIVATE).edit().apply()
@@ -427,9 +428,12 @@ class DomainPreferences constructor(
 
         /**
          * Check if we have a settings file for the specified domain.
+         * @param ctx Optional context used to resolve the data directory path.
+         *            Defaults to the global [app] when not provided.
          */
-        fun exists(domain: String) : Boolean {
-            return File(fileName(domain)).exists()
+        @JvmOverloads
+        fun exists(domain: String, ctx: Context = app) : Boolean {
+            return File(fileName(domain, ctx)).exists()
         }
 
         /**
@@ -455,11 +459,13 @@ class DomainPreferences constructor(
         }
 
         /**
-         *
+         * @param ctx Optional context used to resolve the app data directory path.
+         *            Defaults to the global [app] when not provided.
          */
-        fun fileName(domain: String) : String {
+        @JvmOverloads
+        fun fileName(domain: String, ctx: Context = app) : String {
             // TODO: use getSharedPreferencesPath
-            return app.applicationInfo.dataDir + "/shared_prefs/" + name(domain) + ".xml"
+            return ctx.applicationInfo.dataDir + "/shared_prefs/" + name(domain) + ".xml"
         }
 
         /**

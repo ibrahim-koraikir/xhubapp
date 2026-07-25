@@ -4,7 +4,7 @@
 package com.xhub.browser.download;
 
 import android.app.DownloadManager;
-import android.os.Environment;
+import android.net.Uri;
 import android.util.Log;
 import android.webkit.MimeTypeMap;
 
@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
+import com.xhub.browser.constant.Constants;
 import com.xhub.browser.utils.Utils;
 import androidx.annotation.NonNull;
 import io.reactivex.Single;
@@ -35,17 +36,20 @@ class FetchUrlMimeType {
     private final String mUri;
     private final String mCookies;
     private final String mUserAgent;
+    private final String mLocation;
 
     public FetchUrlMimeType(DownloadManager downloadManager,
                             DownloadManager.Request request,
                             String uri,
                             String cookies,
-                            String userAgent) {
+                            String userAgent,
+                            String location) {
         mRequest = request;
         mDownloadManager = downloadManager;
         mUri = uri;
         mCookies = cookies;
         mUserAgent = userAgent;
+        mLocation = location;
     }
 
     public Single<Result> create() {
@@ -58,6 +62,7 @@ class FetchUrlMimeType {
             try {
                 URL url = new URL(mUri);
                 connection = (HttpURLConnection) url.openConnection();
+                connection.setRequestMethod("HEAD");
                 if (mCookies != null && !mCookies.isEmpty()) {
                     connection.addRequestProperty("Cookie", mCookies);
                     connection.setRequestProperty("User-Agent", mUserAgent);
@@ -100,7 +105,7 @@ class FetchUrlMimeType {
                     }
                 }
                 res.iFilename = guessFileName(mUri, contentDisposition, mimeType, null);
-                mRequest.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, res.iFilename);
+                mRequest.setDestinationUri(Uri.parse(Constants.FILE + mLocation + res.iFilename));
             }
 
             // Start the download

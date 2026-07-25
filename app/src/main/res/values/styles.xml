@@ -61,7 +61,8 @@ colorControlNormal:
     Define our splash screen
     -->
     <style name="Theme.App.SplashScreen" parent="Theme.SplashScreen">
-        <item name="windowSplashScreenBackground">@color/ic_launcher_background</item>
+        <!-- Match app dark surface (#0A0A0A) so cold-start matches the browser chrome, not launcher brand/debug green. -->
+        <item name="windowSplashScreenBackground">@color/md_theme_dark_background</item>
         <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
         <item name="windowSplashScreenAnimationDuration">0</item>
         <item name="postSplashScreenTheme">@style/Theme.App.DayNight</item>

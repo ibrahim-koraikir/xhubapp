@@ -80,12 +80,13 @@ class SplashActivity @Inject constructor(): LocaleAwareActivity() {
             // It would be too much to ask Google engineer to test their code across Android versions…
         postDelayed({
             Timber.d("SplashScreen skipped: $skip")
-            // Just start our main activity now for fastest loading
-            // TODO: check if we need onboarding
-            // Launch main activity
-            val intent = Intent(this, MainActivity::class.java)
-            startActivity(intent)
-            //
+            // First launch: product onboarding. Later launches: main browser.
+            val next = if (!userPreferences.onboardingCompleted) {
+                Intent(this, OnboardingActivity::class.java)
+            } else {
+                Intent(this, MainActivity::class.java)
+            }
+            startActivity(next)
             finish()
         },0)
     }

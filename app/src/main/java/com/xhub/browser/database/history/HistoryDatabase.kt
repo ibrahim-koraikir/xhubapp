@@ -52,10 +52,7 @@ class HistoryDatabase @Inject constructor(
     }
 
     override fun deleteHistory(): Completable = Completable.fromAction {
-        database.run {
-            delete(TABLE_HISTORY, null, null)
-            close()
-        }
+        database.delete(TABLE_HISTORY, null, null)
     }
 
     override fun deleteHistoryEntry(url: String): Completable = Completable.fromAction {

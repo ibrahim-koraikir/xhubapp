@@ -271,7 +271,7 @@ abstract class AbstractSettingsFragment : PreferenceFragmentBase() {
         this.isEnabled = isEnabled
         onPreferenceChangeListener = Preference.OnPreferenceChangeListener { _, any: Any ->
             onPreferenceChange(any as String)
-            true
+            false
         }
     }
 

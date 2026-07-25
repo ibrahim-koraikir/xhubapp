@@ -20,6 +20,7 @@ import android.webkit.MimeTypeMap;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.concurrent.ConcurrentHashMap;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -46,6 +47,7 @@ import androidx.annotation.Nullable;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import io.reactivex.Scheduler;
+import io.reactivex.disposables.CompositeDisposable;
 import io.reactivex.disposables.Disposable;
 import timber.log.Timber;
 
@@ -67,9 +69,18 @@ public class DownloadHandler {
     private final Scheduler networkScheduler;
     private final Scheduler mainScheduler;
 
-    long iDownloadId = 0;
-    String iFilename="";
+    /**
+     * Maps a system DownloadManager download id to the resolved filename so that
+     * {@link LightningDownloadListener} can look it up when the download completes.
+     * Thread-safe because downloads can be enqueued concurrently from multiple tabs.
+     */
+    private final ConcurrentHashMap<Long, String> downloadIdToFilename = new ConcurrentHashMap<>();
 
+    /**
+     * Tracks the in-flight mime-type fetch so it can be cancelled before a new one starts,
+     * preventing callbacks from firing on a stale Activity reference after config changes.
+     */
+    private final CompositeDisposable pendingMimeFetch = new CompositeDisposable();
 
     @Inject
     public DownloadHandler(DownloadsRepository downloadsRepository,
@@ -82,6 +93,26 @@ public class DownloadHandler {
         this.databaseScheduler = databaseScheduler;
         this.networkScheduler = networkScheduler;
         this.mainScheduler = mainScheduler;
+    }
+
+    /**
+     * Returns the filename previously associated with the given system download id, or
+     * {@code null} if no tracked download matches. Used by {@link LightningDownloadListener}
+     * to resolve the filename for a completed download without relying on shared mutable state.
+     */
+    @Nullable
+    public String getFilenameForDownloadId(long downloadId) {
+        return downloadIdToFilename.get(downloadId);
+    }
+
+    /**
+     * Removes the filename entry previously associated with the given download id.
+     * Should be called by {@link LightningDownloadListener} once the filename has been
+     * resolved for a completed (or failed) download so the map does not grow unbounded
+     * over a long session.
+     */
+    public void removeFilenameForDownloadId(long downloadId) {
+        downloadIdToFilename.remove(downloadId);
     }
 
     /**
@@ -198,6 +229,10 @@ public class DownloadHandler {
     /**
      * Notify the host application a download should be done, even if there is a
      * streaming viewer available for this type.
+     * <p>
+     * Resolves the filename from the URL/content-disposition and delegates to
+     * {@link #enqueueDownload(Activity, UserPreferences, String, String, String, String, String, String, String)}.
+     * The resolved filename is returned to the caller so no shared mutable state is needed.
      *
      * @param context            The context in which the download is requested.
      * @param url                The full url to the content that should be downloaded
@@ -205,14 +240,58 @@ public class DownloadHandler {
      * @param contentDisposition Content-disposition http header, if present.
      * @param mimetype           The mimetype of the content reported by the server
      * @param contentSize        The size of the content
+     * @param referer            The page URL to use as referer, or null
+     * @return the resolved filename, or {@code null} if the download did not proceed.
      */
-    /* package */
-    private void onDownloadStartNoStream(@NonNull final Activity context, @NonNull UserPreferences preferences,
+    @Nullable
+    private String onDownloadStartNoStream(@NonNull final Activity context, @NonNull UserPreferences preferences,
                                          @NonNull String url, String userAgent,
                                          String contentDisposition, @Nullable String mimetype, @NonNull String contentSize, @Nullable String referer) {
-        iFilename = guessFileName(url, contentDisposition, mimetype, null);
+        String filename = guessFileName(url, contentDisposition, mimetype, null);
+        return enqueueDownload(context, preferences, url, userAgent, contentDisposition, mimetype, contentSize, filename, referer);
+    }
 
-        WebBrowserActivity ba = (WebBrowserActivity)context;
+    /**
+     * Notify the host application a download should be done with the supplied filename,
+     * even if there is a streaming viewer available for this type.
+     * <p>
+     * Passes the supplied {@code customFilename} directly to
+     * {@link #enqueueDownload(Activity, UserPreferences, String, String, String, String, String, String, String)}.
+     *
+     * @param context            The context in which the download is requested.
+     * @param url                The full url to the content that should be downloaded
+     * @param userAgent          User agent of the downloading application.
+     * @param contentDisposition Content-disposition http header, if present.
+     * @param mimetype           The mimetype of the content reported by the server
+     * @param contentSize        The size of the content
+     * @param customFilename     The filename to use instead of guessing from URL
+     * @param referer            The page URL to use as referer, or null
+     * @return the resolved filename, or {@code null} if the download did not proceed.
+     */
+    @Nullable
+    private String onDownloadStartNoStreamWithFilename(@NonNull final Activity context, @NonNull UserPreferences preferences,
+                                                      @NonNull String url, String userAgent,
+                                                      String contentDisposition, @Nullable String mimetype,
+                                                      @NonNull String contentSize, @NonNull String customFilename, @Nullable String referer) {
+        return enqueueDownload(context, preferences, url, userAgent, contentDisposition, mimetype, contentSize, customFilename, referer);
+    }
+
+    /**
+     * Shared download implementation for both the guessed-filename and the explicit-filename paths.
+     * <p>
+     * Carries the resolved {@code filename} as a local parameter rather than shared mutable state,
+     * and records the resulting download id in {@link #downloadIdToFilename} so the completion
+     * listener can resolve the filename thread-safely.
+     *
+     * @param filename the already-resolved filename to use for the download destination and title.
+     * @return the {@code filename} on success, or {@code null} if the download did not proceed.
+     */
+    @Nullable
+    private String enqueueDownload(@NonNull final Activity context, @NonNull UserPreferences preferences,
+                                   @NonNull String url, String userAgent,
+                                   @Nullable String contentDisposition, @Nullable String mimetype,
+                                   @NonNull String contentSize, @NonNull String filename, @Nullable String referer) {
+        WebBrowserActivity ba = (WebBrowserActivity) context;
 
         // Check to see if we have an SDCard
         String status = Environment.getExternalStorageState();
@@ -232,7 +311,7 @@ public class DownloadHandler {
             Dialog dialog = AlertDialogExtensionsKt.launch(new MaterialAlertDialogBuilder(context).setTitle(title)
                 .setIcon(android.R.drawable.ic_dialog_alert).setMessage(msg)
                 .setPositiveButton(R.string.action_ok, null));
-            return;
+            return null;
         }
 
         // java.net.URI is a lot stricter than KURL so we have to encode some
@@ -246,7 +325,7 @@ public class DownloadHandler {
             // exception here
             Timber.e(e, "Exception while trying to parse url '" + url + '\'');
             ba.showSnackbar( R.string.problem_download);
-            return;
+            return null;
         }
 
         String addressString = webAddress.toString();
@@ -256,31 +335,30 @@ public class DownloadHandler {
             request = new DownloadManager.Request(uri);
         } catch (IllegalArgumentException e) {
             ba.showSnackbar( R.string.cannot_download);
-            return;
+            return null;
         }
 
         // set downloaded file destination to /sdcard/Download.
         // or, should it be set to one of several Environment.DIRECTORY* dirs
         // depending on mimetype?
         String location = preferences.getDownloadDirectory();
-        //String location = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS).getPath();
         location = FileUtils.addNecessarySlashes(location);
         Uri downloadFolder = Uri.parse(location);
 
         if (!isWriteAccessAvailable(downloadFolder)) {
             ba.showSnackbar( R.string.problem_location_download);
-            return;
+            return null;
         }
-        String newMimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(Utils.guessFileExtension(iFilename));
+        String newMimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(Utils.guessFileExtension(filename));
         Timber.d("New mimetype: %s", newMimeType);
         request.setMimeType(newMimeType);
-        request.setDestinationUri(Uri.parse(Constants.FILE + location + iFilename));
+        request.setDestinationUri(Uri.parse(Constants.FILE + location + filename));
         // let this downloaded file be scanned by MediaScanner - so that it can
         // show up in Gallery app, for example.
         request.setVisibleInDownloadsUi(true);
         request.allowScanningByMediaScanner();
         request.setDescription(webAddress.getHost());
-        request.setTitle(iFilename);
+        request.setTitle(filename);
         // XXX: Have to use the old url since the cookies were stored using the
         // old percent-encoded url.
         String cookies = CookieManager.getInstance().getCookie(url);
@@ -297,11 +375,12 @@ public class DownloadHandler {
         if (mimetype == null) {
             Timber.d("Mimetype is null");
             if (TextUtils.isEmpty(addressString)) {
-                return;
+                return null;
             }
             // We must have long pressed on a link or image to download it. We
             // are not sure of the mimetype in this case, so do a head request
-            final Disposable disposable = new FetchUrlMimeType(downloadManager, request, addressString, cookies, userAgent)
+            pendingMimeFetch.clear();
+            pendingMimeFetch.add(new FetchUrlMimeType(downloadManager, request, addressString, cookies, userAgent, location)
                 .create()
                 .subscribeOn(networkScheduler)
                 .observeOn(mainScheduler)
@@ -314,17 +393,19 @@ public class DownloadHandler {
                             ba.showSnackbar( R.string.problem_location_download);
                             break;
                         case SUCCESS:
-                            iDownloadId = result.iDownloadId;
-                            iFilename = result.iFilename;
-                            showDownloadPendingSnackbar(ba, context.getString(R.string.download_pending)  + ' ' + iFilename);
+                            // Track the resolved (id -> filename) locally rather than in shared mutable fields.
+                            downloadIdToFilename.put(result.iDownloadId, result.iFilename);
+                            showDownloadPendingSnackbar(ba, context.getString(R.string.download_pending)  + ' ' + result.iFilename);
                             break;
                     }
-                });
+                }));
         } else {
             Timber.d("Valid mimetype, downloading via DownloadManager");
             try {
-                iDownloadId = downloadManager.enqueue(request);
-                showDownloadPendingSnackbar(ba, context.getString(R.string.download_pending) + ' ' + iFilename);
+                long downloadId = downloadManager.enqueue(request);
+                // Track this download so the completion listener can resolve its filename.
+                downloadIdToFilename.put(downloadId, filename);
+                showDownloadPendingSnackbar(ba, context.getString(R.string.download_pending) + ' ' + filename);
             } catch (Exception e) {
                 Timber.e(e, "Unable to enqueue DownloadManager request");
                 ba.showSnackbar(R.string.cannot_download);
@@ -336,7 +417,7 @@ public class DownloadHandler {
         WebPageTab view = browserActivity.getTabModel().getCurrentTab();
 
         if (view != null && !view.isIncognito()) {
-            downloadsRepository.addDownloadIfNotExists(new DownloadEntry(url, iFilename, contentSize))
+            downloadsRepository.addDownloadIfNotExists(new DownloadEntry(url, filename, contentSize))
                 .subscribeOn(databaseScheduler)
                 .subscribe(aBoolean -> {
                     if (!aBoolean) {
@@ -344,114 +425,8 @@ public class DownloadHandler {
                     }
                 });
         }
-    }
 
-
-
-    private void onDownloadStartNoStreamWithFilename(@NonNull final Activity context, @NonNull UserPreferences preferences,
-                                                      @NonNull String url, String userAgent,
-                                                      String contentDisposition, @Nullable String mimetype,
-                                                      @NonNull String contentSize, @NonNull String customFilename, @Nullable String referer) {
-        // Use the custom filename instead of guessing
-        iFilename = customFilename;
-
-        // Continue with the same logic as onDownloadStartNoStream
-        WebBrowserActivity ba = (WebBrowserActivity)context;
-
-        // Check to see if we have an SDCard
-        String status = Environment.getExternalStorageState();
-        if (!status.equals(Environment.MEDIA_MOUNTED)) {
-            int title;
-            String msg;
-
-            // Check to see if the SDCard is busy, same as the music app
-            if (status.equals(Environment.MEDIA_SHARED)) {
-                msg = context.getString(R.string.download_sdcard_busy_dlg_msg);
-                title = R.string.download_sdcard_busy_dlg_title;
-            } else {
-                msg = context.getString(R.string.download_no_sdcard_dlg_msg);
-                title = R.string.download_no_sdcard_dlg_title;
-            }
-
-            Dialog dialog = AlertDialogExtensionsKt.launch(new MaterialAlertDialogBuilder(context)
-                .setTitle(title)
-                .setIcon(android.R.drawable.ic_dialog_alert)
-                .setMessage(msg)
-                .setPositiveButton(R.string.action_ok, null));
-            return;
-        }
-
-        WebAddress webAddress;
-        try {
-            webAddress = new WebAddress(url);
-            webAddress = new WebAddress(webAddress.toString());
-        } catch (Exception e) {
-            // Use the default save path for explicit downloads
-            Timber.e(e, "Exception while trying to parse url '" + url + '\'');
-            ba.showSnackbar( R.string.problem_download);
-            return;
-        }
-
-        String addressString = webAddress.toString();
-        Uri uri = Uri.parse(addressString);
-        final DownloadManager.Request request;
-        try {
-            request = new DownloadManager.Request(uri);
-        } catch (IllegalArgumentException e) {
-            ba.showSnackbar( R.string.cannot_download);
-            return;
-        }
-
-        String location = preferences.getDownloadDirectory();
-        location = FileUtils.addNecessarySlashes(location);
-        Uri downloadFolder = Uri.parse(location);
-
-        if (!isWriteAccessAvailable(downloadFolder)) {
-            ba.showSnackbar( R.string.problem_location_download);
-            return;
-        }
-
-        // Use the custom filename directly, no need to change extension again
-        String newMimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(Utils.guessFileExtension(iFilename));
-        Timber.d("New mimetype: %s", newMimeType);
-        request.setMimeType(newMimeType);
-        request.setDestinationUri(Uri.parse(Constants.FILE + location + iFilename));
-
-        request.setVisibleInDownloadsUi(true);
-        request.allowScanningByMediaScanner();
-        request.setDescription(webAddress.getHost());
-        request.setTitle(iFilename);
-        String cookies = CookieManager.getInstance().getCookie(url);
-        if (!TextUtils.isEmpty(cookies)) {
-            request.addRequestHeader(COOKIE_REQUEST_HEADER, cookies);
-        }
-        // Use the referer parameter if available (page URL), otherwise fall back to the file URL
-        request.addRequestHeader(REFERER_REQUEST_HEADER, !TextUtils.isEmpty(referer) ? referer : url);
-        request.addRequestHeader(USERAGENT_REQUEST_HEADER, userAgent);
-        request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE);
-
-        Timber.d("Valid mimetype, downloading via DownloadManager with custom filename: %s", iFilename);
-        try {
-            iDownloadId = downloadManager.enqueue(request);
-            showDownloadPendingSnackbar(ba, context.getString(R.string.download_pending) + ' ' + iFilename);
-        } catch (Exception e) {
-            Timber.e(e, "Unable to enqueue DownloadManager request");
-            ba.showSnackbar(R.string.cannot_download);
-        }
-
-        // save download in database
-        WebBrowser browserActivity = (WebBrowser) context;
-        WebPageTab view = browserActivity.getTabModel().getCurrentTab();
-
-        if (view != null && !view.isIncognito()) {
-            downloadsRepository.addDownloadIfNotExists(new DownloadEntry(url, iFilename, contentSize))
-                .subscribeOn(databaseScheduler)
-                .subscribe(aBoolean -> {
-                    if (!aBoolean) {
-                        Timber.d("error saving download to database");
-                    }
-                });
-        }
+        return filename;
     }
 
     private static boolean isWriteAccessAvailable(@NonNull Uri fileUri) {

@@ -12,7 +12,6 @@ import android.graphics.Bitmap
 import android.graphics.drawable.Drawable
 import android.os.Build
 import android.view.LayoutInflater
-import android.widget.Toast
 import androidx.annotation.*
 import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
@@ -38,14 +37,29 @@ inline fun Context.dimen(@DimenRes dimenRes: Int): Int = resources.getDimensionP
 inline fun Context.color(@ColorRes colorRes: Int): Int = ContextCompat.getColor(this, colorRes)
 
 /**
- * Shows a toast with the provided [StringRes].
+ * Shows a short themed message. Uses [com.xhub.browser.ui.message.XHubMessage] so feedback
+ * matches the app chrome instead of the system Toast skin.
  */
-inline fun Context.toast(@StringRes stringRes: Int) = Toast.makeText(this, stringRes, Toast.LENGTH_SHORT).show()
+fun Context.toast(@StringRes stringRes: Int) {
+    val activity = this as? Activity
+    if (activity != null) {
+        com.xhub.browser.ui.message.XHubMessage.show(activity, stringRes)
+    } else {
+        com.xhub.browser.ui.message.XHubMessage.showToast(this, stringRes)
+    }
+}
 
 /**
- *
+ * Shows a short themed message with a raw [string].
  */
-inline fun Context.toast(string: String) = Toast.makeText(this, string, Toast.LENGTH_SHORT).show()
+fun Context.toast(string: String) {
+    val activity = this as? Activity
+    if (activity != null) {
+        com.xhub.browser.ui.message.XHubMessage.show(activity, string)
+    } else {
+        com.xhub.browser.ui.message.XHubMessage.showToast(this, string)
+    }
+}
 
 /**
  * The [LayoutInflater] available on the [Context].

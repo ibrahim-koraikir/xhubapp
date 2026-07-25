@@ -4,9 +4,12 @@ import com.xhub.browser.database.adblock.UserRulesRepository
 import android.net.Uri
 import jp.hazuki.yuzubrowser.adblock.core.ContentRequest
 import jp.hazuki.yuzubrowser.adblock.filter.unified.*
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -37,6 +40,20 @@ class AbpUserRules @Inject constructor(
 ){
 
     private val userRules by lazy { UserFilterContainer().also{ userRulesRepository.getAllRules().forEach(it::add) } }
+
+    // Swallows-and-logs uncaught exceptions from the launches below. A SupervisorJob only isolates
+    // sibling coroutines from each other; it does NOT stop an uncaught exception in a launched
+    // coroutine from reaching the thread's default handler, which on Android crashes the app.
+    // A failed DB write here should degrade gracefully (the in-memory userRules already reflect the
+    // change) rather than crash, so we log it instead.
+    private val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
+        Timber.w(throwable, "Failed to persist user rule change")
+    }
+
+    // App-lifetime scope for persisting user rule changes. This is a @Singleton so it lives for the
+    // whole process; a dedicated SupervisorJob scope (rather than GlobalScope) removes the
+    // DelicateCoroutinesApi smell and isolates a failed DB write from other pending writes.
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO + exceptionHandler)
 //    private lateinit var userRules: UserFilterContainer
 //    private val userRules = UserFilterContainer()
 
@@ -71,12 +88,12 @@ class AbpUserRules @Inject constructor(
 
     private fun addUserRule(filter: UnifiedFilterResponse) {
         userRules.add(filter)
-        GlobalScope.launch(Dispatchers.IO) { userRulesRepository.addRules(listOf(filter)) }
+        scope.launch { userRulesRepository.addRules(listOf(filter)) }
     }
 
     private fun removeUserRule(filter: UnifiedFilterResponse) {
         userRules.remove(filter)
-        GlobalScope.launch(Dispatchers.IO) { userRulesRepository.removeRule(filter) }
+        scope.launch { userRulesRepository.removeRule(filter) }
     }
 
 /*

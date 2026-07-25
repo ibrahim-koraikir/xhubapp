@@ -1,4 +1,4 @@
-﻿package com.xhub.browser.icon
+package com.xhub.browser.icon
 
 import com.xhub.browser.R
 import com.xhub.browser.extensions.preferredLocale
@@ -80,6 +80,29 @@ class TabCountView @JvmOverloads constructor(
         this.count = count
         contentDescription = count.toString()
         invalidate()
+    }
+
+    /**
+     * Perform a springy scale pulse animation to draw attention to background tab creation.
+     */
+    fun pulse() {
+        animate().cancel()
+        scaleX = 1f
+        scaleY = 1f
+        animate()
+            .scaleX(1.25f)
+            .scaleY(1.25f)
+            .setDuration(120)
+            .setInterpolator(android.view.animation.DecelerateInterpolator())
+            .withEndAction {
+                animate()
+                    .scaleX(1f)
+                    .scaleY(1f)
+                    .setDuration(150)
+                    .setInterpolator(android.view.animation.DecelerateInterpolator())
+                    .start()
+            }
+            .start()
     }
 
     override fun onDraw(canvas: Canvas) {

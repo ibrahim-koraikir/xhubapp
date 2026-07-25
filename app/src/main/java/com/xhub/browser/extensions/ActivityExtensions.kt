@@ -38,17 +38,25 @@ const val KDuration: Int = 4000; // Snackbar.LENGTH_LONG
  * @param resource the string resource to display to the user.
  */
 fun Activity.snackbar(@StringRes resource: Int, aGravity: Int = Gravity.BOTTOM) {
-    makeSnackbar(getString(resource), KDuration, aGravity).show()
+    com.xhub.browser.ui.message.XHubMessage.show(
+        activity = this,
+        textRes = resource,
+        gravity = aGravity
+    )
 }
 
 /**
- * Display a snackbar to the user with a [String] message.
+ * Display a themed banner to the user with a [String] message.
  *
  * @param message the message to display to the user.
  * @see snackbar
  */
 fun Activity.snackbar(message: String, aGravity: Int = Gravity.BOTTOM) {
-    makeSnackbar(message, KDuration, aGravity).show()
+    com.xhub.browser.ui.message.XHubMessage.show(
+        activity = this,
+        text = message,
+        gravity = aGravity
+    )
 }
 
 /**

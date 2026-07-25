@@ -90,9 +90,11 @@ class BottomSheetDialogFragment : BottomSheetDialogFragment {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        // We want our bottom sheet to be extended
-        // Also make sure it is extended too when opening a new fragment
-        (dialog as? BottomSheetDialog)?.behavior?.state = STATE_EXPANDED
+        // Expand fully so downloads/settings sheets open tall (not a short peek strip).
+        (dialog as? BottomSheetDialog)?.behavior?.apply {
+            skipCollapsed = true
+            state = STATE_EXPANDED
+        }
     }
 
     /**

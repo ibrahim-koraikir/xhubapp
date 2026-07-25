@@ -22,7 +22,6 @@ import com.xhub.browser.constant.FILE
 import com.xhub.browser.constant.Schemes
 import com.xhub.browser.constant.Uris
 import com.xhub.browser.html.bookmark.BookmarkPageFactory
-import com.xhub.browser.html.download.DownloadPageFactory
 import com.xhub.browser.html.history.HistoryPageFactory
 import com.xhub.browser.html.homepage.HomePageFactory
 import com.xhub.browser.html.incognito.IncognitoPageFactory
@@ -137,7 +136,6 @@ fun String?.isSpecialUrl(): Boolean =
     this != null
             && (this.startsWith(FILE + app.filesDir)
             && (this.endsWith(BookmarkPageFactory.FILENAME)
-            || this.endsWith(DownloadPageFactory.FILENAME)
             || this.endsWith(HistoryPageFactory.FILENAME)
             || this.endsWith(HomePageFactory.FILENAME)
             || this.endsWith(IncognitoPageFactory.FILENAME))
@@ -166,14 +164,6 @@ fun String?.isAppScheme(): Boolean =
  */
 fun String?.isBookmarkUrl(): Boolean =
     this != null && this.startsWith(FILE) && this.endsWith(BookmarkPageFactory.FILENAME)
-
-/**
- * Determines if the url is a url for the bookmark page.
- *
- * @return true if the url is a bookmark url, false otherwise.
- */
-fun String?.isDownloadsUrl(): Boolean =
-    this != null && this.startsWith(FILE) && this.endsWith(DownloadPageFactory.FILENAME)
 
 /**
  * Determines if the url is a url for the history page.

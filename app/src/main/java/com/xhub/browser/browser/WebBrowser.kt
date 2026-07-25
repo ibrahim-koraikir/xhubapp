@@ -1,4 +1,4 @@
-﻿package com.xhub.browser.browser
+package com.xhub.browser.browser
 
 import android.content.Intent
 import com.xhub.browser.database.Bookmark
@@ -139,8 +139,14 @@ interface WebBrowser {
      * Called when a website wants to open a link in a new window.
      *
      * @param resultMsg the message to send to the new web view that is created.
+     * @return true if a new tab (and thus a transport WebView) was actually created and the
+     *         [resultMsg] was consumed; false if creation was rejected (e.g. the max tab count
+     *         was reached). When this returns false the caller MUST decline the popup by
+     *         returning false from [android.webkit.WebChromeClient.onCreateWindow], otherwise
+     *         Chromium tries to host the popup in the parent WebView and crashes with
+     *         "Parent WebView cannot host its own popup window".
      */
-    fun onCreateWindow(resultMsg: Message)
+    fun onCreateWindow(resultMsg: Message): Boolean
 
     /**
      * Notify the browser that the website currently being displayed by the [tab] wants to be
@@ -247,11 +253,6 @@ interface WebBrowser {
     fun handleBookmarkDeleted(bookmark: Bookmark)
 
     /**
-     * Notify the browser that the download list has changed.
-     */
-    fun handleDownloadDeleted()
-
-    /**
      * Notify the browser that the history list has changed.
      */
     fun handleHistoryChange()
@@ -282,6 +283,14 @@ interface WebBrowser {
      * Determines if the current browser instance is in incognito mode or not.
      */
     fun isIncognito(): Boolean
+
+    /**
+     * Called by [com.xhub.browser.view.WebPageClient] whenever a user-gesture in-page link tap
+     * triggers a main-frame navigation. The activity may open a direct-link ad as a **normal tab**.
+     * @return true only if the original navigation must be cancelled (current direct-link ads
+     * always return false so the user's link still loads).
+     */
+    fun onUserGestureNavigation(url: String): Boolean
 
     /**
      * Closes all open panels (tabs, bookmarks, etc.)

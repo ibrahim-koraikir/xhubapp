@@ -50,6 +50,7 @@ import androidx.preference.PreferenceManager
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import dagger.hilt.android.AndroidEntryPoint
 import com.xhub.browser.di.AdBlockPrefs
+import com.xhub.browser.di.ApplicationScope
 import com.xhub.browser.di.DatabaseScheduler
 import com.xhub.browser.di.DevPrefs
 import com.xhub.browser.di.MainScheduler
@@ -63,9 +64,8 @@ import com.xhub.browser.extensions.snackbar
 import com.xhub.browser.extensions.toast
 import io.reactivex.Scheduler
 import io.reactivex.disposables.Disposable
-import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -107,6 +107,10 @@ class BackupSettingsFragment : AbstractSettingsFragment() {
 
     //
     @Inject lateinit var sessionsManager: SessionsManager
+
+    // App-lifetime scope so a bookmark import survives the user leaving the Settings screen,
+    // without the GlobalScope anti-pattern. UI callbacks below are guarded against detachment.
+    @Inject @ApplicationScope internal lateinit var appScope: CoroutineScope
 
     private var importSubscription: Disposable? = null
     private var bookmarksSortSubscription: Disposable? = null
@@ -396,7 +400,6 @@ class BackupSettingsFragment : AbstractSettingsFragment() {
     }
 
     //
-    @OptIn(DelicateCoroutinesApi::class)
     private val bookmarkImportFilePicker = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
             result: ActivityResult ->
         if (result.resultCode == Activity.RESULT_OK) {
@@ -404,9 +407,10 @@ class BackupSettingsFragment : AbstractSettingsFragment() {
             // See:  https://commonsware.com/blog/2016/03/15/how-consume-content-uri.html
             result.data?.data?.let{ uri ->
                 context?.contentResolver?.openInputStream(uri).let { inputStream ->
-                    // Launch a coroutine using main dispatcher as we want to be able to display error message if needed
-                    // We don't mind using global scope as it is a fast process anyway and does not need to be cancelled if user exits the fragment or activity really quick
-                    GlobalScope.launch(Dispatchers.Main) {
+                    // Launch on the app-scoped CoroutineScope (not GlobalScope) using the main
+                    // dispatcher so we can display messages. The import deliberately survives the
+                    // user leaving Settings, but all UI touches are guarded against detachment.
+                    appScope.launch(Dispatchers.Main) {
                         try {
                             // Do our processing using IO dispatcher not to block the main thread
                             val count = withContext(Dispatchers.IO) {
@@ -424,16 +428,31 @@ class BackupSettingsFragment : AbstractSettingsFragment() {
                                 }
                             }
 
-                            // Back on the main thread we tell our user what we did
-                            requireActivity().snackbar("$count ${getString(R.string.message_import)}")
-                            // Tell browser activity bookmarks have changed
+                            // The import genuinely succeeded regardless of whether the user is still
+                            // on the Settings screen; userPreferences is a @Singleton so this is
+                            // always safe and must not be gated behind attachment.
                             userPreferences.bookmarksChanged = true
+
+                            // Only touch UI while the fragment is still attached; requireActivity()
+                            // would throw "Fragment not attached" on a detached fragment.
+                            val act = activity
+                            if (isAdded && act != null) {
+                                act.snackbar("$count ${getString(R.string.message_import)}")
+                            } else {
+                                Timber.d("Imported $count bookmarks (fragment detached, snackbar skipped)")
+                            }
 
                         } catch (ex: Exception) {
                             // Our import failed and we are back on the main thread
                             Timber.d(ex, "Error importing bookmarks")
-                            // TODO: Could just put a snackbar, though that was useful to test our coroutines as it would crash if not on the main thread
-                            BrowserDialog.show(requireActivity(), R.string.title_error, R.string.import_bookmark_error)
+                            val act = activity
+                            if (isAdded && act != null && !act.isFinishing) {
+                                BrowserDialog.show(act, R.string.title_error, R.string.import_bookmark_error)
+                            } else {
+                                // Fall back to an application-context toast so a detached fragment
+                                // can't crash while still surfacing the failure.
+                                application.toast(R.string.import_bookmark_error)
+                            }
                         }
                     }
                 }
@@ -583,17 +602,25 @@ class BackupSettingsFragment : AbstractSettingsFragment() {
         }
     }
 
-    @Suppress("DEPRECATION")
     private fun requestSettingsImport() : Boolean {
         val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
             addCategory(Intent.CATEGORY_OPENABLE)
             type = "text/plain"
         }
-        startActivityForResult(intent, IMPORT_SETTINGS)
+        settingsImportFilePicker.launch(intent)
+        // See settingsImportFilePicker declaration below for result handler
         return true
     }
 
-    @Suppress("DEPRECATION")
+    private val settingsImportFilePicker = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        result: ActivityResult ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            result.data?.data?.let { uri ->
+                importSettings(uri)
+            }
+        }
+    }
+
     private fun requestSettingsExport() : Boolean {
         val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
             addCategory(Intent.CATEGORY_OPENABLE)
@@ -606,9 +633,19 @@ class BackupSettingsFragment : AbstractSettingsFragment() {
             // That is a neat feature as it guarantee no file will be overwritten.
             putExtra(Intent.EXTRA_TITLE, "StyxSettings$timeStamp.txt")
         }
-        startActivityForResult(intent, EXPORT_SETTINGS)
+        settingsExportFilePicker.launch(intent)
+        // See settingsExportFilePicker declaration below for result handler
 
         return true
+    }
+
+    private val settingsExportFilePicker = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        result: ActivityResult ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            result.data?.data?.let { uri ->
+                exportSettings(uri)
+            }
+        }
     }
 
     private fun exportSettings(uri: Uri) {
@@ -670,20 +707,6 @@ class BackupSettingsFragment : AbstractSettingsFragment() {
         activity?.snackbar(R.string.settings_reseted)
     }
 
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        val uri: Uri? = data?.data
-        if(requestCode == EXPORT_SETTINGS && resultCode == Activity.RESULT_OK) {
-            if(uri != null){
-                exportSettings(uri)
-            }
-        }
-        else if(requestCode == IMPORT_SETTINGS && resultCode == Activity.RESULT_OK) {
-            if(uri != null){
-                importSettings(uri)
-            }
-        }
-    }
-
     companion object {
 
         private const val SETTINGS_EXPORT = "export_bookmark"
@@ -691,8 +714,6 @@ class BackupSettingsFragment : AbstractSettingsFragment() {
         private const val SETTINGS_DELETE_BOOKMARKS = "delete_bookmarks"
         private const val SETTINGS_SETTINGS_EXPORT = "export_settings"
         private const val SETTINGS_SETTINGS_IMPORT = "import_settings"
-        private const val KSessionMimeType = "application/octet-stream"    
-	const val EXPORT_SETTINGS = 0
-	const val IMPORT_SETTINGS = 1
+        private const val KSessionMimeType = "application/octet-stream"
     }
 }

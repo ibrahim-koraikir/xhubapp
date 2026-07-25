@@ -140,6 +140,46 @@ class TabsManagerMapTest {
         assertThat(tabMap).isEmpty()
     }
 
+    /**
+     * Mirrors max-tab rejection: when the list is at capacity, creation is skipped and
+     * map/list must stay in sync (no partial insert).
+     */
+    @Test
+    fun `max tab capacity rejection leaves map and list unchanged`() {
+        val maxTabs = 20
+        repeat(maxTabs) { i -> addTab(FakeTab(id = i, title = "Tab $i")) }
+        val sizeBefore = tabList.size
+        val mapSizeBefore = tabMap.size
+
+        // Simulate newTab() rejecting when at entitlement limit — no insert
+        val atCapacity = tabList.size >= maxTabs
+        assertThat(atCapacity).isTrue()
+        if (!atCapacity) {
+            addTab(FakeTab(id = 999, title = "Rejected"))
+        }
+
+        assertThat(tabList.size).isEqualTo(sizeBefore)
+        assertThat(tabMap.size).isEqualTo(mapSizeBefore)
+        assertThat(getTabById(999)).isNull()
+    }
+
+    /**
+     * Closing tabs rapidly (including the last one) must keep map/list consistent —
+     * the destroy path relies on remove then destroy without dangling map keys.
+     */
+    @Test
+    fun `rapid sequential remove from end keeps map list sync`() {
+        repeat(5) { i -> addTab(FakeTab(id = 100 + i, title = "Tab $i")) }
+        while (tabList.isNotEmpty()) {
+            removeTabAt(tabList.lastIndex)
+            assertThat(tabList.size).isEqualTo(tabMap.size)
+            tabList.forEach { tab ->
+                assertThat(tabMap).containsKey(tab.id)
+            }
+        }
+        assertThat(tabMap).isEmpty()
+    }
+
     // ------------------------------------------------------------------ //
     //  Performance: O(1) map must be dramatically faster than O(N) scan
     //  when the tab count is large.

@@ -1,0 +1,142 @@
+# Android Studio
+*.jks
+*.keystore
+keystore.properties
+.DS_Store
+/local.properties
+/.idea/workspace.xml
+/build
+
+# External tool builders
+.externalToolBuilders/
+
+# CDT-specific
+.cproject
+
+# PDT-specific
+.buildpath
+
+# Windows image file caches
+Thumbs.db
+ehthumbs.db
+
+# Local configuration file (sdk path, etc)
+local.properties
+.directory
+
+# Intellij project files
+*.ipr
+*.iws
+.idea/
+
+# Gradle
+build
+.gradle
+
+# https://gist.github.com/AltNico/c581f370b3f88715876b
+*.apk
+*.ap_
+*.dex
+*.class
+build.xml
+.DS_Store
+gen/
+.gradle/
+proguard/
+out
+.settings/
+*.swp
+*~
+
+# Source:
+# https://raw.githubusercontent.com/github/gitignore/master/Android.gitignore
+# https://gitlab.com/fdroid/fdroidclient/raw/master/.gitignore
+
+*.iml
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output
+fastlane/README.md
+
+# Google Play API keys - NEVER COMMIT THESE!
+*-play-store.json
+*-playstore.json
+playstore-*.json
+google-play-*.json
+
+# Firebase configuration - contains API keys, should not be committed
+google-services.json
+app/google-services.json
+
+# Bundler
+vendor/bundle
+.bundle
+
+# Crowdin - prevent accidental auto-upload configuration
+crowdin.properties
+
+# Local crash dumps / logcat captures (archive under docs/archive/crash-logs if needed)
+crash_log*.txt
+*.log
+logcat*.txt
+fulguris_logs.txt
+
+# Scratch screenshots / layout dumps at repo root (dotfiles from debugging sessions)
+.home.png
+.leak.png
+.s.png
+.ui.xml
+.ui2.xml
+.ui3.xml
+.ui4.xml
+.ui5.xml
+.ui6.xml
+.ui7.xml
+.verify.png
+.verify.xml
+.debug-screen.png
+.debug-screen2.png
+.debug-screen3.png
+.debug-screen4.png
+.debug-screen5.png
+.user-screenshot.jpg
+.h.xml
+.h1.png
+.chk.xml
+.homeui.xml
+
+# Local agent / tooling caches (do not commit)
+.grok/
+.kotlin/
+nul
+
+# Development and temporary log files (anchored to root only)
+/build_*.log
+/build_*.txt
+/kapt_*.txt
+/kapt_*.log
+/logcat.txt
+/fulguris_logs.txt
+/*.diff
+/process_res_log.txt
+/merge_res_log.txt
+/build.log
+/compile_error.log
+/diff.txt
+/realdiff.txt
+
+# Root-level .md scratch/dev-history notes.
+# Many ad-hoc .md files accumulate at the project root during development and
+# reveal internal history (e.g. WEBVIEW_SECURITY_FIX.md, SSL_ERROR_BYPASS_WARNING_FIX.md,
+# ADBLOCKER_DEFAULTS.md, BUILD_FIX.md, ...). They should not be shipped or made public.
+# Scoped to the ROOT ONLY (leading slash) so legitimate docs in subdirectories are
+# still tracked: docs/superpowers/**, subs/**, .github/**, fastlane/**, etc.
+# Explicitly re-include the operational root documents below.
+/*.md
+!/README.md
+!/CHANGELOG.md
+!/AGENTS.md
+!/RELEASE_CHECKLIST.md

@@ -64,27 +64,6 @@ class LightningDialogBuilder @Inject constructor(
 
 
     /**
-     * Show the appropriated dialog for the long pressed link.
-     * SL: Not used since we don't have a download list anymore.
-     *
-     * @param activity used to show the dialog
-     * @param url      the long pressed url
-     */
-    // TODO allow individual downloads to be deleted.
-    fun showLongPressedDialogForDownloadUrl(
-        activity: Activity,
-        webBrowser: WebBrowser,
-        url: String
-    ) =
-        BrowserDialog.show(activity, R.string.action_downloads,
-            DialogItem(title = R.string.dialog_delete_all_downloads) {
-                downloadsModel.deleteAllDownloads()
-                    .subscribeOn(databaseScheduler)
-                    .observeOn(mainScheduler)
-                    .subscribe(webBrowser::handleDownloadDeleted)
-            })
-
-    /**
      * Show the appropriated dialog for the long pressed link. It means that we try to understand
      * if the link is relative to a bookmark or is just a folder.
      *

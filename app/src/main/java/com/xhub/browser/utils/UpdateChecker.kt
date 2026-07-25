@@ -12,7 +12,7 @@ import com.xhub.browser.R
 import timber.log.Timber
 
 object UpdateChecker {
-    private const val GITHUB_API_URL = "https://api.github.com/repos/ibrahim-koraikir/xhub/releases/latest"
+    private const val GITHUB_API_URL = "https://api.github.com/repos/ibrahim-koraikir/xhubapp/releases/latest"
 
     interface Callback {
         fun onUpdateAvailable(latestVersion: String, releaseUrl: String)

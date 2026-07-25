@@ -162,6 +162,7 @@ class WebPageTab(
      * Runnable reference for the pending delayed capture task.
      * Used to cancel the delayed task before it executes.
      */
+    @Volatile
     private var captureRunnable: Runnable? = null
 
 
@@ -179,13 +180,15 @@ class WebPageTab(
     /**
      * Get all console messages for the current page
      */
-    fun getConsoleMessages(): List<ConsoleMessage> = consoleMessages.toList()
+    fun getConsoleMessages(): List<ConsoleMessage> = synchronized(consoleMessages) { consoleMessages.toList() }
 
     /**
      * Clear tracked console messages
      */
     fun clearConsoleMessages() {
-        consoleMessages.clear()
+        synchronized(consoleMessages) {
+            consoleMessages.clear()
+        }
     }
 
     /**
@@ -237,6 +240,19 @@ class WebPageTab(
         }
 
     var isShowingDirectAd = false
+
+    /**
+     * Resets the direct-ad state flag when the user navigates away from ad content.
+     * Call this from every navigation entry point ([goBack], [goForward],
+     * [loadUrl] without the ad flag, etc.) so that the ad-blocker bypass is
+     * re-enabled as soon as the user leaves the ad page.
+     *
+     * Centralising the reset here means new navigation methods added later
+     * don't accidentally leave the bypass active on normal content.
+     */
+    fun resetDirectAdState() {
+        isShowingDirectAd = false
+    }
 
     var isVideoDetected = false
         private set
@@ -1949,7 +1965,7 @@ class WebPageTab(
      * in its history to the previous page.
      */
     fun goBack() {
-        isShowingDirectAd = false
+        resetDirectAdState()
         webView?.goBack()
     }
 
@@ -1958,7 +1974,7 @@ class WebPageTab(
      * in its history to the next page.
      */
     fun goForward() {
-        isShowingDirectAd = false
+        resetDirectAdState()
         webView?.goForward()
     }
 
@@ -1969,7 +1985,7 @@ class WebPageTab(
      * @param steps Number of steps to navigate (negative for back, positive for forward)
      */
     fun goBackOrForward(steps: Int) {
-        isShowingDirectAd = false
+        resetDirectAdState()
         webView?.goBackOrForward(steps)
     }
 
@@ -2070,7 +2086,7 @@ class WebPageTab(
      */
     fun loadUrl(aUrl: String, isAd: Boolean = false, onLoadComplete: (() -> Unit)? = null) {
         if (!isAd) {
-            isShowingDirectAd = false
+            resetDirectAdState()
         }
 
         iTargetUrl = Uri.parse(aUrl)

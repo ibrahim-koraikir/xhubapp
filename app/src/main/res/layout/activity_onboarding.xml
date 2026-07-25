@@ -6,7 +6,7 @@
     android:id="@+id/onboardingRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FF0E0E12">
+    android:background="@color/onboarding_background">
 
     <!-- Soft decorative blobs -->
     <View
@@ -38,7 +38,7 @@
         android:layout_marginEnd="8dp"
         android:text="@string/intro_action_skip"
         android:textAllCaps="false"
-        android:textColor="#B3FFFFFF"
+        android:textColor="@color/onboarding_skip"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
@@ -50,7 +50,7 @@
         android:layout_marginStart="28dp"
         android:layout_marginTop="8dp"
         android:layout_marginEnd="28dp"
-        app:cardBackgroundColor="#14FFFFFF"
+        app:cardBackgroundColor="@color/onboarding_card"
         app:cardCornerRadius="28dp"
         app:cardElevation="0dp"
         app:layout_constraintBottom_toTopOf="@+id/onboardingTitle"
@@ -60,7 +60,7 @@
         app:layout_constraintTop_toBottomOf="@id/btnSkip"
         app:layout_constraintVertical_bias="0.35"
         app:layout_constraintVertical_chainStyle="packed"
-        app:strokeColor="#22FFFFFF"
+        app:strokeColor="@color/onboarding_card_stroke"
         app:strokeWidth="1dp">
 
         <ImageView
@@ -83,7 +83,7 @@
         android:layout_marginEnd="32dp"
         android:gravity="center"
         android:letterSpacing="-0.01"
-        android:textColor="#FFFFFFFF"
+        android:textColor="@color/onboarding_title"
         android:textSize="28sp"
         android:textStyle="bold"
         app:layout_constraintBottom_toTopOf="@+id/onboardingDescription"
@@ -101,7 +101,7 @@
         android:layout_marginEnd="36dp"
         android:gravity="center"
         android:lineSpacingMultiplier="1.25"
-        android:textColor="#B8FFFFFF"
+        android:textColor="@color/onboarding_description"
         android:textSize="16sp"
         app:layout_constraintBottom_toTopOf="@+id/pageIndicator"
         app:layout_constraintEnd_toEndOf="parent"
@@ -133,7 +133,7 @@
         android:textAllCaps="false"
         android:textSize="16sp"
         android:textStyle="bold"
-        app:backgroundTint="#FFFF9800"
+        app:backgroundTint="@color/onboarding_accent"
         app:cornerRadius="28dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"

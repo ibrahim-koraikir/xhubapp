@@ -95,12 +95,12 @@ class DownloadsDatabase @Inject constructor(
     override fun addDownloadsList(downloadEntries: List<DownloadEntry>): Completable = Completable.fromAction {
         database.apply {
             beginTransaction()
-            setTransactionSuccessful()
 
             for (item in downloadEntries) {
                 addDownloadIfNotExists(item).subscribe()
             }
 
+            setTransactionSuccessful()
             endTransaction()
         }
     }
@@ -110,10 +110,7 @@ class DownloadsDatabase @Inject constructor(
     }
 
     override fun deleteAllDownloads(): Completable = Completable.fromAction {
-        database.run {
-            delete(TABLE_DOWNLOADS, null, null)
-            close()
-        }
+        database.delete(TABLE_DOWNLOADS, null, null)
     }
 
     override fun getAllDownloads(): Single<List<DownloadEntry>> = Single.fromCallable {

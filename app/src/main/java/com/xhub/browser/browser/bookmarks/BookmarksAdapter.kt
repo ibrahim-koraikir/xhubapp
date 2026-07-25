@@ -134,7 +134,7 @@ class BookmarksAdapter(
             is Bookmark.Entry -> webpageIcon.also {
                 faviconFetchSubscriptions[url]?.dispose()
                 faviconFetchSubscriptions[url] = faviconModel
-                        .faviconForUrl(url, viewModel.bookmark.title, context.isDarkTheme())
+                        .faviconForUrl(url, viewModel.bookmark.title, context.isDarkTheme(), isIncognito = false)
                         .subscribeOn(networkScheduler)
                         .observeOn(mainScheduler)
                         .subscribeBy(

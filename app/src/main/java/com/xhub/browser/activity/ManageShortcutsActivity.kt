@@ -139,6 +139,44 @@ class ManageShortcutsActivity : AppCompatActivity() {
             .show()
     }
 
+    /**
+     * Normalizes and validates a user-entered shortcut URL.
+     *
+     * COMMENT 7: the previous check `if (!url.startsWith("http"))` was too loose — it would leave
+     * `ftp://...`, `javascript:...`, `data:...` etc. untouched, and would not prefix `http://`
+     * schemes (it only caught the bare "http" prefix). We now:
+     *  1. Reject dangerous schemes (`javascript:`, `data:`) outright.
+     *  2. Prefix `https://` only when the input is NOT already `https://` or `http://`.
+     *  3. Re-validate the result with URLUtil so malformed inputs are rejected with a toast.
+     *
+     * @return the normalized, valid https/http URL, or null if the input is invalid.
+     */
+    private fun normalizeShortcutUrl(raw: String): String? {
+        var url = raw.trim()
+        if (url.isEmpty()) return null
+
+        // Explicitly reject dangerous schemes regardless of normalization.
+        val lower = url.lowercase()
+        if (lower.startsWith("javascript:") || lower.startsWith("data:")) return null
+
+        // Prefix https:// only when the user didn't already supply an http(s) scheme.
+        if (!url.startsWith("https://") && !url.startsWith("http://")) {
+            url = "https://$url"
+        }
+
+        // Final validation: must be a well-formed http(s) URL.
+        val valid = android.webkit.URLUtil.isHttpsUrl(url) || android.webkit.URLUtil.isHttpUrl(url)
+        return if (valid) url else null
+    }
+
+    private fun showInvalidUrlToast() {
+        android.widget.Toast.makeText(
+            this,
+            "Please enter a valid web address (e.g. example.com)",
+            android.widget.Toast.LENGTH_SHORT
+        ).show()
+    }
+
     private fun showAddSiteDialog(groupIndex: Int, onAdded: () -> Unit) {
         val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_add_site, null)
         val etName = dialogView.findViewById<EditText>(R.id.etSiteName)
@@ -149,11 +187,13 @@ class ManageShortcutsActivity : AppCompatActivity() {
             .setView(dialogView)
             .setPositiveButton("Add") { _, _ ->
                 val name = etName.text.toString().trim()
-                var url  = etUrl.text.toString().trim()
-                if (name.isNotEmpty() && url.isNotEmpty()) {
-                    if (!url.startsWith("http")) url = "https://$url"
+                val url  = normalizeShortcutUrl(etUrl.text.toString())
+                if (name.isNotEmpty() && url != null) {
                     groups[groupIndex].sites.add(ShortcutSite(name, url))
                     onAdded()
+                } else if (etUrl.text.toString().trim().isNotEmpty()) {
+                    // Name may be valid but the URL failed validation.
+                    showInvalidUrlToast()
                 }
             }
             .setNegativeButton("Cancel", null)
@@ -173,11 +213,12 @@ class ManageShortcutsActivity : AppCompatActivity() {
             .setView(dialogView)
             .setPositiveButton("Save") { _, _ ->
                 val name = etName.text.toString().trim()
-                var url  = etUrl.text.toString().trim()
-                if (name.isNotEmpty() && url.isNotEmpty()) {
-                    if (!url.startsWith("http")) url = "https://$url"
+                val url  = normalizeShortcutUrl(etUrl.text.toString())
+                if (name.isNotEmpty() && url != null) {
                     groups[groupIndex].sites[siteIndex] = ShortcutSite(name, url)
                     onEdited()
+                } else if (etUrl.text.toString().trim().isNotEmpty()) {
+                    showInvalidUrlToast()
                 }
             }
             .setNegativeButton("Cancel", null)
@@ -241,16 +282,25 @@ class ManageShortcutsActivity : AppCompatActivity() {
                 tvUrl.text     = site.url.removePrefix("https://").removePrefix("http://")
                     .removeSuffix("/").take(40)
 
-                // Tap site row → edit it
+                // Tap site row → edit it.
+                // COMMENT 9: look up the current index dynamically rather than capturing siteIndex.
+                // If the list changed between renders (drag, prior remove), the captured index could
+                // point at the wrong item or be out of bounds. Re-resolve from the container each time.
                 siteView.setOnClickListener {
-                    showEditSiteDialog(groupIndex, siteIndex) {
-                        rebuildSites(holder, groupIndex)
+                    val currentIndex = container.indexOfChild(siteView)
+                    if (currentIndex >= 0 && currentIndex < sites.size) {
+                        showEditSiteDialog(groupIndex, currentIndex) {
+                            rebuildSites(holder, groupIndex)
+                        }
                     }
                 }
 
                 btnRemove.setOnClickListener {
-                    sites.removeAt(siteIndex)
-                    rebuildSites(holder, groupIndex)
+                    val currentIndex = container.indexOfChild(siteView)
+                    if (currentIndex >= 0 && currentIndex < sites.size) {
+                        sites.removeAt(currentIndex)
+                        rebuildSites(holder, groupIndex)
+                    }
                 }
 
                 // Long-press drag (within group — simple up/down swap)
@@ -264,7 +314,8 @@ class ManageShortcutsActivity : AppCompatActivity() {
     }
 
     companion object {
-        const val REQUEST_CODE = 1001
+        // COMMENT 8: REQUEST_CODE (1001) removed — ManageShortcutsActivity is now launched via
+        // ActivityResultLauncher from WebBrowserActivity, so no request code is needed.
 
         fun start(context: Context) {
             context.startActivity(Intent(context, ManageShortcutsActivity::class.java))

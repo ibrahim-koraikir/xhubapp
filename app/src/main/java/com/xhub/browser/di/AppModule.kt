@@ -36,6 +36,9 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import io.reactivex.Scheduler
 import io.reactivex.Single
 import io.reactivex.android.schedulers.AndroidSchedulers
@@ -65,6 +68,18 @@ class AppModule {
 
     @Provides
     fun provideContext(application: Application): Context = application.applicationContext
+
+    /**
+     * Application-lifetime [CoroutineScope] for work that must outlive a screen/component
+     * (e.g. a bookmark import or ad-block list update that should survive the user leaving
+     * Settings) yet must NOT use GlobalScope. Uses a [SupervisorJob] so one failed job doesn't
+     * cancel its siblings. It is intentionally never cancelled — it is tied to the application
+     * process lifetime. Callers override the dispatcher per-launch (e.g. Dispatchers.IO / Main).
+     */
+    @Provides
+    @ApplicationScope
+    @Singleton
+    fun provideApplicationScope(): CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
 
     @Provides
@@ -242,3 +257,7 @@ annotation class NetworkScheduler
 @Qualifier
 @Retention(AnnotationRetention.RUNTIME)
 annotation class DatabaseScheduler
+
+@Qualifier
+@Retention(AnnotationRetention.RUNTIME)
+annotation class ApplicationScope

@@ -32,38 +32,47 @@ class OnboardingActivity : ThemedActivity() {
         val accent: Int
     )
 
-    private val pages = listOf(
-        Page(
-            R.string.intro_welcome_title,
-            R.string.intro_welcome_description,
-            R.drawable.ill_onboarding_welcome,
-            0xFFFF007A.toInt()  // XHub brand pink
-        ),
-        Page(
-            R.string.intro_title_tabs,
-            R.string.intro_description_tabs,
-            R.drawable.ill_onboarding_tabs,
-            0xFFE91E8C.toInt()  // Deep rose — harmonious with brand
-        ),
-        Page(
-            R.string.intro_title_downloads,
-            R.string.intro_description_downloads,
-            R.drawable.ill_onboarding_download,
-            0xFFAD1457.toInt()  // Dark magenta — same family
-        ),
-        Page(
-            R.string.intro_title_privacy,
-            R.string.intro_description_privacy,
-            R.drawable.ill_onboarding_privacy,
-            0xFF880E4F.toInt()  // Deep berry — warm, brand-adjacent
-        ),
-        Page(
-            R.string.intro_title_ready,
-            R.string.intro_description_ready,
-            R.drawable.ill_onboarding_ready,
-            0xFFFF007A.toInt()  // XHub brand pink — bookend matches welcome
+    // Lazily initialized because the accent colors are resolved from resources via this Activity's
+    // context, which is only valid once the base context has been attached (i.e. by the time
+    // onCreate accesses this). A field initializer would run during construction, before the
+    // context is ready. Colors live in colors.xml (onboarding_*) as the single source of truth.
+    private val pages by lazy {
+        listOf(
+            Page(
+                R.string.intro_welcome_title,
+                R.string.intro_welcome_description,
+                R.drawable.ill_onboarding_welcome,
+                ContextCompat.getColor(this, R.color.onboarding_accent)
+            ),
+            Page(
+                R.string.intro_title_tabs,
+                R.string.intro_description_tabs,
+                R.drawable.ill_onboarding_tabs,
+                ContextCompat.getColor(this, R.color.onboarding_accent_tabs)
+            ),
+            Page(
+                R.string.intro_title_downloads,
+                R.string.intro_description_downloads,
+                R.drawable.ill_onboarding_download,
+                ContextCompat.getColor(this, R.color.onboarding_accent_downloads)
+            ),
+            Page(
+                R.string.intro_title_privacy,
+                R.string.intro_description_privacy,
+                R.drawable.ill_onboarding_privacy,
+                ContextCompat.getColor(this, R.color.onboarding_accent_privacy)
+            ),
+            Page(
+                R.string.intro_title_ready,
+                R.string.intro_description_ready,
+                R.drawable.ill_onboarding_ready,
+                ContextCompat.getColor(this, R.color.onboarding_accent)
+            )
         )
-    )
+    }
+
+    /** Inactive page-indicator dot color (translucent white), resolved once from resources. */
+    private val dotInactiveColor by lazy { ContextCompat.getColor(this, R.color.onboarding_dot_inactive) }
 
     private var index = 0
 
@@ -123,7 +132,7 @@ class OnboardingActivity : ThemedActivity() {
             dot.background = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
                 cornerRadius = height / 2f
-                setColor(0x33FFFFFF)
+                setColor(dotInactiveColor)
             }
             indicator.addView(dot)
         }
@@ -153,8 +162,18 @@ class OnboardingActivity : ThemedActivity() {
                 lp.height = h
                 dot.layoutParams = lp
                 (dot.background as? GradientDrawable)?.setColor(
-                    if (i == index) page.accent else 0x33FFFFFF
+                    if (i == index) page.accent else dotInactiveColor
                 )
+            }
+
+            // Accessibility: describe the current page so TalkBack users know their position in
+            // the tour ("Page 2 of 5"). Only actively announce on user-driven page changes
+            // (animate == true): announcing during the initial onCreate bind would fire before the
+            // view is attached (often dropped) and can stomp the default screen-entry announcement.
+            val pageLabel = getString(R.string.intro_page_indicator, index + 1, pages.size)
+            indicator.contentDescription = pageLabel
+            if (animate) {
+                indicator.announceForAccessibility(pageLabel)
             }
         }
 

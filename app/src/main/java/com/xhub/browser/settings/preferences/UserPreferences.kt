@@ -1,4 +1,4 @@
-﻿package com.xhub.browser.settings.preferences
+package com.xhub.browser.settings.preferences
 
 import com.xhub.browser.AccentTheme
 import com.xhub.browser.AppTheme
@@ -70,6 +70,13 @@ class UserPreferences @Inject constructor(
      * downloadable video content. Default is false for security/privacy reasons.
      */
     var videoDetectionEnabled by preferences.booleanPreference(R.string.pref_key_video_detection_enabled, R.bool.pref_default_video_detection_enabled)
+
+    /**
+     * True if third-party favicon services (DuckDuckGo, Google) should be contacted to fetch
+     * missing favicons, false otherwise. When disabled, only site-provided favicons are used.
+     * Default is false for privacy — enabling leaks every visited/bookmarked host to third parties.
+     */
+    var thirdPartyFaviconServicesEnabled by preferences.booleanPreference(R.string.pref_key_third_party_favicon_services, R.bool.pref_default_third_party_favicon_services)
 
     /**
      * The network engine implementation to use for handling network requests.
@@ -165,7 +172,7 @@ class UserPreferences @Inject constructor(
     /**
      * True if the browser should allow websites to open new windows, false otherwise.
      */
-    var popupsEnabled by preferences.booleanPreference(R.string.pref_key_support_multiple_window, true)
+    var popupsEnabled by preferences.booleanPreference(R.string.pref_key_support_multiple_window, false)
 
     /**
      * True if the app should remember which browser tabs were open and restore them if the browser
@@ -279,9 +286,6 @@ class UserPreferences @Inject constructor(
      */
     var openThemePicker by preferences.booleanPreference(R.string.pref_key_open_theme_picker, false)
 
-    /**
-     * Unused
-     */
     var useAccent by preferences.enumPreference(R.string.pref_key_accent, AccentTheme.DEFAULT_ACCENT)
 
     /**
@@ -402,6 +406,12 @@ class UserPreferences @Inject constructor(
     var versionCode by preferences.intPreference(R.string.pref_key_version_code, 0)
 
     /**
+     * True after the user finished or skipped product onboarding.
+     * Independent of [versionCode] so app updates never re-force the intro.
+     */
+    var onboardingCompleted by preferences.booleanPreference(R.string.pref_key_onboarding_completed, false)
+
+    /**
      * Define the locale language the user want us to use.
      * Empty string means use system default locale.
      */
@@ -477,12 +487,19 @@ class UserPreferences @Inject constructor(
      */
     var scrollbarSize by preferences.floatResPreference(R.string.pref_key_scrollbar_size, R.integer.pref_default_scrollbar_size)
 
+    /**
+     * True once the user has long-pressed a home shortcut tile — suppresses the tip Toast permanently.
+     * When false, a Toast hint is shown on every shortcut tap until the user discovers long-press.
+     */
+    var shortcutLongPressDone by preferences.booleanPreference("pref_key_shortcut_longpress_done", false)
 
 }
 
-// SL: Looks like those are the actual shared property keys thus overriding what ever was defined in our XML
-// TODO: Remove those at some point and put new keys in resources
-// TODO: That does not make sense, we need to sort this out
+// These keys are the canonical storage keys used by UserPreferences read/write.
+// The XML preference views also define keys (see xml/preference_*.xml), but
+// switchPreference() now returns false so XML auto-persist is disabled — the
+// callback writes through UserPreferences instead, eliminating duplicate entries.
+// If adding a new preference, prefer R.string.pref_key_* and align with XML.
 private const val BLOCK_ADS = "AdBlock"
 private const val CLEAR_CACHE_EXIT = "cache"
 private const val DOWNLOAD_DIRECTORY = "downloadLocation"
@@ -501,3 +518,4 @@ private const val DO_NOT_TRACK = "doNotTrack"
 private const val IDENTIFYING_HEADERS = "removeIdentifyingHeaders"
 private const val BOOKMARKS_CHANGED = "bookmarksChanged"
 private const val SEARCH_SUGGESTIONS = "searchSuggestionsChoice"
+

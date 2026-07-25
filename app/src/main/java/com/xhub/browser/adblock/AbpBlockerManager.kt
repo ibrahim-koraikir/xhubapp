@@ -1,4 +1,4 @@
-﻿package com.xhub.browser.adblock
+package com.xhub.browser.adblock
 
 import com.xhub.browser.R
 import com.xhub.browser.adblock.AbpBlocker.Companion.addHeader
@@ -16,7 +16,6 @@ import android.webkit.WebResourceResponse
 import androidx.collection.LruCache
 import androidx.core.net.toUri
 import androidx.core.util.PatternsCompat
-import kotlinx.coroutines.delay
 import jp.hazuki.yuzubrowser.adblock.EmptyInputStream
 import jp.hazuki.yuzubrowser.adblock.core.AbpLoader
 import jp.hazuki.yuzubrowser.adblock.core.ContentRequest
@@ -28,8 +27,10 @@ import jp.hazuki.yuzubrowser.adblock.filter.unified.io.FilterReader
 import jp.hazuki.yuzubrowser.adblock.filter.unified.io.FilterWriter
 import jp.hazuki.yuzubrowser.adblock.getContentType
 import jp.hazuki.yuzubrowser.adblock.repository.abp.AbpDao
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import okhttp3.*
 import okhttp3.Headers.Companion.toHeaders
@@ -70,6 +71,12 @@ class AbpBlockerManager @Inject constructor(
 
     private val blocker = AbpBlocker(abpUserRules, filterContainers)
 
+    // App-lifetime scope for background list loading/updating. This is a @Singleton so it lives
+    // for the whole process; a dedicated SupervisorJob scope (rather than GlobalScope) removes the
+    // DelicateCoroutinesApi smell, documents that this work is deliberately app-scoped, and
+    // isolates a failure in one launch from siblings.
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
     private val cacheDir by lazy { FILE + application.cacheDir.absolutePath }
     /*    // element hiding
         //  doesn't work, but maybe it's crucial to inject the js at the right point
@@ -82,14 +89,28 @@ class AbpBlockerManager @Inject constructor(
         // hilt always loads blocker, even if not used
         //  thus we load the lists only if blocker is actually enabled
         if (userPreferences.adBlockEnabled)
-            GlobalScope.launch(Dispatchers.Default) {
-                loadLists()
+            scope.launch {
+                try {
+                    loadLists()
 
-                // update all enabled entities/blocklists
-                // may take a while depending on how many lists need update, and on internet connection
-                if (abpListUpdater.updateAll(false)) { // returns true if anything was updated
-                    removeJointLists()
-                    loadLists() // update again if files have changed
+                    // update all enabled entities/blocklists
+                    // may take a while depending on how many lists need update, and on internet connection
+                    if (abpListUpdater.updateAll(false)) { // returns true if anything was updated
+                        removeJointLists()
+                        loadLists() // update again if files have changed
+                    }
+                } catch (e: Exception) {
+                    Timber.w(e, "Failed to load ad-block lists — scheduling one retry in 30 s")
+                    // Do NOT force listsLoaded=true here: that would permanently disable blocking
+                    // for the entire session. Instead, schedule a single retry. If it also fails,
+                    // set listsLoaded=true as a last resort so requests are never stalled forever.
+                    delay(30_000)
+                    try {
+                        loadLists()
+                    } catch (retryEx: Exception) {
+                        Timber.w(retryEx, "Ad-block list retry also failed — failing open for this session")
+                        listsLoaded = true
+                    }
                 }
             }
     }
@@ -179,6 +200,19 @@ class AbpBlockerManager @Inject constructor(
                 return null
         }
 
+        if (!listsLoaded) {
+            Timber.d("AbpBlocker: waiting for filter lists to load...")
+            val startTime = System.currentTimeMillis()
+            while (!listsLoaded) {
+                delay(50)
+                if (System.currentTimeMillis() - startTime > 10_000) {
+                    Timber.w("AbpBlocker: waited 10s for lists, forcing proceed")
+                    break
+                }
+            }
+        }
+        Timber.d("AbpBlocker: listsLoaded=$listsLoaded checking URL: ${request.url} page: $pageUrl")
+
         // create contentRequest
         // pageUrl can be "" (when opening something in a new tab, or manually entering a URL)
         //  in this case everything gets blocked because of the pattern "|https://"
@@ -191,12 +225,6 @@ class AbpBlockerManager @Inject constructor(
         val contentRequest = request.getContentRequest(
             if (request.isForMainFrame || pageUrl.isBlank()) request.url else pageUrl.toUri()
         )
-
-        // wait until blocklists are loaded
-        //  web request stuff does not run on main thread, so thread.sleep should be ok
-        while (!listsLoaded) {
-            delay(50)
-        }
 
         // blocker shouldBlock
         val response = blocker.shouldBlock(contentRequest) ?: return null

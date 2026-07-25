@@ -104,7 +104,7 @@ class PageHistorySettingsFragment : AbstractSettingsFragment() {
                 pref.icon = item.favicon?.scale(com.xhub.browser.utils.Utils.dpToPx(24f), com.xhub.browser.utils.Utils.dpToPx(24f))?.toDrawable(resources)
                 // As favicon is usually null for restored tab we still need to fetch it from our cache
                 if (pref.icon==null) {
-                    faviconModel.faviconForUrl(item.url,"",context?.isDarkTheme() == true)
+                    faviconModel.faviconForUrl(item.url, "", context?.isDarkTheme() == true, isIncognito = false)
                         .subscribeOn(networkScheduler)
                         .observeOn(mainScheduler)
                         .subscribeBy(

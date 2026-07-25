@@ -534,6 +534,23 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
         // the home grid on the main thread (the version guard in buildDynamicShortcuts() would
         // otherwise no-op).
         refreshRemoteShortcuts()
+        refreshRemoteAppConfig()
+    }
+
+    /**
+     * Background refresh of remote URLs (privacy, terms, home page) from GitHub CDN.
+     */
+    private fun refreshRemoteAppConfig() {
+        if (isIncognito()) return
+        remoteShortcutsDisposables.add(
+            io.reactivex.Single
+                .fromCallable { com.xhub.browser.config.RemoteAppConfig.refresh(this) }
+                .subscribeOn(io.reactivex.schedulers.Schedulers.io())
+                .observeOn(io.reactivex.android.schedulers.AndroidSchedulers.mainThread())
+                .subscribe({ _ -> }, { error ->
+                    Timber.w(error, "refreshRemoteAppConfig failed")
+                })
+        )
     }
 
     /**
@@ -6185,7 +6202,7 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
                 .setTitle(R.string.title_welcome)
                 .setMessage(R.string.message_welcome)
                 .setNegativeButton(R.string.no, null)
-                .setPositiveButton(R.string.yes) { _, _ -> val url = getString(R.string.url_app_home_page)
+                .setPositiveButton(R.string.yes) { _, _ -> val url = com.xhub.browser.config.RemoteAppConfig.getHomePageUrl(this)
                     val i = Intent(Intent.ACTION_VIEW)
                     i.data = Uri.parse(url)
                     // Make sure we don't send ourselves to the background when closing a tab we opened ourselves

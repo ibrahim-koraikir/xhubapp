@@ -4,6 +4,7 @@ import com.xhub.browser.R
 import com.xhub.browser.adblock.AbpBlockerManager
 import com.xhub.browser.adblock.AbpListUpdater
 import com.xhub.browser.adblock.AbpUpdateMode
+import com.xhub.browser.di.ApplicationScope
 import com.xhub.browser.extensions.launch
 import com.xhub.browser.extensions.toast
 import com.xhub.browser.extensions.withSingleChoiceItems
@@ -11,6 +12,8 @@ import com.xhub.browser.settings.preferences.UserPreferences
 import android.app.Activity
 import android.content.Intent
 import android.net.Uri
+import androidx.activity.result.ActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import android.os.Bundle
 import android.text.InputType
 import android.widget.*
@@ -31,6 +34,7 @@ import java.io.File
 import java.io.IOException
 import java.text.DateFormat
 import java.util.*
+import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 import com.xhub.browser.extensions.px
 
@@ -44,19 +48,52 @@ class AdBlockSettingsFragment : AbstractSettingsFragment() {
     @Inject internal lateinit var abpListUpdater: AbpListUpdater
     @Inject internal lateinit var abpBlockerManager: AbpBlockerManager
 
+    // App-lifetime scope so list updates survive the user leaving the Settings screen, without
+    // the GlobalScope anti-pattern. UI touches inside these coroutines are guarded with isAdded.
+    @Inject @ApplicationScope internal lateinit var appScope: CoroutineScope
+
     private lateinit var abpDao: AbpDao
     private val entityPrefs = mutableMapOf<Int, DetailSwitchPreference>()
 
     // if blocklist changed, they need to be reloaded, but this should happen only once
     //  if reloadLists is true, list reload will be launched onDestroy
+    // @Volatile: written on a background coroutine (reloadBlockLists) and read in onDestroy.
+    @Volatile
     private var reloadLists = false
 
     // updater is launched in background, and lists should not be reloaded while updater is running
     //  int since multiple lists could be updated at the same time
-    private var updatesRunning = 0
+    // AtomicInteger because multiple updateFilterList coroutines can increment/decrement it
+    //  concurrently and onDestroy reads it from another coroutine; a plain `++`/`--` is a data race.
+    private val updatesRunning = AtomicInteger(0)
 
     // uri of temporary blocklist file
     private var fileUri: Uri? = null
+
+    // Launcher for choosing a local blocklist file. Replaces the deprecated
+    // startActivityForResult/onActivityResult(FILE_REQUEST_CODE) pair. The chosen file is copied
+    // to a temporary file and its uri stored in fileUri, which the wait-for-file loop in
+    // showBlockList() polls; on cancel we set a fake uri to release that loop.
+    private val fileChooserLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        result: ActivityResult ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val dataUri = result.data?.data ?: return@registerForActivityResult
+            val cacheDir = activity?.externalCacheDir ?: return@registerForActivityResult
+            val inputStream = activity?.contentResolver?.openInputStream(dataUri) ?: return@registerForActivityResult
+            try {
+                // copy file to temporary file, like done by lightning
+                val outputFile = File(cacheDir, BLOCK_LIST_FILE)
+                inputStream.copyTo(outputFile.outputStream())
+                fileUri = Uri.fromFile(outputFile)
+            } catch (exception: IOException) {
+                // ignore, wait-for-file loop remains pending
+            }
+        } else {
+            activity?.toast(R.string.action_message_canceled)
+            // set some fake uri to cancel wait-for-file loop
+            fileUri = Uri.parse("http://no.file")
+        }
+    }
 
     // Our preferences filters category, will contains our filters file entries
     private lateinit var filtersCategory: PreferenceGroup
@@ -228,13 +265,20 @@ class AdBlockSettingsFragment : AbstractSettingsFragment() {
     // update filter list and adjust displayed last update time
     //  update all lists if no entity provided
     private fun updateFilterList(abpEntity: AbpEntity?, forceUpdate: Boolean) {
-        GlobalScope.launch(Dispatchers.IO) {
+        // Use the app-scoped CoroutineScope (not GlobalScope) so the update survives the user
+        // leaving the Settings screen while remaining a named, cancelable, lint-clean scope.
+        appScope.launch(Dispatchers.IO) {
             // do nothing if update not required
             if (!forceUpdate && abpEntity != null && !abpListUpdater.needsUpdate(abpEntity))
                 return@launch
 
-            ++updatesRunning
+            updatesRunning.incrementAndGet()
+            // UI touch: re-check isAdded INSIDE runOnUiThread. The outer activity?. null-check is
+            // not enough on its own — the fragment can detach between posting and execution, and
+            // resources.getString() on a detached fragment throws. Since detachment and this block
+            // both run on the main thread, the isAdded check here is race-free/authoritative.
             activity?.runOnUiThread {
+                if (!isAdded) return@runOnUiThread
                 if (abpEntity != null)
                     entityPrefs[abpEntity.entityId]?.summary = resources.getString(R.string.blocklist_updating)
             }
@@ -249,12 +293,13 @@ class AdBlockSettingsFragment : AbstractSettingsFragment() {
             if (updated)
                 reloadBlockLists()
 
-            // update the "last updated" times
+            // update the "last updated" times (guarded: skip UI work if the fragment detached)
             activity?.runOnUiThread {
+                if (!isAdded) return@runOnUiThread
                 for (entity in abpDao.getAll())
                     updateSummary(entity)
             }
-            --updatesRunning
+            updatesRunning.decrementAndGet()
         }
     }
 
@@ -294,7 +339,7 @@ class AdBlockSettingsFragment : AbstractSettingsFragment() {
                         addCategory(Intent.CATEGORY_OPENABLE)
                         type = TEXT_MIME_TYPE
                     }
-                    startActivityForResult(intent, FILE_REQUEST_CODE)
+                    fileChooserLauncher.launch(intent)
 
                     // wait until file was chosen
                     lifecycleScope.launch {
@@ -438,10 +483,13 @@ class AdBlockSettingsFragment : AbstractSettingsFragment() {
 
     override fun onDestroy() {
         super.onDestroy()
-        // reload lists after updates are done
-        if (reloadLists || updatesRunning > 0) {
-            GlobalScope.launch(Dispatchers.Default) {
-                while (updatesRunning > 0)
+        // reload lists after updates are done.
+        // Runs on the app-scoped scope (not GlobalScope) so it deliberately survives this fragment's
+        // destruction — which is the whole point (reload must happen once updates finish). No UI is
+        // touched here, so no isAdded guard is needed.
+        if (reloadLists || updatesRunning.get() > 0) {
+            appScope.launch(Dispatchers.Default) {
+                while (updatesRunning.get() > 0)
                     delay(200)
                 if (reloadLists)
                     abpBlockerManager.loadLists()
@@ -449,33 +497,7 @@ class AdBlockSettingsFragment : AbstractSettingsFragment() {
         }
     }
 
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        if (requestCode == FILE_REQUEST_CODE) {
-            if (resultCode == Activity.RESULT_OK) {
-                val dataUri = data?.data ?: return
-                val cacheDir = activity?.externalCacheDir ?: return
-                val inputStream = activity?.contentResolver?.openInputStream(dataUri) ?: return
-                try {
-                    // copy file to temporary file, like done by lightning
-                    val outputFile = File(cacheDir, BLOCK_LIST_FILE)
-                    inputStream.copyTo(outputFile.outputStream())
-                    fileUri = Uri.fromFile(outputFile)
-                    return
-                } catch (exception: IOException) {
-                    return
-                }
-            } else {
-                activity?.toast(R.string.action_message_canceled)
-                // set some fake uri to cancel wait-for-file loop
-                fileUri = Uri.parse("http://no.file")
-            }
-        }
-        super.onActivityResult(requestCode, resultCode, data)
-    }
-
-
     companion object {
-        private const val FILE_REQUEST_CODE = 100
         private const val BLOCK_LIST_FILE = "local_blocklist.txt"
         private const val TEXT_MIME_TYPE = "text/*"
     }

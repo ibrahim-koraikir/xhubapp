@@ -379,4 +379,21 @@
     <color name="bottom_toolbar_primary_foreground">#111111</color>
     <color name="bottom_toolbar_accent">#2A2A2D</color>
 
+    <!--
+    Onboarding: a deliberately fixed dark brand experience (not theme-adaptive), so these are
+    concrete @color resources rather than ?attr theme tokens. Centralized here as a single source
+    of truth shared between activity_onboarding.xml and OnboardingActivity.kt.
+    -->
+    <!-- #FF0E0E12 --> <color name="onboarding_background">#FF0E0E12</color>
+    <!-- #14FFFFFF --> <color name="onboarding_card">#14FFFFFF</color>
+    <!-- #22FFFFFF --> <color name="onboarding_card_stroke">#22FFFFFF</color>
+    <!-- #FFFFFFFF --> <color name="onboarding_title">#FFFFFFFF</color>
+    <!-- #B8FFFFFF --> <color name="onboarding_description">#B8FFFFFF</color>
+    <!-- #B3FFFFFF --> <color name="onboarding_skip">#B3FFFFFF</color>
+    <!-- #33FFFFFF --> <color name="onboarding_dot_inactive">#33FFFFFF</color>
+    <!-- XHub brand pink (welcome + ready bookend) --> <color name="onboarding_accent">#FF007A</color>
+    <!-- Deep rose --> <color name="onboarding_accent_tabs">#FFE91E8C</color>
+    <!-- Dark magenta --> <color name="onboarding_accent_downloads">#FFAD1457</color>
+    <!-- Deep berry --> <color name="onboarding_accent_privacy">#FF880E4F</color>
+
 </resources>

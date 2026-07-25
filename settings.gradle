@@ -1,0 +1,9 @@
+plugins {
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
+}
+include ':app'
+
+// Add our Preference library from submodule
+include ':Preference'
+project(':Preference').projectDir = new File(rootDir, 'subs/Preference/lib')
+

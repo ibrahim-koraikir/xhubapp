@@ -170,6 +170,34 @@
             android:orientation="vertical" />
     </LinearLayout>
 
+    <!-- yt-dlp format picker (Best / 1080p / 720p / 480p / Audio-only). Shown only for adaptive
+         and embedded streams that are downloaded via yt-dlp. -->
+    <LinearLayout
+        android:id="@+id/containerFormatPicker"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="20dp"
+        android:paddingTop="14dp"
+        android:paddingEnd="20dp"
+        android:paddingBottom="4dp"
+        android:visibility="gone">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:text="@string/video_select_format"
+            android:textColor="?attr/appColorMutedForeground"
+            android:textSize="12sp" />
+
+        <RadioGroup
+            android:id="@+id/radioGroupFormats"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+    </LinearLayout>
+
     <TextView
         android:id="@+id/tvAdaptiveStreamMessage"
         android:layout_width="match_parent"

@@ -14,10 +14,8 @@ import android.os.Bundle
 import androidx.annotation.StyleRes
 import androidx.core.content.ContextCompat
 
-//@AndroidEntryPoint
 abstract class ThemedActivity : LocaleAwareActivity() {
 
-    // TODO: Do we still need those? Are they working? Do we want to fix them?
     protected var accentId: AccentTheme = userPreferences.useAccent
     protected var themeId: AppTheme = userPreferences.useTheme
 
@@ -117,7 +115,7 @@ abstract class ThemedActivity : LocaleAwareActivity() {
      *
      */
     private fun applyAccent() {
-        //accentStyle(accentId)?.let { setTheme(it) }
+        accentStyle(accentId)?.let { setTheme(it) }
     }
 
     /**

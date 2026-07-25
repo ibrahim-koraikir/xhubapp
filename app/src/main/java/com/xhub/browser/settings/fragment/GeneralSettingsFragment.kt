@@ -1,4 +1,4 @@
-﻿package com.xhub.browser.settings.fragment
+package com.xhub.browser.settings.fragment
 
 import com.xhub.browser.Capabilities
 import com.xhub.browser.R
@@ -210,6 +210,12 @@ class GeneralSettingsFragment : AbstractSettingsFragment() {
             preference = SETTINGS_FORCE_ZOOM,
             isChecked = userPreferences.forceZoom,
             onCheckChange = { userPreferences.forceZoom = it }
+        )
+
+        switchPreference(
+            preference = getString(R.string.pref_key_video_detection_enabled),
+            isChecked = userPreferences.videoDetectionEnabled,
+            onCheckChange = { userPreferences.videoDetectionEnabled = it }
         )
 
         iPrefSearchCustomImageUrl = clickablePreference(

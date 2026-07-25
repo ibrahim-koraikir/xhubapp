@@ -328,7 +328,8 @@ class DomainsSettingsFragment : AbstractSettingsFragment() {
         faviconModel.faviconForUrl(
             "http://$domain",
             "",
-            (activity as? ThemedActivity)?.isDarkTheme() == true
+            (activity as? ThemedActivity)?.isDarkTheme() == true,
+            isIncognito = false
         )
             .subscribeOn(networkScheduler)
             .observeOn(mainScheduler)

@@ -46,6 +46,7 @@ import com.xhub.browser.settings.preferences.ConfigurationPreferences
 import io.reactivex.Scheduler
 import io.reactivex.plugins.RxJavaPlugins
 import timber.log.Timber
+import java.lang.ref.WeakReference
 import javax.inject.Inject
 import kotlin.system.exitProcess
 
@@ -143,12 +144,12 @@ class App : Application(), SharedPreferences.OnSharedPreferenceChangeListener,
 
     override fun onActivityResumed(activity: Activity) {
         Timber.v("onActivityResumed")
-        resumedActivity = activity
+        resumedActivityRef = WeakReference(activity)
     }
 
     override fun onActivityPaused(activity: Activity) {
         Timber.v("onActivityPaused")
-        resumedActivity = null
+        resumedActivityRef = null
     }
 
     override fun onActivityStopped(activity: Activity) {
@@ -311,14 +312,26 @@ class App : Application(), SharedPreferences.OnSharedPreferenceChangeListener,
 
     companion object {
 
-        // Used to track current activity
-        // Apparently we take care of not leaking it above
-        @SuppressLint("StaticFieldLeak")
-        var resumedActivity: Activity? = null
-            private set
+        // Used to track current activity.
+        //
+        // We hold the resumed Activity in a WeakReference rather than as a strong reference
+        // so we no longer need @SuppressLint("StaticFieldLeak"). If the activity is destroyed
+        // while still nominally "resumed" (e.g. configuration change edge cases), the GC is
+        // free to reclaim it instead of being pinned by this static field. Callers must always
+        // go through currentContext(), which dereferences with a null check.
+        @Volatile
+        private var resumedActivityRef: WeakReference<Activity>? = null
+
+        /**
+         * The currently resumed Activity, or null if none / it has been collected.
+         * Backed by a WeakReference so it cannot leak the Activity through this static holder.
+         */
+        val resumedActivity: Activity?
+            get() = resumedActivityRef?.get()
 
         /**
          * Used to get current activity context in order to access current theme.
+         * Falls back to the Application context if no resumed Activity is available.
          */
         fun currentContext() : Context {
             return resumedActivity

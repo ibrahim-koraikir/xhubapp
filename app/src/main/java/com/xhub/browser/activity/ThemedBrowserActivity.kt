@@ -24,17 +24,10 @@ package com.xhub.browser.activity
 
 import com.xhub.browser.AccentTheme
 import com.xhub.browser.R
-import android.os.Bundle
 
-//@AndroidEntryPoint
 abstract class ThemedBrowserActivity : ThemedActivity() {
 
     private var shouldRunOnResumeActions = false
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        //injector.inject(this)
-        super.onCreate(savedInstanceState)
-    }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
@@ -49,11 +42,11 @@ abstract class ThemedBrowserActivity : ThemedActivity() {
         resetPreferences()
         shouldRunOnResumeActions = true
         if (themeId != userPreferences.useTheme) {
-            restart()
+            recreate()
         }
 
         if (accentId != userPreferences.useAccent) {
-            restart()
+            recreate()
         }
     }
 
