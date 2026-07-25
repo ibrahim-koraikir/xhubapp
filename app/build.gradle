@@ -61,7 +61,6 @@ if (keystorePropertiesFile.exists()) {
         logger.info("Loaded keystore properties from environment variables")
     } else {
         logger.warn("No keystore.properties file or environment variables found. Release builds will be unsigned.")
-        logger.warn("To sign release builds, create keystore.properties from keystore.properties.template")
     }
 }
 
@@ -74,6 +73,9 @@ android {
         minSdk = libs.versions.minSdk.get().toInteger()
         targetSdk = libs.versions.compileSdk.get().toInteger()
         vectorDrawables.useSupportLibrary = true
+        ndk {
+            abiFilters 'arm64-v8a', 'armeabi-v7a'
+        }
     }
 
     sourceSets {
@@ -283,7 +285,7 @@ android {
             // Just replace our archive base name, which by default is "app" with our own format according to flavor
             if (variant.flavorName.contains("xhub")) {
                 //println("Use XHub archive name")
-                outputFileName = outputFileName.replaceFirst("^${base.archivesName.get()}", "XHub-v$versionName")
+                outputFileName = outputFileName.replaceFirst("^${base.archivesName.get()}", "XHub-v$versionName-arm")
             }
             /*
             // Removed - Styx no longer used
