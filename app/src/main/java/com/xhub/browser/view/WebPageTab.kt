@@ -344,10 +344,37 @@ class WebPageTab(
                     /rumble\.com\/embed\//i
                 ];
 
+                // Known ad network / pre-roll video CDN patterns.
+                // URLs matching any of these are silently skipped so the download
+                // button never appears for pre-roll or mid-roll ads.
+                var AD_URL_PATTERNS = [
+                    /googleads\.g\.doubleclick\.net/i,
+                    /imasdk\.googleapis\.com/i,
+                    /pubads\.g\.doubleclick\.net/i,
+                    /securepubads\.g\.doubleclick\.net/i,
+                    /ads\.youtube\.com/i,
+                    /\/videoplayback[^/]*ctier=A/i,
+                    /adsystem\.com/i,
+                    /adserver\./i,
+                    /\/ad[_\-]video\//i,
+                    /\/ads?\.mp4/i,
+                    /scorecardresearch\.com/i,
+                    /outbrain\.com\/video/i,
+                    /taboola\.com\/video/i
+                ];
+
                 function isEmbedUrl(url) {
                     if (!url) return false;
                     for (var i = 0; i < EMBED_PATTERNS.length; i++) {
                         if (EMBED_PATTERNS[i].test(url)) return true;
+                    }
+                    return false;
+                }
+
+                function isAdUrl(url) {
+                    if (!url) return false;
+                    for (var i = 0; i < AD_URL_PATTERNS.length; i++) {
+                        if (AD_URL_PATTERNS[i].test(url)) return true;
                     }
                     return false;
                 }
@@ -407,6 +434,25 @@ class WebPageTab(
                 function reportVideo(video) {
                     var url = video.currentSrc || video.src || '';
                     if (!url) return;
+
+                    // --- Ad URL filter ---
+                    // Silently skip videos served from known ad network CDNs.
+                    if (isAdUrl(url)) return;
+
+                    // --- Duration filter ---
+                    // Only show the download button for videos longer than 60 seconds.
+                    // This eliminates pre-roll ads (typically 15–30s), TikTok Shorts,
+                    // YouTube Shorts, Instagram Reels, and other short-form clips.
+                    //
+                    // Rules:
+                    //   NaN  → metadata not loaded yet; skip now, events will re-fire when ready.
+                    //   Infinity → live stream; always show (user may want to record).
+                    //   < 60s → short clip / ad; suppress the download button.
+                    //   >= 60s → long video; show the download button.
+                    var dur = video.duration;
+                    if (isNaN(dur)) return;          // metadata not ready yet
+                    if (isFinite(dur) && dur < 60) return;  // too short — skip
+
                     video._vdLast = url;
                     var streamType = classifyUrl(url);
                     var qualities = buildQualities(video);
@@ -516,16 +562,12 @@ class WebPageTab(
                             }
                         }
                     }
-                    // A usable real video takes priority over embed detection.
-                    if (hasUsableVideo) return;
-
-                    // 2) No accessible real <video> with a source — fall back to detecting a known
-                    //    embedded player by its cross-origin iframe src (YouTube/Vimeo/Dailymotion).
-                    var embedSrc = findEmbedIframe();
-                    if (embedSrc && embedSrc !== window._vdLastEmbed) {
-                        window._vdLastEmbed = embedSrc;
-                        reportEmbed(embedSrc);
-                    }
+                    // Embed detection is intentionally disabled.
+                    // We only show the download button for real <video> elements whose
+                    // duration can be confirmed as >= 60 seconds. Cross-origin embeds
+                    // (YouTube/Vimeo in iframes) cannot have their duration verified,
+                    // so they are excluded to avoid showing the button for shorts/ads.
+                    // (removed: reportEmbed call)
                 }
 
                 // SPA route change support

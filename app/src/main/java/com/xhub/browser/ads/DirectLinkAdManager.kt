@@ -75,11 +75,19 @@ class DirectLinkAdManager(
             Timber.d("DirectAd: pre-load already in progress — skipping")
             return
         }
+        // Skip pre-loading if the device is critically low on memory.
+        // Creating a hidden WebView on a low-RAM phone is the primary cause of OOM crashes.
+        val runtime = Runtime.getRuntime()
+        val freeMemMb = (runtime.maxMemory() - (runtime.totalMemory() - runtime.freeMemory())) / (1024 * 1024)
+        if (freeMemMb < 150) {
+            Timber.w("DirectAd: skipping pre-load — only ${freeMemMb}MB heap free (threshold: 150MB)")
+            return
+        }
         val url = repo.randomAdUrl()
         preloadingUrl = url
         try {
             preloadedAdTab = createPreloadedTab(url)
-            Timber.i("DirectAd: pre-loading background tab -> $url")
+            Timber.i("DirectAd: pre-loading background tab -> $url (${freeMemMb}MB heap free)")
         } catch (e: Exception) {
             Timber.e(e, "DirectAd: failed to create preload tab")
             preloadingUrl = null
