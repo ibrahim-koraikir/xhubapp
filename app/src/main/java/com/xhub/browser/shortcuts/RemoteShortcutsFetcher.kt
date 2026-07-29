@@ -38,16 +38,16 @@ import java.util.concurrent.TimeUnit
 object RemoteShortcutsFetcher {
 
     // The same shortcuts.json hosted at https://github.com/ibrahim-koraikir/sites (root, main branch),
-    // reachable through several independent mirrors. Tried in order until one responds, so the
-    // feature keeps working even if jsDelivr is down/blocked in a given region.
+    // reachable through several independent mirrors. Tried in order until one responds.
+    // GitHub raw is tried FIRST so edits to main branch on GitHub appear in the app instantly without CDN caching delays.
     private val REMOTE_URLS = listOf(
-        "https://cdn.jsdelivr.net/gh/ibrahim-koraikir/sites@main/shortcuts.json",
         "https://raw.githubusercontent.com/ibrahim-koraikir/sites/main/shortcuts.json",
+        "https://cdn.jsdelivr.net/gh/ibrahim-koraikir/sites@main/shortcuts.json",
         "https://cdn.statically.io/gh/ibrahim-koraikir/sites/main/shortcuts.json"
     )
 
-    /** Minimum time between remote refresh attempts. Cheap, but no need to hammer the CDNs. */
-    private const val MIN_REFRESH_INTERVAL_MS = 6L * 60L * 60L * 1000L // 6 hours
+    /** Minimum time between remote refresh attempts. Checked on app launch / home screen. */
+    private const val MIN_REFRESH_INTERVAL_MS = 15L * 60L * 1000L // 15 minutes
 
     private const val PREFS_NAME = "home_shortcuts_prefs"
     private const val KEY_LAST_FETCH = "remote_last_fetch_ms"

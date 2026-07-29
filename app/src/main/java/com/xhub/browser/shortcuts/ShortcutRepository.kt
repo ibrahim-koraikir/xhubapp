@@ -141,7 +141,19 @@ object ShortcutRepository {
             ShortcutSite("pornobae", "https://pornobae.com/"),
             ShortcutSite("1porn", "https://www.1porn.tv/")
         )),
-        ShortcutGroup("AI Porn", mutableListOf()),
+        ShortcutGroup("AI Porn", mutableListOf(
+            ShortcutSite("MyBabes Reels", "https://mybabes.ai/reels"),
+            ShortcutSite("NSFW Girlfriend", "https://www.nsfwgirlfriend.com/"),
+            ShortcutSite("Talkie AI", "https://www.talkie-ai.com/"),
+            ShortcutSite("MyBabes", "https://mybabes.ai/"),
+            ShortcutSite("OurDream", "https://ourdream.ai/feed"),
+            ShortcutSite("DeepAI Voice", "https://deepai.org/voice"),
+            ShortcutSite("Wyvern Chat", "https://app.wyvern.chat/"),
+            ShortcutSite("Goonchan", "https://goonchan.org/"),
+            ShortcutSite("Privee AI", "https://app.priveeai.com/chat/thea-396h4awt"),
+            ShortcutSite("Shapes Chat", "https://talk.shapes.inc/lemurian-rafayel/dm"),
+            ShortcutSite("Xoul AI", "https://xoul.ai/")
+        )),
         ShortcutGroup("Live Sex Cam", mutableListOf()),
         ShortcutGroup("Top Premium", mutableListOf()),
         ShortcutGroup("AI Porn Generator", mutableListOf()),
@@ -208,6 +220,18 @@ object ShortcutRepository {
             ShortcutSite("Pandamovies", "https://pandamovies.pw/"),
             ShortcutSite("Freeomovie", "https://freeomovie.info/"),
             ShortcutSite("Mangoporn Movies", "https://mangoporn.net/movies/40-year-old-size-queens-4/")
+        )),
+        ShortcutGroup("vidoe", mutableListOf(
+            ShortcutSite("Vidizzy Chat", "https://www.vidizzy.com/chat"),
+            ShortcutSite("Lesbly Chat", "https://www.lesbly.com/chat"),
+            ShortcutSite("SexyMeet", "https://sexymeet.tv/home?utm_source=trackdesk&linkId=lp_260604&sourceId=q52tpw&tenantId=highlight-allocation&affS1=10262b0906a6ae34576478b4ef2d96&affS2=28326&affS3=FnbEAq2gFTrXbX7Si&inst_id=94987e82b1111403e1adea7a3af2ae49"),
+            ShortcutSite("Flingster Sex Chat", "https://flingster.com/sex-chat/"),
+            ShortcutSite("FoxVideoChat", "https://foxvideochat.com/home?inst_id=b14f5712d3ebcbde1f8a54a62357f42a"),
+            ShortcutSite("ChatRandom", "https://chatrandom.com/"),
+            ShortcutSite("Camloo", "https://camloo.com/"),
+            ShortcutSite("vava.chat", "https://web.vava.chat/#/video"),
+            ShortcutSite("Omegle Dirty Video Alternative", "https://chat.omegle.webcam/videochat/Dirty-video-chat-alternative-adults"),
+            ShortcutSite("YourCafe", "https://yourcafe.app/home?inst_id=1275ddff4351fe89a92c14734cd4149d")
         ))
     )
 

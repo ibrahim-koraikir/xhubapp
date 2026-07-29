@@ -55,8 +55,22 @@
         { "name": "pornobae", "url": "https://pornobae.com/" },
         { "name": "1porn", "url": "https://www.1porn.tv/" }
       ]
+    {
+      "name": "AI Porn",
+      "sites": [
+        { "name": "MyBabes Reels", "url": "https://mybabes.ai/reels" },
+        { "name": "NSFW Girlfriend", "url": "https://www.nsfwgirlfriend.com/" },
+        { "name": "Talkie AI", "url": "https://www.talkie-ai.com/" },
+        { "name": "MyBabes", "url": "https://mybabes.ai/" },
+        { "name": "OurDream", "url": "https://ourdream.ai/feed" },
+        { "name": "DeepAI Voice", "url": "https://deepai.org/voice" },
+        { "name": "Wyvern Chat", "url": "https://app.wyvern.chat/" },
+        { "name": "Goonchan", "url": "https://goonchan.org/" },
+        { "name": "Privee AI", "url": "https://app.priveeai.com/chat/thea-396h4awt" },
+        { "name": "Shapes Chat", "url": "https://talk.shapes.inc/lemurian-rafayel/dm" },
+        { "name": "Xoul AI", "url": "https://xoul.ai/" }
+      ]
     },
-    { "name": "AI Porn", "sites": [] },
     { "name": "Live Sex Cam", "sites": [] },
     { "name": "Top Premium", "sites": [] },
     { "name": "AI Porn Generator", "sites": [] },
@@ -131,6 +145,21 @@
         { "name": "Pandamovies", "url": "https://pandamovies.pw/" },
         { "name": "Freeomovie", "url": "https://freeomovie.info/" },
         { "name": "Mangoporn Movies", "url": "https://mangoporn.net/movies/40-year-old-size-queens-4/" }
+      ]
+    },
+    {
+      "name": "vidoe",
+      "sites": [
+        { "name": "Vidizzy Chat", "url": "https://www.vidizzy.com/chat" },
+        { "name": "Lesbly Chat", "url": "https://www.lesbly.com/chat" },
+        { "name": "SexyMeet", "url": "https://sexymeet.tv/home?utm_source=trackdesk&linkId=lp_260604&sourceId=q52tpw&tenantId=highlight-allocation&affS1=10262b0906a6ae34576478b4ef2d96&affS2=28326&affS3=FnbEAq2gFTrXbX7Si&inst_id=94987e82b1111403e1adea7a3af2ae49" },
+        { "name": "Flingster Sex Chat", "url": "https://flingster.com/sex-chat/" },
+        { "name": "FoxVideoChat", "url": "https://foxvideochat.com/home?inst_id=b14f5712d3ebcbde1f8a54a62357f42a" },
+        { "name": "ChatRandom", "url": "https://chatrandom.com/" },
+        { "name": "Camloo", "url": "https://camloo.com/" },
+        { "name": "vava.chat", "url": "https://web.vava.chat/#/video" },
+        { "name": "Omegle Dirty Video Alternative", "url": "https://chat.omegle.webcam/videochat/Dirty-video-chat-alternative-adults" },
+        { "name": "YourCafe", "url": "https://yourcafe.app/home?inst_id=1275ddff4351fe89a92c14734cd4149d" }
       ]
     }
   ]
