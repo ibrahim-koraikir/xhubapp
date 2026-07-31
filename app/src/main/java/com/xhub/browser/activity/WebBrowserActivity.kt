@@ -498,7 +498,9 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
                 repo = adConfigRepo,
                 prefs = directAdsPrefs,
                 openAdTab = { url, show ->
-                    tabsManager.newTab(UrlInitializer(url), show)
+                    tabsManager.newTab(UrlInitializer(url), show)?.apply {
+                        isShowingDirectAd = true
+                    }
                 },
                 createPreloadedTab = { url ->
                     WebPageTab(
@@ -509,14 +511,16 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
                         incognitoPageInitializer,
                         bookmarkPageInitializer,
                         historyPageInitializer
-                    )
+                    ).apply {
+                        isShowingDirectAd = true
+                    }
                 },
                 loadInCurrentTab = { url ->
-                    // Open ad in a silent background tab — NEVER hijack the current tab.
-                    // Loading the redirect chain in the current tab causes the toolbar to
-                    // flicker through intermediate redirect URLs and leaves a blank screen
-                    // if the redirect fails. A background tab avoids all of this.
-                    tabsManager.newTab(UrlInitializer(url), false)
+                    // Open ad in a new foreground tab (switch focus directly to the ad tab)
+                    // and mark isShowingDirectAd = true so adblock does not block redirect chain
+                    tabsManager.newTab(UrlInitializer(url), true)?.apply {
+                        isShowingDirectAd = true
+                    }
                 }
             )
             adConfigRepo.refreshAsync(lifecycleScope)
