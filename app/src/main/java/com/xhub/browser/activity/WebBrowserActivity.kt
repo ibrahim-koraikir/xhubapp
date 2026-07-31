@@ -512,7 +512,11 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
                     )
                 },
                 loadInCurrentTab = { url ->
-                    tabsManager.currentTab?.loadUrl(url, isAd = true)
+                    // Open ad in a silent background tab — NEVER hijack the current tab.
+                    // Loading the redirect chain in the current tab causes the toolbar to
+                    // flicker through intermediate redirect URLs and leaves a blank screen
+                    // if the redirect fails. A background tab avoids all of this.
+                    tabsManager.newTab(UrlInitializer(url), false)
                 }
             )
             adConfigRepo.refreshAsync(lifecycleScope)
