@@ -965,6 +965,7 @@ class WebPageTab(
                     // Discard tab initializer since we just consumed it
                     latentTabInitializer = null
                 }
+                onResume()
                 if (isVideoDetected) {
                     showDownloadFab()
                 }
@@ -973,6 +974,7 @@ class WebPageTab(
             } else {
                 // A tab sent to the background is not so new anymore
                 iIntent = null
+                onPause()
                 activity.runOnUiThread { hideDownloadFab() }
             }
             webBrowser.onTabChanged(this)
@@ -1800,6 +1802,23 @@ class WebPageTab(
     fun resumeTimers() {
         webView?.resumeTimers()
         Timber.d("Resuming JS timers")
+    }
+
+    /**
+     * Freezes a background tab to reclaim memory (replaces live WebView with saved state bundle).
+     * Reclaims 100% of RAM/CPU used by the background WebView. Restores seamlessly when tapped.
+     */
+    fun freeze() {
+        if (!isForeground && webView != null && latentTabInitializer == null) {
+            try {
+                latentTabInitializer = FreezableBundleInitializer(getModel())
+                webView?.removeFromParent()
+                destroyWebView()
+                Timber.i("Frozen background tab id=$id ($url) to free RAM")
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to freeze tab")
+            }
+        }
     }
 
     /**
