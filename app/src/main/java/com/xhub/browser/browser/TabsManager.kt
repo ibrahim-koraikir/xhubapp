@@ -88,18 +88,26 @@ class TabsManager @Inject constructor(
     var isInitialized = false
     private var postInitializationWorkList = mutableListOf<InitializationListener>()
 
+    // Set to true while shutdown() destroys tabs, so tab-count notifications fired during a
+    // session switch don't write into the session that just became current (the old session's
+    // count is persisted by saveState() before the switch, and the new session's count is
+    // populated by the newTab() calls that follow).
+    private var tabCountUpdatesSuspended = false
+
     init {
 
         addTabNumberChangedListener {
             // Update current session tab count
-            //TODO: Have a getCurrentSession function
-            //TODO: during shutdown initiated by session switch we get stray events here not matching the proper session since it current session name was changed
-            //TODO: it's no big deal and does no harm at all but still not consistent, we may want to fix it at some point
-            //TODO: after shutdown our tab counts are fixed by [loadSessions]
-            val session = sessionsManager.sessions().filter { s -> s.name == sessionsManager.currentSessionName() }
-            if (session.isNotEmpty()) {
-                session[0].tabCount = it
+            if (!tabCountUpdatesSuspended) {
+                updateCurrentSessionTabCount(it)
             }
+        }
+    }
+
+    private fun updateCurrentSessionTabCount(count: Int) {
+        val session = sessionsManager.sessions().filter { s -> s.name == sessionsManager.currentSessionName() }
+        if (session.isNotEmpty()) {
+            session[0].tabCount = count
         }
     }
 
@@ -541,8 +549,13 @@ class TabsManager @Inject constructor(
      */
     fun shutdown() {
         Timber.d("shutdown")
-        // Deleting from the top of the array should be more efficient
-        repeat(tabList.size) { doDeleteTab(tabList.size-1) }
+        tabCountUpdatesSuspended = true
+        try {
+            // Deleting from the top of the array should be more efficient
+            repeat(tabList.size) { doDeleteTab(tabList.size-1) }
+        } finally {
+            tabCountUpdatesSuspended = false
+        }
         savedRecentTabsIndices.clear()
         isInitialized = false
         currentTab = null
