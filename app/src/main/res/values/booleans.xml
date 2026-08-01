@@ -25,4 +25,5 @@
     <bool name="const_false">false</bool>
     <bool name="pref_default_video_detection_enabled">true</bool>
     <bool name="pref_default_third_party_favicon_services">true</bool>
+    <bool name="pref_default_enable_tab_freezing">true</bool>
 </resources>

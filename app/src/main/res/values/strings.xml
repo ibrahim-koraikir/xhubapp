@@ -175,6 +175,19 @@
     <string name="cannot_download">Can only download \"http\" or \"https\" URLs.</string>
     <string name="problem_download">Invalid URL encountered, cannot download</string>
     <string name="problem_location_download">Cannot download to the specified location</string>
+    <string name="download_filename_unsafe">Download blocked: unsafe filename</string>
+
+    <!-- Site permissions -->
+    <string name="site_permissions">Site permissions</string>
+    <string name="site_permissions_summary">Manage location access granted to sites</string>
+    <string name="site_permissions_location">Location</string>
+    <string name="clear_all_site_permissions">Clear all permissions</string>
+    <string name="clear_all_site_permissions_summary">Revoke location access for all sites</string>
+    <string name="question_clear_all_site_permissions">Revoke location access for all sites?</string>
+    <string name="no_site_permissions">No sites have location access</string>
+    <string name="tap_to_revoke">Tap to revoke</string>
+    <string name="permission_revoked">Location permission revoked for %1$s</string>
+    <string name="all_permissions_cleared">Cleared permissions for %1$d sites</string>
     <string name="download_no_sdcard_dlg_title">No SD card</string>
     <string name="download_no_sdcard_dlg_msg">USB storage is required to download the file.</string>
     <string name="download_sdcard_busy_dlg_title">USB storage unavailable</string>
@@ -855,6 +868,8 @@
     <string name="pref_title_clear_cache">Clear cache</string>
     <string name="pref_summary_clear_cache">Used: %s</string>
     <string name="error_invalid_number">Please enter a valid number</string>
+    <string name="error_invalid_url">Invalid or unsafe URL</string>
+    <string name="mixed_content_blocked_notice">Mixed content blocked for security. Use Desktop Mode if needed.</string>
     <string name="error_cache_negative">Cache size cannot be negative</string>
     <string name="error_cache_too_large">Cache too large</string>
     <string name="hint_available_space">Available: %s</string>
@@ -927,6 +942,10 @@
     <!-- Video Detection Settings -->
     <string name="pref_title_video_detection">Enable video detection</string>
     <string name="pref_summary_video_detection">Show download button when videos are detected on web pages. May expose JavaScript interface to all pages.</string>
+
+    <!-- Tab freezing -->
+    <string name="pref_title_enable_tab_freezing">Freeze background tabs</string>
+    <string name="pref_summary_enable_tab_freezing">Save memory by pausing tabs you haven\'t used recently. Disable on high-RAM devices for instant tab switching.</string>
     
     <!-- Third-Party Favicon Services Settings -->
     

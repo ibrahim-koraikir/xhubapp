@@ -107,6 +107,14 @@
             app:singleLineTitle="false"
             />
 
+        <Preference
+            android:key="site_permissions"
+            android:title="@string/site_permissions"
+            android:summary="@string/site_permissions_summary"
+            app:icon="@drawable/ic_location"
+            app:fragment="com.xhub.browser.settings.fragment.SitePermissionsFragment"
+            app:singleLineTitle="false"
+            />
 
         <x.SwitchPreference
             android:defaultValue="true"

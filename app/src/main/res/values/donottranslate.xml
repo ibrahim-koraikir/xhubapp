@@ -102,6 +102,7 @@
     <string name="pref_key_request_save_data">pref_key_request_save_data</string>
     <string name="pref_key_load_images">pref_key_load_images</string>
     <string name="pref_key_video_detection_enabled">pref_key_video_detection_enabled</string>
+    <string name="pref_key_enable_tab_freezing">pref_key_enable_tab_freezing</string>
     <string name="pref_key_third_party_favicon_services">pref_key_third_party_favicon_services</string>
     <string name="pref_key_desktop_mode">pref_key_desktop_mode</string>
     <string name="pref_key_desktop_mode_override">pref_key_desktop_mode_override</string>

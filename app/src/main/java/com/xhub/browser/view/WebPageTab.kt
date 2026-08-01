@@ -265,7 +265,16 @@ class WebPageTab(
     var detectedStreamType: String = "direct"
         private set
 
+    /**
+     * Counter for video detection events on the current page.
+     * Reset when navigating to a new URL.
+     */
+    private var videoEventCount = 0
+
     fun clearVideoDetectedState() {
+        // Always reset the per-page counter so a page that spammed detection events
+        // (without ever detecting a video) does not disable detection for the next page.
+        videoEventCount = 0
         if (isVideoDetected) {
             isVideoDetected = false
             detectedVideoUrl = null
@@ -1339,6 +1348,16 @@ class WebPageTab(
 
 
     fun onVideoDetected(videoUrl: String, qualitiesJson: String?, resolution: String?, streamType: String = "direct") {
+        // Rate limiting: max events per page so a malicious page cannot spam the bridge
+        if (videoEventCount >= MAX_VIDEO_EVENTS_PER_PAGE) {
+            if (videoEventCount == MAX_VIDEO_EVENTS_PER_PAGE) {
+                videoEventCount++
+                Timber.w("Video detection disabled for this page (max $MAX_VIDEO_EVENTS_PER_PAGE events reached)")
+            }
+            return
+        }
+        videoEventCount++
+
         if (!VideoValidationHelper.isAcceptableMediaUrl(videoUrl)) {
             Timber.w("Received invalid video URL: $videoUrl")
             return
@@ -1582,12 +1601,12 @@ class WebPageTab(
             mediaPlaybackRequiresUserGesture = false
 
             if (API >= Build.VERSION_CODES.LOLLIPOP) {
-                mixedContentMode = if (defaultDomainSettings.allowMixedContent && !isIncognito) {
-                    // User explicitly allowed mixed content for this domain
-                    WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
-                } else {
-                    // Strict blocking: Never allow insecure subresources on HTTPS pages
-                    WebSettings.MIXED_CONTENT_NEVER_ALLOW
+                // SECURITY: Always block mixed content to prevent MITM attacks.
+                // Even "passive" mixed content (images, media) can be weaponized via
+                // decoder exploits or tracking pixels.
+                mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+                if (defaultDomainSettings.allowMixedContent && !isIncognito) {
+                    Timber.w("Mixed content blocked despite domain preference (security policy)")
                 }
             }
 
@@ -1807,9 +1826,15 @@ class WebPageTab(
     /**
      * Freezes a background tab to reclaim memory (replaces live WebView with saved state bundle).
      * Reclaims 100% of RAM/CPU used by the background WebView. Restores seamlessly when tapped.
+     * Skips freeze while the tab is still loading to avoid losing transient page state.
      */
     fun freeze() {
         if (!isForeground && webView != null && latentTabInitializer == null) {
+            // Still loading — freeze mid-load loses transient state
+            if (progress < 100) {
+                Timber.d("Skipping freeze for tab $id — still loading (progress=$progress)")
+                return
+            }
             try {
                 latentTabInitializer = FreezableBundleInitializer(getModel())
                 webView?.removeFromParent()
@@ -2665,6 +2690,13 @@ class WebPageTab(
         private const val FAB_ENTRANCE_DURATION_MS = 220L
         private const val FAB_EXIT_DURATION_MS = 150L
         private const val FAB_ENTRANCE_START_SCALE = 0.85f
+
+        /**
+         * Maximum video detection events accepted per page before the sniffer is
+         * disabled for that page. Prevents a malicious page from spamming the JS
+         * bridge with detection calls to keep the UI busy.
+         */
+        private const val MAX_VIDEO_EVENTS_PER_PAGE = 20
 
         private val API = Build.VERSION.SDK_INT
         private val SCROLL_UP_THRESHOLD = com.xhub.browser.utils.Utils.dpToPx(10f)

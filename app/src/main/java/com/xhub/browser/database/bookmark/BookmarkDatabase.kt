@@ -45,12 +45,14 @@ class BookmarkDatabase @Inject constructor(
         db.execSQL(createBookmarkTable)
     }
 
-    // Upgrading database
+    // Upgrading database — preserve existing data; never DROP on upgrade.
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        // Drop older table if it exists
-        db.execSQL("DROP TABLE IF EXISTS ${DatabaseUtils.sqlEscapeString(TABLE_BOOKMARK)}")
-        // Create tables again
-        onCreate(db)
+        // No schema migrations yet. When adding schema changes, apply incremental
+        // ALTER/CREATE steps here instead of dropping tables (which destroys bookmarks).
+        android.util.Log.i(
+            "BookmarkDatabase",
+            "onUpgrade $oldVersion → $newVersion: no migrations; preserving data"
+        )
     }
 
     /**

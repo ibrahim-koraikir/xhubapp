@@ -672,6 +672,22 @@ class WebPageClient(
     override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?) {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
             Timber.w("$ihs : onReceivedError (modern): ${request?.url} - Code: ${error?.errorCode} - ${error?.description}")
+            // Notify (throttled) when mixed/unsafe content is blocked
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O &&
+                error?.errorCode == WebViewClient.ERROR_UNSAFE_RESOURCE
+            ) {
+                val now = System.currentTimeMillis()
+                if (now - lastMixedContentToast > MIXED_CONTENT_TOAST_INTERVAL_MS) {
+                    lastMixedContentToast = now
+                    activity.runOnUiThread {
+                        android.widget.Toast.makeText(
+                            activity,
+                            R.string.mixed_content_blocked_notice,
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+            }
         } else {
             Timber.w("$ihs : onReceivedError (modern): ${request?.url}")
         }
@@ -1434,6 +1450,12 @@ class WebPageClient(
     override fun onSafeBrowsingHit(view: WebView?, request: WebResourceRequest?, threatType: Int, callback: SafeBrowsingResponse?) {
         Timber.d("$ihs : onSafeBrowsingHit: $threatType")
         super.onSafeBrowsingHit(view, request, threatType, callback)
+    }
+
+    companion object {
+        private const val MIXED_CONTENT_TOAST_INTERVAL_MS = 10_000L
+        @Volatile
+        private var lastMixedContentToast = 0L
     }
 }
 

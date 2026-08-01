@@ -295,20 +295,45 @@ class TabsManager @Inject constructor(
 
 
     /**
-     * Load tabs from the given file.
+     * Load tabs from the given file with automatic corruption recovery:
+     * main session → backup session → binary URL scrape.
      */
     private fun loadSession(aFilename: String): MutableList<TabInitializer> {
         Timber.d("loadSession: $aFilename")
-        
-        // Perform blocking disk I/O and bundle deserialization
-        val bundle = com.xhub.browser.utils.FileUtils.readBundleFromStorage(application, aFilename)
+
+        // Step 1: main session file
+        var bundle = com.xhub.browser.utils.FileUtils.readBundleFromStorage(application, aFilename)
+        var recoveredFrom = aFilename
+
+        // Step 2: backup written during save (BACKUP_SESSION_<name>)
+        if (bundle == null) {
+            val backupFilename = backupFilenameForSession(aFilename)
+            if (backupFilename != null &&
+                com.xhub.browser.utils.FileUtils.fileExists(application, backupFilename)
+            ) {
+                Timber.w("Main session missing/corrupt, trying backup: $backupFilename")
+                bundle = com.xhub.browser.utils.FileUtils.readBundleFromStorage(application, backupFilename)
+                if (bundle != null) {
+                    recoveredFrom = backupFilename
+                    Timber.i("Restored session from backup: $backupFilename")
+                    // Promote backup to main so next launch uses a healthy primary file
+                    com.xhub.browser.utils.FileUtils.renameBundleInStorage(
+                        application,
+                        backupFilename,
+                        aFilename
+                    )
+                }
+            }
+        }
 
         // Defensive. should have happened in the shutdown already
         savedRecentTabsIndices.clear()
         // Read saved current tab index if any
-        bundle?.let{
+        bundle?.let {
             try {
-                it.getIntArray(RECENT_TAB_INDICES)?.toList()?.let { it1 -> savedRecentTabsIndices.addAll(it1) }
+                it.getIntArray(RECENT_TAB_INDICES)?.toList()?.let { indices ->
+                    savedRecentTabsIndices.addAll(indices)
+                }
             } catch (e: Exception) {
                 Timber.w(e, "Failed to read recent tab indices")
             }
@@ -317,18 +342,31 @@ class TabsManager @Inject constructor(
         val list = mutableListOf<TabInitializer>()
         var tabModels = readSavedStateFromDisk(bundle)
 
-        // If normal loading failed or returned no tabs, try binary recovery
+        // Step 3: binary recovery from main, then backup if needed
         if (tabModels.isEmpty()) {
             Timber.w("Normal loading failed, attempting binary recovery")
-            val recoveredTabs = com.xhub.browser.utils.SessionRecovery.recoverTabsFromSession(application, aFilename)
+            var recoveredTabs =
+                com.xhub.browser.utils.SessionRecovery.recoverTabsFromSession(application, aFilename)
+            if (recoveredTabs.isEmpty()) {
+                val backupFilename = backupFilenameForSession(aFilename)
+                if (backupFilename != null) {
+                    recoveredTabs = com.xhub.browser.utils.SessionRecovery.recoverTabsFromSession(
+                        application,
+                        backupFilename
+                    )
+                }
+            }
             if (recoveredTabs.isNotEmpty()) {
-                Timber.i("Binary recovery found ${recoveredTabs.size} tabs")
+                Timber.i("Binary recovery found ${recoveredTabs.size} tabs from $recoveredFrom")
                 tabModels = recoveredTabs.map { RecoveredTabModel(it.url, it.title) }.toMutableList()
             }
         }
 
         tabModels.forEach {
-            list.add(if (it.url.isSpecialUrl()) tabInitializerForSpecialUrl(it.url) else FreezableBundleInitializer(it))
+            list.add(
+                if (it.url.isSpecialUrl()) tabInitializerForSpecialUrl(it.url)
+                else FreezableBundleInitializer(it)
+            )
         }
 
         // Make sure we have at least one tab
@@ -338,6 +376,22 @@ class TabsManager @Inject constructor(
 
         Timber.d("loadSession: ${list.size} tabs loaded")
         return list
+    }
+
+    /**
+     * Maps a session file name to its save-time backup name.
+     * - `SESSION_<name>` → `BACKUP_SESSION_<name>`
+     * - legacy default `SAVED_TABS.parcel` → `BACKUP_SESSION_SAVED_TABS.parcel`
+     */
+    private fun backupFilenameForSession(aFilename: String): String? {
+        return when {
+            aFilename.startsWith(com.xhub.browser.browser.SessionsManager.FILENAME_SESSION_PREFIX) -> {
+                FILENAME_BACKUP_PREFIX +
+                    aFilename.removePrefix(com.xhub.browser.browser.SessionsManager.FILENAME_SESSION_PREFIX)
+            }
+            aFilename == FILENAME_SESSION_DEFAULT -> FILENAME_BACKUP_PREFIX + aFilename
+            else -> FILENAME_BACKUP_PREFIX + aFilename
+        }
     }
 
     /**
@@ -982,18 +1036,31 @@ class TabsManager @Inject constructor(
      * Keeps the active foreground tab + top 3 most recently used background tabs alive in RAM.
      * Older background tabs are frozen into lightweight state bundles (reclaiming 100% of their WebView RAM),
      * so opening 10–20 tabs uses virtually no extra CPU/RAM.
+     * Tabs with unsaved form data or still loading are skipped by [WebPageTab.freeze].
      */
     private fun trimBackgroundTabsMemory() {
+        if (!userPreferences.enableTabFreezing) return
         if (tabList.size <= 4) return
         val activeTab = currentTab ?: return
 
         // Keep active tab + top 3 most recent background tabs in RAM
         val keepAlive = iRecentTabs.toList().takeLast(4).toSet()
 
+        var frozenCount = 0
+        var skippedCount = 0
         tabList.forEach { tab ->
             if (tab != activeTab && tab !in keepAlive) {
+                val wasFrozen = tab.isFrozen
                 tab.freeze()
+                if (!wasFrozen && tab.isFrozen) {
+                    frozenCount++
+                } else if (!tab.isFrozen) {
+                    skippedCount++
+                }
             }
+        }
+        if (frozenCount > 0 || skippedCount > 0) {
+            Timber.d("Memory trim: froze $frozenCount tabs, skipped $skippedCount")
         }
     }
 

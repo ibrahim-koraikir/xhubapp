@@ -72,6 +72,15 @@ class UserPreferences @Inject constructor(
     var videoDetectionEnabled by preferences.booleanPreference(R.string.pref_key_video_detection_enabled, R.bool.pref_default_video_detection_enabled)
 
     /**
+     * Whether to freeze older background tabs to save memory when 5+ tabs are open.
+     * Disable on high-RAM devices for instant tab switching.
+     */
+    var enableTabFreezing by preferences.booleanPreference(
+        R.string.pref_key_enable_tab_freezing,
+        R.bool.pref_default_enable_tab_freezing
+    )
+
+    /**
      * True if third-party favicon services (DuckDuckGo, Google) should be contacted to fetch
      * missing favicons, false otherwise. When disabled, only site-provided favicons are used.
      * Default is false for privacy — enabling leaks every visited/bookmarked host to third parties.

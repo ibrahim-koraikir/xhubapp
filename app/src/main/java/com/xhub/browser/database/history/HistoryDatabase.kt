@@ -43,12 +43,14 @@ class HistoryDatabase @Inject constructor(
         db.execSQL(createHistoryTable)
     }
 
-    // Upgrading database
+    // Upgrading database — preserve existing data; never DROP on upgrade.
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        // Drop older table if it exists
-        db.execSQL("DROP TABLE IF EXISTS $TABLE_HISTORY")
-        // Create tables again
-        onCreate(db)
+        // No schema migrations yet. When adding schema changes, apply incremental
+        // ALTER/CREATE steps here instead of dropping tables (which destroys history).
+        android.util.Log.i(
+            "HistoryDatabase",
+            "onUpgrade $oldVersion → $newVersion: no migrations; preserving data"
+        )
     }
 
     override fun deleteHistory(): Completable = Completable.fromAction {

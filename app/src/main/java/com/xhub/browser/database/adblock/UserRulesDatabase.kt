@@ -48,13 +48,14 @@ class UserRulesDatabase @Inject constructor(
         db.execSQL(createRulesTable)
     }
 
-    // Upgrading database
-    // if this is ever necessary, at least user rules should be preserved!
+    // Upgrading database — preserve user rules; never DROP on upgrade.
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        // Drop older table if it exists
-        db.execSQL("DROP TABLE IF EXISTS ${DatabaseUtils.sqlEscapeString(TABLE_RULES)}")
-        // Create tables again
-        onCreate(db)
+        // No schema migrations yet. When adding schema changes, apply incremental
+        // ALTER/CREATE steps here instead of dropping tables (which destroys user rules).
+        android.util.Log.i(
+            "UserRulesDatabase",
+            "onUpgrade $oldVersion → $newVersion: no migrations; preserving data"
+        )
     }
 
     override fun addRules(rules: List<UnifiedFilterResponse>){

@@ -3,7 +3,6 @@
 import android.app.SearchManager
 import android.content.Intent
 import android.view.Gravity
-import android.webkit.URLUtil
 import androidx.core.net.toUri
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
@@ -16,7 +15,9 @@ import com.xhub.browser.extensions.log
 import com.xhub.browser.extensions.makeSnackbar
 import com.xhub.browser.extensions.topPrivateDomain
 import com.xhub.browser.settings.preferences.DomainPreferences
+import com.xhub.browser.extensions.snackbar
 import com.xhub.browser.utils.QUERY_PLACE_HOLDER
+import com.xhub.browser.utils.UrlValidator
 import com.xhub.browser.utils.extractUrlFromText
 import com.xhub.browser.utils.smartUrlFilter
 import com.xhub.browser.view.UrlInitializer
@@ -91,13 +92,27 @@ fun WebBrowserActivity.doOnNewIntent(aIntent: Intent?, aIncognitoStartup: Boolea
     val tabHashCode = aIntent?.extras?.getInt(INTENT_ORIGIN, 0) ?: 0
     Timber.d("onNewIntent - URL: $url, tabHashCode: $tabHashCode")
     if (tabHashCode != 0 && url != null) {
+        // SECURITY: Validate scheme even when loading into an existing tab
+        val validatedExisting = UrlValidator.validateExternalUrl(url, allowInternal = true)
+        if (validatedExisting == null) {
+            Timber.w("Rejected unsafe URL from intent (existing tab): $url")
+            snackbar(R.string.error_invalid_url)
+            return
+        }
         Timber.d("onNewIntent - Loading URL in existing tab with hashCode: $tabHashCode")
-        tabsManager.getTabForHashCode(tabHashCode)?.loadUrl(url)
+        tabsManager.getTabForHashCode(tabHashCode)?.loadUrl(validatedExisting)
     } else if (url != null) {
+        // SECURITY: Validate URL scheme before loading from external intents
+        val validatedUrl = UrlValidator.validateExternalUrl(url, allowInternal = true)
+        if (validatedUrl == null) {
+            Timber.w("Rejected unsafe URL from intent: $url")
+            snackbar(R.string.error_invalid_url)
+            return
+        }
 
         // Define a lambda we can reuse below
         val createNewTab = {
-            tabsManager.newTab(UrlInitializer(url), true)?.let { newTab ->
+            tabsManager.newTab(UrlInitializer(validatedUrl), true)?.let { newTab ->
                 newTab.iIntent = aIntent
             }
             // Avoid showing two tabs when starting incognito mode
@@ -106,7 +121,7 @@ fun WebBrowserActivity.doOnNewIntent(aIntent: Intent?, aIncognitoStartup: Boolea
                 tabsManager.deleteTab(0)
             }
         }
-        val uri = url.toUri()
+        val uri = validatedUrl.toUri()
 
         if (aIntent?.action != Intent.ACTION_WEB_SEARCH && uri.host != null) {
 
@@ -120,19 +135,19 @@ fun WebBrowserActivity.doOnNewIntent(aIntent: Intent?, aIncognitoStartup: Boolea
 
             when (action) {
                 IncomingUrlAction.NEW_TAB -> {
-                    Timber.d("onNewIntent - Creating new tab as per domain settings: $url")
+                    Timber.d("onNewIntent - Creating new tab as per domain settings: $validatedUrl")
                     createNewTab()
                 }
 
                 IncomingUrlAction.INCOGNITO_TAB -> {
-                    Timber.d("onNewIntent - Opening URL in incognito tab as per domain settings: $url")
+                    Timber.d("onNewIntent - Opening URL in incognito tab as per domain settings: $validatedUrl")
                     // Open in incognito - need to start IncognitoActivity
                     val incognitoIntent = IncognitoActivity.createIntent(this, uri)
                     startActivity(incognitoIntent)
                 }
 
                 IncomingUrlAction.BLOCK -> {
-                    Timber.d("onNewIntent - Blocking URL as per domain settings: $url")
+                    Timber.d("onNewIntent - Blocking URL as per domain settings: $validatedUrl")
                     // Display snackbar to inform user
                     runOnUiThread {
                         val host = uri.host ?: "unknown"
@@ -146,7 +161,7 @@ fun WebBrowserActivity.doOnNewIntent(aIntent: Intent?, aIncognitoStartup: Boolea
                 }
 
                 IncomingUrlAction.ASK -> {
-                    Timber.d("onNewIntent - Showing dialog for user to choose action: $url")
+                    Timber.d("onNewIntent - Showing dialog for user to choose action: $validatedUrl")
                     // Show dialog asking user what to do
                     runOnUiThread {
                         // Use String extension to extract effective TLD+1 (e.g., "example.com" from "www.example.com")
@@ -154,7 +169,7 @@ fun WebBrowserActivity.doOnNewIntent(aIntent: Intent?, aIncognitoStartup: Boolea
                         val domain = host.topPrivateDomain ?: host
                         MaterialAlertDialogBuilder(this)
                             .setTitle(getString(R.string.dialog_title_incoming_url, domain))
-                            .setMessage(getString(R.string.dialog_message_incoming_url, subject, url))
+                            .setMessage(getString(R.string.dialog_message_incoming_url, subject, validatedUrl))
                             .setPositiveButton(R.string.action_open) { _, _ ->
                                 createNewTab()
                             }
@@ -167,13 +182,9 @@ fun WebBrowserActivity.doOnNewIntent(aIntent: Intent?, aIncognitoStartup: Boolea
                     }
                 }
             }
-        } else if (URLUtil.isFileUrl(url)) {
-            Timber.d("onNewIntent - Creating new tab for file URL: $url")
-            showBlockedLocalFileDialog {
-                createNewTab()
-            }
         } else {
-            Timber.d("onNewIntent - Creating new tab for URL: $url")
+            // file:// / content:// already rejected by UrlValidator above
+            Timber.d("onNewIntent - Creating new tab for URL: $validatedUrl")
             createNewTab()
         }
     }

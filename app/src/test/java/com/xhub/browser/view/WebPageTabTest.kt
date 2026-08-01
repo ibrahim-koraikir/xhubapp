@@ -417,5 +417,79 @@ class WebPageTabTest {
         verify(userPreferences, atLeastOnce()).videoDetectionEnabled
     }
 
+    @Test
+    fun `WebPageTab video detection events are rate limited per page`() {
+        val tab = createVideoTab()
+        val url = "https://test.com/video.mp4"
+
+        // First 20 events are accepted
+        repeat(20) { tab.onVideoDetected(url, null, null, "direct") }
+        assertThat(tab.isVideoDetected).isTrue()
+        assertThat(tab.detectedVideoUrl).isEqualTo(url)
+
+        // Events beyond the per-page cap must be ignored
+        tab.onVideoDetected("https://test.com/other.mp4", null, null, "direct")
+        assertThat(tab.detectedVideoUrl).isEqualTo(url)
+
+        // Navigating away resets the counter so detection works again
+        tab.clearVideoDetectedState()
+        tab.onVideoDetected("https://test.com/new.mp4", null, null, "direct")
+        assertThat(tab.detectedVideoUrl).isEqualTo("https://test.com/new.mp4")
+    }
+
+    /**
+     * Builds a WebPageTab backed by a mocked TestActivity whose runOnUiThread executes
+     * synchronously so video detection state assignments run in tests.
+     */
+    private fun createVideoTab(): WebPageTab {
+        val activity = mock(TestActivity::class.java)
+        doAnswer { invocation -> (invocation.getArgument<Runnable>(0)).run(); Unit }
+            .`when`(activity).runOnUiThread(any(Runnable::class.java))
+        `when`(activity.applicationInfo).thenReturn(realActivity.applicationInfo)
+        `when`(activity.applicationContext).thenReturn(realActivity.applicationContext)
+        `when`(activity.layoutInflater).thenReturn(realActivity.layoutInflater)
+        `when`(activity.resources).thenReturn(realActivity.resources)
+        `when`(activity.packageName).thenReturn(realActivity.packageName)
+        `when`(activity.theme).thenReturn(realActivity.theme)
+        `when`(activity.getDir(any(), anyInt())).thenReturn(realActivity.getDir("test", 0))
+        `when`(activity.getString(anyInt())).thenAnswer { invocation ->
+            realActivity.getString(invocation.getArgument(0))
+        }
+        `when`(activity.obtainStyledAttributes(anyInt(), any(IntArray::class.java))).thenAnswer { invocation ->
+            realActivity.obtainStyledAttributes(
+                invocation.getArgument<Int>(0),
+                invocation.getArgument<IntArray>(1)
+            )
+        }
+        `when`(activity.obtainStyledAttributes(any(IntArray::class.java))).thenAnswer { invocation ->
+            realActivity.obtainStyledAttributes(invocation.getArgument<IntArray>(0))
+        }
+        `when`(activity.obtainStyledAttributes(isNull(AttributeSet::class.java), any(IntArray::class.java), anyInt(), anyInt())).thenAnswer { invocation ->
+            realActivity.obtainStyledAttributes(
+                invocation.getArgument<AttributeSet?>(0),
+                invocation.getArgument<IntArray>(1),
+                invocation.getArgument<Int>(2),
+                invocation.getArgument<Int>(3)
+            )
+        }
+        `when`(activity.getSharedPreferences(anyString(), anyInt())).thenAnswer { invocation ->
+            realActivity.getSharedPreferences(invocation.getArgument(0), invocation.getArgument(1))
+        }
+        `when`(activity.application).thenReturn(realActivity.application)
+
+        val mockTabInitializer = mock(TabInitializer::class.java)
+        `when`(mockTabInitializer.url()).thenReturn(Uris.FulgurisHome)
+
+        return WebPageTab(
+            activity = activity,
+            tabInitializer = mockTabInitializer,
+            isIncognito = false,
+            homePageInitializer = mock(HomePageInitializer::class.java),
+            incognitoPageInitializer = mock(IncognitoPageInitializer::class.java),
+            bookmarkPageInitializer = mock(BookmarkPageInitializer::class.java),
+            historyPageInitializer = mock(HistoryPageInitializer::class.java)
+        )
+    }
+
     abstract class TestActivity : Activity(), WebBrowser
 }

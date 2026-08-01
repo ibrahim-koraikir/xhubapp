@@ -156,17 +156,15 @@ class DomainPreferences constructor(
     }
 
     /**
-     * True if mixed content (insecure subresources on HTTPS pages) should be allowed.
-     * Default is false for security - users must explicitly opt-in per domain.
+     * Mixed content is always blocked for security. Preference keys are retained for
+     * migration/backward compatibility but the effective value is always false.
      */
+    @Deprecated("Mixed content is now always blocked for security. This setting is ignored.")
     var allowMixedContentOverride by preferences.booleanPreference(R.string.pref_key_allow_mixed_content_override, false)
+    @Deprecated("Mixed content is now always blocked for security. This setting is ignored.")
     var allowMixedContentLocal by preferences.booleanPreference(R.string.pref_key_allow_mixed_content, false)
-    val allowMixedContent: Boolean get() {
-        val override = allowMixedContentOverride
-        val local = allowMixedContentLocal
-        val parentValue = parent?.allowMixedContent ?: local
-        return if (isDefault || !override) { parentValue } else { local }
-    }
+    /** Always false — mixed content is never allowed. */
+    val allowMixedContent: Boolean get() = false
 
     /**
      * Define what to do when a third-party app is available:

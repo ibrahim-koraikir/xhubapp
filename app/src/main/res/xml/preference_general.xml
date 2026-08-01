@@ -191,6 +191,15 @@
             app:iconSpaceReserved="false"
             app:singleLineTitle="false" />
 
+        <x.SwitchPreference
+            android:key="@string/pref_key_enable_tab_freezing"
+            android:title="@string/pref_title_enable_tab_freezing"
+            android:summary="@string/pref_summary_enable_tab_freezing"
+            android:defaultValue="@bool/pref_default_enable_tab_freezing"
+            app:icon="@drawable/ic_tabs"
+            app:iconSpaceReserved="false"
+            app:singleLineTitle="false" />
+
         <Preference
             android:key="agent"
             android:title="@string/agent"

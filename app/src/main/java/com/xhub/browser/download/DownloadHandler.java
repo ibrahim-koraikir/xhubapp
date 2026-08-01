@@ -38,6 +38,7 @@ import com.xhub.browser.di.NetworkScheduler;
 import com.xhub.browser.dialog.BrowserDialog;
 import com.xhub.browser.constant.Constants;
 import com.xhub.browser.settings.preferences.UserPreferences;
+import com.xhub.browser.utils.FileNameSanitizer;
 import com.xhub.browser.utils.FileUtils;
 import com.xhub.browser.utils.Utils;
 import com.xhub.browser.view.WebPageTab;
@@ -349,6 +350,18 @@ public class DownloadHandler {
             ba.showSnackbar( R.string.problem_location_download);
             return null;
         }
+
+        // SECURITY: Sanitize the filename so a malicious Content-Disposition header cannot
+        // escape the download directory (path traversal) or use illegal/reserved names.
+        String sanitizedFilename = FileNameSanitizer.INSTANCE.sanitizeAndVerify(
+            new File(downloadFolder.getPath()), filename);
+        if (sanitizedFilename == null) {
+            Timber.w("Rejected unsafe filename: %s", filename);
+            ba.showSnackbar(R.string.download_filename_unsafe);
+            return null;
+        }
+        filename = sanitizedFilename;
+
         String newMimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(Utils.guessFileExtension(filename));
         Timber.d("New mimetype: %s", newMimeType);
         request.setMimeType(newMimeType);
