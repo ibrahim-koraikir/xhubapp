@@ -947,7 +947,10 @@ class WebPageClient(
                     // Override the system default rotation/slide with our premium fade
                     activity.overridePendingTransition(R.anim.premium_fade_in, R.anim.premium_fade_out)
                     if (activity is WebBrowserActivity) {
-                        activity.closeCurrentTabIfEmpty()
+                        // For ad tabs: force-close immediately so the redirecting/blank
+                        // screen never lingers after a Play Store or deep-link intent fires.
+                        // For normal tabs: keep the gentle "close only if truly empty" check.
+                        activity.closeCurrentTabIfEmpty(forceClose = webPageTab.isShowingDirectAd)
                     }
                     return true
                 }

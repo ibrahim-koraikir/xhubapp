@@ -3592,7 +3592,14 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
     /**
      * Used to close empty tab after opening download link or launching app.
      */
-    fun closeCurrentTabIfEmpty() {
+    fun closeCurrentTabIfEmpty(forceClose: Boolean = false) {
+        if (forceClose) {
+            // Ad tabs that redirected to an app/Play Store intent: close immediately so
+            // users never see a blank or "redirecting..." screen left behind.
+            skipNextTabClosedSnackbar = true
+            tabsManager.deleteTab(tabsManager.indexOfCurrentTab())
+            return
+        }
         // Had to delay that otherwise we could get there too early on the url still contains the download link
         // URL is later on reset to null by WebView internal mechanics.
         mainHandler.postDelayed({
