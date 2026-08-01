@@ -502,29 +502,16 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
                         isShowingDirectAd = true
                     }
                 },
-                createPreloadedTab = { url ->
-                    WebPageTab(
-                        this,
-                        UrlInitializer(url),
-                        isIncognito = false,
-                        homePageInitializer,
-                        incognitoPageInitializer,
-                        bookmarkPageInitializer,
-                        historyPageInitializer
-                    ).apply {
-                        isShowingDirectAd = true
-                    }
-                },
                 loadInCurrentTab = { url ->
-                    // Open ad in a new foreground tab (switch focus directly to the ad tab)
-                    // and mark isShowingDirectAd = true so adblock does not block redirect chain
+                    // Open ad in a new foreground tab (switches focus to the ad) and mark
+                    // isShowingDirectAd = true so the adblock bypass allows the redirect chain.
                     tabsManager.newTab(UrlInitializer(url), true)?.apply {
                         isShowingDirectAd = true
                     }
                 }
             )
             adConfigRepo.refreshAsync(lifecycleScope)
-            // One silent background ad tab after tabs are ready.
+            // One silent background ad tab after tabs are ready (once per session).
             tabsManager.doOnceAfterInitialization {
                 directLinkAdManager.maybeShowLaunchAd()
             }
