@@ -1186,8 +1186,9 @@ class WebPageTab(
         iTargetUrl = Uri.parse(tabInitializer.url())
 
         if (tabInitializer !is FreezableBundleInitializer) {
-            // Create our WebView now
-            //TODO: it looks like our special URLs don't get frozen for some reason
+            // Create our WebView now. All tabs restored from sessions or closed-tab recovery
+            // are FreezableBundleInitializer (see TabsManager.loadSession), so this branch
+            // only runs for freshly opened tabs.
             createWebView()
             initializeContent(tabInitializer)
             desktopMode = defaultDomainSettings.desktopMode
