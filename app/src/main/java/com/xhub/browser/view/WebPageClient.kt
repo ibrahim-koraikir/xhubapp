@@ -131,6 +131,11 @@ class WebPageClient(
     // Used to skip operations when onPageFinished is called multiple times, YouTube.com does that for instance
     private var onPageFinishedDone = false
 
+    // Watchdog that auto-closes an ad tab if its redirect chain never completes (blank screen).
+    // Posted in onPageStarted, cancelled in onPageFinished.
+    private var adTabTimeoutRunnable: Runnable? = null
+    private val adTabTimeoutMs = 8_000L
+
     // Track all requests for the current page and whether they were blocked
     data class PageRequest(
         val url: String,
@@ -461,6 +466,23 @@ class WebPageClient(
             webPageTab.scheduleDeferredPreviewCapture()
         }
 
+        // Cancel the ad-tab watchdog — page loaded successfully.
+        view.removeCallbacks(adTabTimeoutRunnable)
+        adTabTimeoutRunnable = null
+
+        // Auto-close ad tabs that land on a blank page (e.g. ad server returned empty content,
+        // or redirect chain ended on about:blank). This eliminates the "Redirecting..." white screen.
+        if (webPageTab.isShowingDirectAd) {
+            val finalUrl = view.url
+            if (finalUrl.isNullOrBlank() || finalUrl == "about:blank") {
+                Timber.w("$ihs : Ad tab landed on blank page ($finalUrl) — closing silently")
+                if (activity is WebBrowserActivity) {
+                    activity.closeCurrentTabIfEmpty(forceClose = true)
+                }
+                return
+            }
+        }
+
         // To prevent potential overhead when logs are not needed
         if (userPreferences.isLog(LogLevel.VERBOSE)) {
             val cookies = CookieManager.getInstance().getCookie(url)?.split(';')
@@ -493,6 +515,18 @@ class WebPageClient(
 
         if (url.isSpecialUrl() || android.webkit.URLUtil.isAboutUrl(url) || url.isBookmarkUrl() || url.isHistoryUrl()) {
             webPageTab.resetDirectAdState()
+        }
+
+        // Ad-tab watchdog: if the redirect chain doesn't finish in 8 s, close the blank tab.
+        if (webPageTab.isShowingDirectAd) {
+            view.removeCallbacks(adTabTimeoutRunnable)
+            adTabTimeoutRunnable = Runnable {
+                Timber.w("$ihs : Ad tab redirect timed out — closing silently")
+                view.stopLoading()
+                if (activity is WebBrowserActivity) {
+                    activity.closeCurrentTabIfEmpty(forceClose = true)
+                }
+            }.also { view.postDelayed(it, adTabTimeoutMs) }
         }
 
         // Cancel any pending preview captures from previous navigation
