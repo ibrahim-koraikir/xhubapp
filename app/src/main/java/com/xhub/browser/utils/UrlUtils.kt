@@ -134,13 +134,12 @@ fun String?.isHistoryUri(): Boolean =
  */
 fun String?.isSpecialUrl(): Boolean =
     this != null
-            && (this.startsWith(FILE + app.filesDir)
+            && ((this.startsWith(FILE + app.filesDir)
             && (this.endsWith(BookmarkPageFactory.FILENAME)
             || this.endsWith(HistoryPageFactory.FILENAME)
             || this.endsWith(HomePageFactory.FILENAME)
-            || this.endsWith(IncognitoPageFactory.FILENAME))
-            // TODO: That's somehow causing History page to be restored as Home page
-            /*|| this.startsWith(Schemes.Fulguris + "://")*/)
+            || this.endsWith(IncognitoPageFactory.FILENAME)))
+            || this.startsWith(Schemes.Fulguris + "://"))
 
 /**
  * Check if this URL is using the specified scheme.
