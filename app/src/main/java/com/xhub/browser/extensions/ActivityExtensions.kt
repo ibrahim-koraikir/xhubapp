@@ -10,10 +10,12 @@ import com.xhub.browser.R
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.ActivityManager
+import android.app.Dialog
 import android.os.Build
 import android.view.Gravity
 import android.view.View
 import android.view.Window
+import android.view.WindowManager
 import androidx.annotation.StringRes
 import androidx.coordinatorlayout.widget.CoordinatorLayout
 import androidx.core.view.ViewCompat
@@ -105,6 +107,20 @@ fun Window.setStatusBarIconsColor(dark: Boolean)
         } else {
             decorView.systemUiVisibility = decorView.systemUiVisibility and View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR.inv()
         }
+    }
+}
+
+/**
+ * Make the dialog's window an application-attached dialog so it stays below the session
+ * pop-up, and mirror the activity's status bar icon appearance on it (attached dialogs do
+ * not inherit the activity's icon color, which made icons invisible in the light theme).
+ *
+ * @param darkStatusIcons true to use dark status bar icons (light backgrounds), false for light icons.
+ */
+fun Dialog.showBelowSessionPopup(darkStatusIcons: Boolean) {
+    window?.attributes?.type = WindowManager.LayoutParams.TYPE_APPLICATION_ATTACHED_DIALOG
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        window?.setStatusBarIconsColor(darkStatusIcons)
     }
 }
 

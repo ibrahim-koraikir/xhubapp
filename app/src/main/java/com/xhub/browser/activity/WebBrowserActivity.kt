@@ -902,9 +902,7 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
         //dialog.window?.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS)
 
         // Needed to make sure our bottom sheet shows below our session pop-up
-        // TODO: that breaks status bar icon color with our light theme somehow
-        //dialog.window?.attributes?.type = WindowManager.LayoutParams.TYPE_APPLICATION_ATTACHED_DIALOG;
-        //
+        dialog.showBelowSessionPopup(!isDarkTheme() && !userPreferences.useBlackStatusBar)
 
         // We need to set private data member edgeToEdgeEnabled to true to get full screen effect
         // That won't be needed past material:1.4.0-alpha02 as it is read from our theme definition from then on
