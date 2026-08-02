@@ -959,6 +959,15 @@ class WebPageClient(
         // If this is an about page, immediately load, we don't need to leave the app
         // If we are in incognito, immediately load, we don't want the url to leave the app
         if (webPageTab.isIncognito || url.isSpecialUrl() || URLUtil.isAboutUrl(url)) {
+            // A raw xhub:// special URL can't be rendered by loading it directly — only
+            // WebPageTab.loadUrl knows how to build those pages. Such a load only reaches
+            // this point when the frozen-state fallback fired (BundleInitializer with a
+            // null/stale bundle); route it through the tab's loader instead of stopping
+            // the load, which would leave the tab blank. file:// special pages load fine.
+            if (url.isSpecialUrl() && !URLUtil.isFileUrl(url)) {
+                webPageTab.loadUrl(url)
+                return true
+            }
             return shouldStopUrlLoading(view, url, headers)
         }
 
