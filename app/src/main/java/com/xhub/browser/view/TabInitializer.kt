@@ -1,4 +1,4 @@
-﻿package com.xhub.browser.view
+package com.xhub.browser.view
 
 import com.xhub.browser.R
 import com.xhub.browser.browser.TabModel
@@ -54,6 +54,20 @@ class UrlInitializer(private val url: String) :
     override fun url(): String {
         return url
     }
+}
+
+/**
+ * An initializer for direct-link ads that marks the tab as isShowingDirectAd = true
+ * BEFORE loading the URL, ensuring the adblocker is bypassed on the very first request.
+ */
+class DirectAdInitializer(private val url: String) : TabInitializer {
+
+    override fun initialize(webView: WebView, headers: Map<String, String>) {
+        (webView.tag as? WebPageTab)?.isShowingDirectAd = true
+        webView.loadUrl(url, headers)
+    }
+
+    override fun url(): String = url
 }
 
 /**

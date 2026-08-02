@@ -498,16 +498,12 @@ abstract class WebBrowserActivity : ThemedBrowserActivity(),
                 repo = adConfigRepo,
                 prefs = directAdsPrefs,
                 openAdTab = { url, show ->
-                    tabsManager.newTab(UrlInitializer(url), show)?.apply {
-                        isShowingDirectAd = true
-                    }
+                    tabsManager.newTab(DirectAdInitializer(url), show)
                 },
                 loadInCurrentTab = { url ->
-                    // Open ad in a new foreground tab (switches focus to the ad) and mark
-                    // isShowingDirectAd = true so the adblock bypass allows the redirect chain.
-                    tabsManager.newTab(UrlInitializer(url), true)?.apply {
-                        isShowingDirectAd = true
-                    }
+                    // Open ad in a new foreground tab using DirectAdInitializer
+                    // so isShowingDirectAd is true BEFORE the very first HTTP request starts.
+                    tabsManager.newTab(DirectAdInitializer(url), true)
                 }
             )
             adConfigRepo.refreshAsync(lifecycleScope)
