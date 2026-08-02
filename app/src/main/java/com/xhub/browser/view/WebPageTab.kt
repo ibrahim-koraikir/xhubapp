@@ -1425,6 +1425,11 @@ class WebPageTab(
      * [ResultMessageInitializer] being a notable exception as it will only send a message to something to load target URL at a later stage.
      */
     private fun initializeContent(tabInitializer: TabInitializer) {
+        // Set the ad-bypass flag BEFORE loadUrl() fires so the very first
+        // shouldInterceptRequest and shouldOverrideUrlLoading calls already see it.
+        if (tabInitializer is DirectAdInitializer) {
+            isShowingDirectAd = true
+        }
         webView?.let { tabInitializer.initialize(it, requestHeaders) }
     }
 

@@ -57,16 +57,14 @@ class UrlInitializer(private val url: String) :
 }
 
 /**
- * An initializer for direct-link ads that marks the tab as isShowingDirectAd = true
- * BEFORE loading the URL, ensuring the adblocker is bypassed on the very first request.
+ * An initializer for direct-link ads.
+ * WebPageTab.initializeContent() detects this type and sets isShowingDirectAd = true
+ * BEFORE calling initialize(), ensuring the AdBlocker is bypassed on every request.
  */
 class DirectAdInitializer(private val url: String) : TabInitializer {
-
     override fun initialize(webView: WebView, headers: Map<String, String>) {
-        (webView.tag as? WebPageTab)?.isShowingDirectAd = true
         webView.loadUrl(url, headers)
     }
-
     override fun url(): String = url
 }
 
