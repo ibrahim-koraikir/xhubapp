@@ -227,7 +227,8 @@ class WebPageClient(
         Timber.v("$ihs : shouldInterceptRequest - ${if (request.isForMainFrame) "Main frame" else "Resource"} - ${request.url}")
 
         // First, check if ad blocker blocks this request (returns dummy response if blocked, null if not).
-        val response = runBlocking { adBlock.shouldBlock(request, currentUrl) }
+        // Direct ad tabs bypass ad blocking so ad network redirects and scripts can load fully.
+        val response = if (webPageTab.isShowingDirectAd) null else runBlocking { adBlock.shouldBlock(request, currentUrl) }
         val wasBlocked = response != null
 
         val url = request.url.toString()
@@ -931,8 +932,8 @@ class WebPageClient(
             }
         }
 
-        // Check if ad blocker blocks this main frame navigation early
-        if (request.isForMainFrame) {
+        // Check if ad blocker blocks this main frame navigation early (direct ad tabs bypass adblock)
+        if (request.isForMainFrame && !webPageTab.isShowingDirectAd) {
             val response = runBlocking {
                 Timber.d("$ihs : Checking adblock for URL: $url (current page: $currentUrl)")
                 val r = adBlock.shouldBlock(request, currentUrl)
