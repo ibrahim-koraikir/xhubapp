@@ -33,17 +33,17 @@ import java.util.concurrent.TimeUnit
  *
  * jsDelivr caches aggressively (~12h for `@main`). For near-instant updates you can either bump a
  * git tag and point at `@<tag>`, or purge the file via
- * `https://purge.jsdelivr.net/gh/ibrahim-koraikir/sites@main/shortcuts.json`.
+ * `https://purge.jsdelivr.net/gh/var123321/sites@main/shortcuts.json`.
  */
 object RemoteShortcutsFetcher {
 
-    // The same shortcuts.json hosted at https://github.com/ibrahim-koraikir/sites (root, main branch),
+    // The same shortcuts.json hosted at https://github.com/var123321/sites (root, main branch),
     // reachable through several independent mirrors. Tried in order until one responds.
     // GitHub raw is tried FIRST so edits to main branch on GitHub appear in the app instantly without CDN caching delays.
     private val REMOTE_URLS = listOf(
-        "https://raw.githubusercontent.com/ibrahim-koraikir/sites/main/shortcuts.json",
-        "https://cdn.jsdelivr.net/gh/ibrahim-koraikir/sites@main/shortcuts.json",
-        "https://cdn.statically.io/gh/ibrahim-koraikir/sites/main/shortcuts.json"
+        "https://raw.githubusercontent.com/var123321/sites/main/shortcuts.json",
+        "https://cdn.jsdelivr.net/gh/var123321/sites@main/shortcuts.json",
+        "https://cdn.statically.io/gh/var123321/sites/main/shortcuts.json"
     )
 
     /** Minimum time between remote refresh attempts. Checked on app launch / home screen. */

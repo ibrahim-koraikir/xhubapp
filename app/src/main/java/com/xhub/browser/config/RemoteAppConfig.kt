@@ -14,15 +14,15 @@ import java.util.concurrent.TimeUnit
  * from GitHub and serves them through CDN mirrors.
  *
  * This prevents broken links if the website domain changes in the future:
- * edit `app_config.json` in repository https://github.com/ibrahim-koraikir/RemoteAppConfig
+ * edit `app_config.json` in repository https://github.com/var123321/RemoteAppConfig
  * and all app installations will automatically resolve the updated URLs without needing an APK update.
  */
 object RemoteAppConfig {
 
     private val REMOTE_URLS = listOf(
-        "https://cdn.jsdelivr.net/gh/ibrahim-koraikir/RemoteAppConfig@main/app_config.json",
-        "https://raw.githubusercontent.com/ibrahim-koraikir/RemoteAppConfig/main/app_config.json",
-        "https://cdn.statically.io/gh/ibrahim-koraikir/RemoteAppConfig/main/app_config.json"
+        "https://cdn.jsdelivr.net/gh/var123321/RemoteAppConfig@main/app_config.json",
+        "https://raw.githubusercontent.com/var123321/RemoteAppConfig/main/app_config.json",
+        "https://cdn.statically.io/gh/var123321/RemoteAppConfig/main/app_config.json"
     )
 
     private const val PREFS_NAME = "remote_app_config_prefs"

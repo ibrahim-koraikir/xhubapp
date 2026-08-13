@@ -24,7 +24,7 @@ class AdConfigRepository(private val prefs: SharedPreferences) {
 
     companion object {
         private const val CONFIG_URL =
-            "https://raw.githubusercontent.com/ibrahim-koraikir/AhmedHytworker-AdsConfig/main/ad_networks.json"
+            "https://raw.githubusercontent.com/var123321/AhmedHytworker-AdsConfig/main/ad_networks.json"
 
         /** SharedPreferences key where the cached ad URL set is persisted. */
         private const val KEY_CACHED_URLS = "direct_ad_urls_v3"
