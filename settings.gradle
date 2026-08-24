@@ -7,3 +7,7 @@ include ':app'
 include ':Preference'
 project(':Preference').projectDir = new File(rootDir, 'subs/Preference/lib')
 
+// Standalone AdBlock Engine library module
+include ':AdBlock'
+project(':AdBlock').projectDir = new File(rootDir, 'subs/AdBlock/lib')
+
